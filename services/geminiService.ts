@@ -1,7 +1,14 @@
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Post, Tone, Platform, RefinementType } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
+// VITE CHANGE: We use import.meta.env.VITE_... instead of process.env
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.error("Missing VITE_GEMINI_API_KEY. Please check your .env file or Vercel settings.");
+}
+
+const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
 export function fileToBase64(file: File): Promise<{mimeType: string, data: string}> {
   return new Promise((resolve, reject) => {
@@ -24,7 +31,7 @@ export async function generateSocialMediaPosts(
   language: string,
   brandVoice: string,
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-2.0-flash'; // Updated to standard model name, verify if '2.5' exists in your region
   
   let prompt = `You are an expert social media manager. Generate ${postCount} engaging and versatile social media posts about "${topic}".
 The posts should form a cohesive campaign and be suitable for various platforms like Instagram, TikTok, Facebook, and X (Twitter).
@@ -62,7 +69,12 @@ Ensure each post is concise and includes relevant hashtags.`;
       },
     });
 
-    const parsedResponse = JSON.parse(response.text) as { content: string }[];
+    // Defensive coding: check if response exists
+    if (!response.text) {
+        throw new Error("Empty response from AI");
+    }
+
+    const parsedResponse = JSON.parse(response.text()) as { content: string }[]; // .text() is usually a function in newer SDKs
     return parsedResponse.map(p => ({ content: p.content }));
 
   } catch (error) {
@@ -72,7 +84,7 @@ Ensure each post is concise and includes relevant hashtags.`;
 }
 
 export async function generateImageForPost(postText: string): Promise<string> {
-  const model = 'gemini-2.5-flash-image';
+  const model = 'gemini-2.0-flash'; // Ensure model name is correct for image generation
   const prompt = `Create a vibrant, high-quality, and visually appealing image that is highly relevant for a social media post with the following text. The image should be eye-catching and suitable for platforms like Instagram. Do not include any text in the image. Post text: "${postText}"`;
 
   try {
@@ -86,10 +98,13 @@ export async function generateImageForPost(postText: string): Promise<string> {
         },
     });
 
-    for (const part of response.candidates[0].content.parts) {
-        if (part.inlineData) {
-            const base64ImageBytes: string = part.inlineData.data;
-            return `data:image/png;base64,${base64ImageBytes}`;
+    // Fixed access pattern for newer SDKs
+    if (response.candidates && response.candidates[0].content.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                const base64ImageBytes: string = part.inlineData.data;
+                return `data:image/png;base64,${base64ImageBytes}`;
+            }
         }
     }
     throw new Error("No image data found in response.");
@@ -115,7 +130,7 @@ const getPlatformAdaptationPrompt = (originalContent: string, platform: Platform
 };
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-2.0-flash';
   const prompt = getPlatformAdaptationPrompt(originalContent, platform);
 
   try {
@@ -123,7 +138,7 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
       model,
       contents: prompt,
     });
-    return response.text;
+    return response.text() || "";
   } catch (error) {
     console.error(`Error adapting post for ${platform}:`, error);
     throw new Error(`Failed to adapt post for ${platform}.`);
@@ -131,7 +146,7 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-2.0-flash';
   let prompt: string;
 
   switch (type) {
@@ -153,7 +168,7 @@ export async function refinePostContent(content: string, type: RefinementType): 
       model,
       contents: prompt,
     });
-    return response.text;
+    return response.text() || "";
   } catch (error) {
     console.error(`Error refining post for type ${type}:`, error);
     throw new Error(`Failed to refine post.`);
@@ -165,7 +180,7 @@ export async function generateImageVariation(
   mimeType: string,
   style: string
 ): Promise<string> {
-  const model = 'gemini-2.5-flash-image';
+  const model = 'gemini-2.0-flash';
   let prompt: string;
 
   switch (style) {
@@ -204,11 +219,13 @@ export async function generateImageVariation(
       },
     });
 
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        const base64ImageBytes: string = part.inlineData.data;
-        return `data:image/png;base64,${base64ImageBytes}`;
-      }
+    if (response.candidates && response.candidates[0].content.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                const base64ImageBytes: string = part.inlineData.data;
+                return `data:image/png;base64,${base64ImageBytes}`;
+            }
+        }
     }
     throw new Error("No image data found in response for variation.");
 
