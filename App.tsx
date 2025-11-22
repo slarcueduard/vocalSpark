@@ -6,11 +6,18 @@ import { PostCard } from './components/PostCard';
 import { Loader } from './components/Loader';
 import { GithubIcon, SparklesIcon, UserPlusIcon, TrashIcon } from './components/Icons';
 import { ConnectAccountsModal } from './components/ConnectAccountsModal';
+// NEW IMPORTS
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthWrapper } from './components/AuthWrapper';
 
 type CreationMode = 'ai' | 'manual';
 const TOPIC_HISTORY_KEY = 'socialSparkTopicHistory';
 
-const App: React.FC = () => {
+// Internal Component containing your main app logic
+const SocialSparkApp: React.FC = () => {
+  // We get the logout function from our new context
+  const { logout } = useAuth();
+  
   const [topic, setTopic] = useState('The future of renewable energy');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [postCount, setPostCount] = useState(3);
@@ -70,9 +77,8 @@ const App: React.FC = () => {
         imageUrl: null,
         isGeneratingImage: false,
       })));
-       // Add to history
        if (!topicHistory.includes(topic)) {
-        setTopicHistory(prev => [topic, ...prev].slice(0, 10)); // Keep last 10
+        setTopicHistory(prev => [topic, ...prev].slice(0, 10));
       }
     } catch (err) {
       setError('Failed to generate posts. The AI might be busy. Please try again later.');
@@ -110,7 +116,6 @@ const App: React.FC = () => {
     };
 
     setPosts(prevPosts => [newPost, ...prevPosts]);
-    // Reset manual form
     setManualContent('');
     setManualImage(null);
     setManualImagePreview(null);
@@ -139,7 +144,6 @@ const App: React.FC = () => {
       ));
     } catch (err) {
       console.error(`Failed to adapt post for ${platform}`, err);
-      // Optionally show an error to the user
     }
   }, []);
 
@@ -149,7 +153,7 @@ const App: React.FC = () => {
         const refinedContent = await refinePostContent(content, type);
         setPosts(prev => prev.map(p => 
             p.id === postId 
-            ? { ...p, content: refinedContent, adaptedContent: {} } // Reset adaptations as content has changed
+            ? { ...p, content: refinedContent, adaptedContent: {} }
             : p
         ));
     } catch (err) {
@@ -162,7 +166,7 @@ const App: React.FC = () => {
   const handleCreatePostsFromImages = useCallback((imageUrls: string[]) => {
     const newPosts: Post[] = imageUrls.map(url => ({
       id: crypto.randomUUID(),
-      content: '', // Start with empty content
+      content: '',
       adaptedContent: {},
       imageUrl: url,
       isGeneratingImage: false,
@@ -187,6 +191,14 @@ const App: React.FC = () => {
               </h1>
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
+               {/* Added Logout Button */}
+               <button 
+                onClick={logout}
+                className="text-sm text-gray-400 hover:text-white px-3 py-1 border border-gray-600 rounded-md transition-colors"
+               >
+                 Logout
+               </button>
+
                <button 
                 onClick={() => setIsConnectModalOpen(true)}
                 className="flex items-center gap-2 bg-brand-secondary text-white font-semibold py-2 px-4 rounded-lg hover:bg-opacity-90 transition-transform transform hover:scale-105"
@@ -369,6 +381,17 @@ const App: React.FC = () => {
       </div>
       {isConnectModalOpen && <ConnectAccountsModal onClose={() => setIsConnectModalOpen(false)} onCreatePostsFromImages={handleCreatePostsFromImages} />}
     </>
+  );
+};
+
+// THE WRAPPER that connects Auth + App
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AuthWrapper>
+        <SocialSparkApp />
+      </AuthWrapper>
+    </AuthProvider>
   );
 };
 
