@@ -39,6 +39,66 @@ const HOOKS: ViralHook[] = [
     'Hack / Trick'
 ];
 
+// ... importurile rămân la fel ...
+
+// În interiorul SocialSparkApp:
+
+  return (
+    <MainLayout 
+        user={user} 
+        onSignOut={logout} 
+        onOpenImageStudio={() => {
+            // Deschide Image Studio doar dacă are credite
+            if(checkImageLimit()) {
+                setIsImageModalOpen(true);
+            } else {
+                setShowPricing(true);
+            }
+        }}
+        onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}
+        currentMode={appMode}
+        onSwitchMode={setAppMode}
+    >
+        {/* --- START NEW HEADER --- */}
+        <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex justify-between items-center shadow-md relative z-10">
+           
+           {/* Stânga: Credite */}
+           <div className="flex items-center gap-3 text-sm">
+               <div className="bg-gray-800 rounded-full px-3 py-1 border border-gray-600 flex items-center gap-2">
+                   <SparklesIcon className={`w-4 h-4 ${userProfile?.imageCount >= userProfile?.imageLimit ? 'text-red-500' : 'text-green-400'}`} />
+                   <span className="text-gray-300 font-medium">
+                       AI Images: 
+                       <span className="text-white ml-1 font-bold">
+                           {Math.max(0, (userProfile?.imageLimit || 5) - (userProfile?.imageCount || 0))}
+                       </span>
+                       <span className="text-gray-500 mx-1">/</span>
+                       <span className="text-gray-500">{userProfile?.imageLimit || 5}</span>
+                   </span>
+               </div>
+               
+               {/* Arată Trial Badge dacă e cazul */}
+               {userProfile?.subscriptionTier === 'trial' && (
+                   <span className="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded border border-yellow-500/30">
+                       Free Trial
+                   </span>
+               )}
+           </div>
+
+           {/* Dreapta: Buton Upgrade */}
+           <button 
+                onClick={() => setShowPricing(true)} 
+                className="bg-gradient-to-r from-brand-primary to-blue-600 hover:opacity-90 text-white text-xs font-bold uppercase tracking-wide py-2 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105 flex items-center gap-2"
+           >
+               <BriefcaseIcon className="w-4 h-4" />
+               View Plans & Upgrade
+           </button>
+        </div>
+        {/* --- END NEW HEADER --- */}
+
+        <div className="flex h-full w-full relative">
+            {/* ... Restul codului (A. CENTER, B. RIGHT) rămâne exact la fel ... */}
+            {/* Asigură-te că închizi corect div-urile */}
+
 // Internal Component containing your main app logic
 const SocialSparkApp: React.FC = () => {
   const { user, logout, brandProfile, saveBrandProfile } = useAuth();
