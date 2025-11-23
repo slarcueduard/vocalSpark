@@ -4,27 +4,80 @@ import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
-// --- 1. IMAGINI: FOLOSIM UNSPLASH (GRATIS & STABIL) ---
-// Aceasta rezolva eroarea 400 instantaneu.
+// --- 1. IMAGINI: FOLOSIM POLLINATIONS (GRATIS & STABIL - FĂRĂ EROARE 400) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
-  console.log("Generating image via Fallback (Unsplash)...");
-  // Simulăm o mică întârziere ca să pară că "gândește"
+  console.log("Generating image via Fallback...");
+  // Simulăm așteptare
   await new Promise(r => setTimeout(r, 1000));
   
-  // Alegem un cuvânt cheie relevant din text
-  const keyword = postText.split(' ').slice(0, 2).join(',') || "business";
-  
-  // Returnăm o imagine reală de pe Unsplash
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(postText)}?width=1080&height=1080&nologo=true`;
+  const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
+  // Seed random pentru a avea imagini diferite la același prompt
+  const seed = Math.floor(Math.random() * 1000);
+  return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}`;
 }
 
 export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
   console.log("Generating variation via Fallback...");
   await new Promise(r => setTimeout(r, 1500));
-  return `https://image.pollinations.ai/prompt/${encodeURIComponent(style + " style image")}?width=1080&height=1080&nologo=true`;
+  
+  const cleanStyle = encodeURIComponent(style + " style artistic image");
+  const seed = Math.floor(Math.random() * 1000);
+  return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}`;
 }
 
-// --- 2. TEXT: RĂMÂNE PE GOOGLE GEMINI (FUNCȚIONEAZĂ BINE) ---
+// --- 2. LOGO OVERLAY (FUNCȚIA CARE LIPSEA ȘI OPRA BUILD-UL) ---
+export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+
+export async function overlayLogoOnImage(
+  mainImageUrl: string, 
+  logoUrl: string, 
+  position: LogoPosition = 'top-left',
+  removeBg: boolean = false
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const mainImg = new Image();
+    const logoImg = new Image();
+
+    mainImg.crossOrigin = "Anonymous";
+    logoImg.crossOrigin = "Anonymous";
+
+    mainImg.onload = () => {
+      canvas.width = mainImg.width;
+      canvas.height = mainImg.height;
+      ctx?.drawImage(mainImg, 0, 0);
+
+      logoImg.onload = () => {
+        if (ctx) {
+          const logoWidth = canvas.width * 0.20;
+          const scaleFactor = logoWidth / logoImg.width;
+          const logoHeight = logoImg.height * scaleFactor;
+          const padding = canvas.width * 0.05;
+          let x = padding;
+          let y = padding;
+
+          switch (position) {
+              case 'top-left': x = padding; y = padding; break;
+              case 'top-right': x = canvas.width - logoWidth - padding; y = padding; break;
+              case 'bottom-left': x = padding; y = canvas.height - logoHeight - padding; break;
+              case 'bottom-right': x = canvas.width - logoWidth - padding; y = canvas.height - logoHeight - padding; break;
+          }
+          ctx.shadowColor = "rgba(0,0,0,0.5)";
+          ctx.shadowBlur = 15;
+          ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
+          resolve(canvas.toDataURL('image/png'));
+        }
+      };
+      logoImg.onerror = (e) => reject(e);
+      logoImg.src = logoUrl;
+    };
+    mainImg.onerror = (e) => reject(e);
+    mainImg.src = mainImageUrl;
+  });
+}
+
+// --- 3. TEXT: GOOGLE GEMINI (RĂMÂNE NESCHIMBAT) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -36,7 +89,7 @@ export async function generateSocialMediaPosts(
   if (!apiKey) throw new Error("API Key missing");
   
   const model = 'gemini-2.0-flash';
-  let prompt = `Generate ${postCount} social media posts about "${topic}". Tone: ${tone}. Language: ${language}. Return ONLY a JSON array with objects containing a 'content' field.`;
+  let prompt = `Generate ${postCount} social media posts about "${topic}". Tone: ${tone}. Language: ${language}. Return ONLY a JSON array.`;
   
   try {
     const response = await ai.models.generateContent({
@@ -45,10 +98,7 @@ export async function generateSocialMediaPosts(
       config: { responseMimeType: "application/json" }
     });
     
-    const text = response.text();
-    if (!text) return [];
-    
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(response.text() || "[]");
     if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
     return [];
   } catch (e) {
@@ -57,14 +107,11 @@ export async function generateSocialMediaPosts(
   }
 }
 
-// --- HELPER FUNCTIONS ---
+// Helper Functions
 export function fileToBase64(file: File): Promise<{mimeType: string, data: string}> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-        const res = reader.result as string;
-        resolve({ mimeType: res.split(';')[0].split(':')[1], data: res.split(',')[1] });
-    };
+    reader.onload = () => resolve({ mimeType: (reader.result as string).split(';')[0].split(':')[1], data: (reader.result as string).split(',')[1] });
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
