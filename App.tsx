@@ -1,24 +1,21 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     generateSocialMediaPosts, 
     generateImageForPost, 
     adaptPostForPlatform, 
     refinePostContent 
 } from './services/geminiService';
-import { Post, Tone, Platform, AppMode, ViralHook, BrandProfile, RefinementType } from './types';
+import { Post, Tone, Platform, AppMode, ViralHook, RefinementType } from './types';
 import { TONES, PLATFORMS } from './constants';
 import { Loader } from './components/Loader';
 import { 
     SparklesIcon, 
-    SettingsIcon, 
-    CheckCircleIcon, 
     MagicWandIcon,
     BriefcaseIcon,
     ImageIcon,
     TrashIcon,
-    MessageCircleIcon,
-    PaletteIcon
+    PaletteIcon,
+    CheckCircleIcon
 } from './components/Icons';
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
@@ -27,6 +24,7 @@ import { AuthWrapper } from './components/AuthWrapper';
 import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
+import { PricingModal } from './components/PricingModal';
 
 const TOPIC_HISTORY_KEY = 'socialSparkTopicHistory';
 const HOOKS: ViralHook[] = [
@@ -45,6 +43,10 @@ const HOOKS: ViralHook[] = [
 const SocialSparkApp: React.FC = () => {
   const { user, logout, brandProfile, saveBrandProfile } = useAuth();
   
+  // -- NEW: CREDIT SYSTEM --
+  const { userProfile, checkImageLimit, incrementImageCount } = useAuth();
+  const [showPricing, setShowPricing] = useState(false);
+
   // -- GLOBAL STATE --
   const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +54,7 @@ const SocialSparkApp: React.FC = () => {
   const [topicHistory, setTopicHistory] = useState<string[]>([]);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
-  
+
   // -- UI STATE --
   const [showHookInfo, setShowHookInfo] = useState(false);
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
@@ -83,7 +85,6 @@ const SocialSparkApp: React.FC = () => {
     }
   }, []);
 
-  // -- AUTO SWITCH MODE (Only on initial load/profile change if user hasn't manually set) --
   useEffect(() => {
     if (brandProfile && appMode === 'creator') {
         setAppMode('business');
@@ -100,7 +101,6 @@ const SocialSparkApp: React.FC = () => {
     setError(null);
 
     try {
-      // Context Construction
       let finalTopic = topic;
       if (appMode === 'creator' && viralHook) {
           if (viralHook === 'Straight to the Point') {
@@ -117,11 +117,10 @@ const SocialSparkApp: React.FC = () => {
           tone, 
           count, 
           'English', 
-          '', // Custom voice string (legacy)
+          '', 
           (appMode === 'business' && brandProfile) ? brandProfile : undefined
       );
       
-      // Hydrate new posts
       const newPosts: Post[] = generatedPosts.map(p => ({
         ...p,
         id: crypto.randomUUID(),
@@ -131,22 +130,10 @@ const SocialSparkApp: React.FC = () => {
         isLocked: false
       }));
 
-      // Update State: Append new posts, ensure max 6, respect locked posts.
       setPosts(currentPosts => {
           let combined = [...newPosts, ...currentPosts];
           const maxPosts = 6;
-
-          if (combined.length <= maxPosts) return combined;
-
-          // Pruning Strategy:
-          // 1. Keep new posts.
-          // 2. Keep older posts that are LOCKED.
-          // 3. Remove older posts that are UNLOCKED until we hit maxPosts.
-          // 4. If we still have > maxPosts (because all are locked), remove oldest locked.
-          
           while (combined.length > maxPosts) {
-              // Find the index of the last (oldest) UNLOCKED post
-              // We iterate from the end backwards.
               let indexToRemove = -1;
               for (let i = combined.length - 1; i >= 0; i--) {
                   if (!combined[i].isLocked) {
@@ -154,50 +141,58 @@ const SocialSparkApp: React.FC = () => {
                       break;
                   }
               }
-
               if (indexToRemove !== -1) {
                   combined.splice(indexToRemove, 1);
               } else {
-                  // Fallback: Hard limit reached with all locked posts. Remove oldest.
                   combined.pop();
               }
           }
-          
           return combined;
       });
       
-      // Save history
       if (!topicHistory.includes(topic)) {
         const newHistory = [topic, ...topicHistory].slice(0, 10);
         setTopicHistory(newHistory);
         localStorage.setItem(TOPIC_HISTORY_KEY, JSON.stringify(newHistory));
       }
 
-      // Automatic Image Generation for NEW posts if no image attached
+      // -- NEW: AUTO IMAGE GENERATION WITH LIMIT CHECK --
       if (!attachedImage) {
-          newPosts.forEach(async (post) => {
-              try {
-                  const generatedUrl = await generateImageForPost(
-                      post.content, 
-                      (appMode === 'business' && brandProfile) ? brandProfile : undefined
-                  );
-                  
-                  setPosts(currentPosts => 
-                      currentPosts.map(p => p.id === post.id 
-                          ? { ...p, imageUrl: generatedUrl, isGeneratingImage: false } 
-                          : p
-                      )
-                  );
-              } catch (err) {
-                  console.error("Auto-image generation failed", err);
-                  setPosts(currentPosts => 
-                      currentPosts.map(p => p.id === post.id 
-                          ? { ...p, isGeneratingImage: false } 
-                          : p
-                      )
-                  );
-              }
-          });
+          // Check limits BEFORE generating auto-images
+          if (checkImageLimit()) {
+            newPosts.forEach(async (post) => {
+                try {
+                    // Double check inside loop (optional but safer)
+                    if(!checkImageLimit()) throw new Error("Limit Reached");
+
+                    const generatedUrl = await generateImageForPost(
+                        post.content, 
+                        (appMode === 'business' && brandProfile) ? brandProfile : undefined
+                    );
+                    
+                    // DECREMENT CREDIT
+                    await incrementImageCount();
+
+                    setPosts(currentPosts => 
+                        currentPosts.map(p => p.id === post.id 
+                            ? { ...p, imageUrl: generatedUrl, isGeneratingImage: false } 
+                            : p
+                        )
+                    );
+                } catch (err) {
+                    console.error("Auto-image generation failed or limit reached", err);
+                    setPosts(currentPosts => 
+                        currentPosts.map(p => p.id === post.id 
+                            ? { ...p, isGeneratingImage: false } 
+                            : p
+                        )
+                    );
+                }
+            });
+          } else {
+             // If limit reached, just stop loading spinner for images
+             setPosts(current => current.map(p => ({...p, isGeneratingImage: false})));
+          }
       }
 
     } catch (err) {
@@ -216,10 +211,21 @@ const SocialSparkApp: React.FC = () => {
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, isLocked: !p.isLocked } : p));
   };
 
+  // -- NEW: MANUAL IMAGE GENERATION WITH LIMIT CHECK --
   const handleGenerateImageForPost = async (postId: string, postContent: string) => {
+    // 1. Check Limits
+    if (!checkImageLimit()) {
+        setShowPricing(true);
+        return;
+    }
+
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, isGeneratingImage: true } : p));
     try {
         const imageUrl = await generateImageForPost(postContent, brandProfile || undefined);
+        
+        // 2. Decrement Credit
+        await incrementImageCount();
+
         setPosts(prev => prev.map(p => p.id === postId ? { ...p, imageUrl, isGeneratingImage: false } : p));
     } catch (error) {
         console.error(error);
@@ -259,17 +265,14 @@ const SocialSparkApp: React.FC = () => {
       }
   };
 
-  // Helper to get active content for Preview
   const getActivePost = () => posts.length > 0 ? posts[0] : null;
   const activePost = getActivePost();
   
-  // Logic for preview content: Show Adapted version if one exists for the selected platform, otherwise original
   const previewContent = activePost 
     ? (activePost.adaptedContent[selectedPlatform] || activePost.content)
     : '';
 
   const renderBrandVoiceCard = () => {
-      // Only show this in Business Mode
       if (appMode !== 'business') return null;
 
       const hasProfile = !!brandProfile;
@@ -329,12 +332,31 @@ const SocialSparkApp: React.FC = () => {
     <MainLayout 
         user={user} 
         onSignOut={logout} 
-        onOpenImageStudio={() => setIsImageModalOpen(true)}
+        onOpenImageStudio={() => {
+            if(checkImageLimit()) {
+                setIsImageModalOpen(true);
+            } else {
+                setShowPricing(true);
+            }
+        }}
         onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}
         currentMode={appMode}
         onSwitchMode={setAppMode}
     >
-        {/* DASHBOARD GRID */}
+        {/* NEW: CREDIT BANNER */}
+        <div className="bg-brand-bg-dark border-b border-gray-800 p-1 flex justify-center items-center gap-4 text-xs">
+           {userProfile?.subscriptionTier === 'trial' ? (
+             <span className="text-yellow-400 font-bold">
+               Trial Active: {Math.max(0, (userProfile?.imageLimit || 5) - (userProfile?.imageCount || 0))} images left
+             </span>
+           ) : (
+             <span className="text-brand-primary font-bold">
+               Credits: {Math.max(0, (userProfile?.imageLimit || 50) - (userProfile?.imageCount || 0))} left
+             </span>
+           )}
+           <button onClick={() => setShowPricing(true)} className="underline text-gray-500 hover:text-white">Upgrade Plan</button>
+        </div>
+
         <div className="flex h-full w-full">
             
             {/* A. CENTER: EDITOR */}
@@ -376,12 +398,18 @@ const SocialSparkApp: React.FC = () => {
                             />
                         </div>
 
-                        {/* Visuals Section (NEW) */}
+                        {/* Visuals Section */}
                         <div>
                              <label className="block text-sm font-medium mb-2 text-gray-300">Visuals (Optional)</label>
                              {!attachedImage ? (
                                  <button 
-                                    onClick={() => setIsImageModalOpen(true)}
+                                    onClick={() => {
+                                        if(checkImageLimit()) {
+                                            setIsImageModalOpen(true);
+                                        } else {
+                                            setShowPricing(true);
+                                        }
+                                    }}
                                     className="w-full border-2 border-dashed border-gray-700 rounded-xl p-4 flex flex-col items-center justify-center text-brand-text-secondary hover:border-brand-secondary hover:bg-brand-secondary/5 transition group"
                                  >
                                      <ImageIcon className="w-8 h-8 mb-2 group-hover:scale-110 transition" />
@@ -428,10 +456,7 @@ const SocialSparkApp: React.FC = () => {
                                 {showHookInfo && (
                                     <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-200 leading-relaxed">
                                         <strong className="block mb-1 text-blue-100">What is a Viral Hook?</strong>
-                                        A "Hook" is the specific angle or opening line designed to stop people from scrolling. 
-                                        For example, <em>"Unpopular Opinion"</em> triggers curiosity, while <em>"Storytime"</em> builds personal connection.
-                                        <br/>
-                                        <em>"Straight to the Point"</em> is for when you just want to deliver the message clearly and concisely.
+                                        A "Hook" is the specific angle or opening line designed to stop people from scrolling.
                                     </div>
                                 )}
 
@@ -479,7 +504,6 @@ const SocialSparkApp: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Business Mode: Campaign Toggle */}
                         {appMode === 'business' && (
                              <div className="flex items-center gap-3 p-4 bg-brand-bg-dark rounded-xl border border-gray-700/50">
                                 <input 
@@ -496,14 +520,12 @@ const SocialSparkApp: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Error Display */}
                         {error && (
                             <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm text-center">
                                 {error}
                             </div>
                         )}
 
-                        {/* Generate Action */}
                         <button 
                             onClick={handleGenerate}
                             disabled={isLoading}
@@ -517,7 +539,7 @@ const SocialSparkApp: React.FC = () => {
                             {isLoading ? 'Creating Magic...' : 'Generate Content'}
                         </button>
 
-                        {/* GENERATED RESULTS (POST CARDS) */}
+                        {/* GENERATED RESULTS */}
                         {posts.length > 0 && (
                             <div className="mt-8 animate-fadeIn">
                                 <div className="flex items-center justify-between mb-4">
@@ -591,11 +613,12 @@ const SocialSparkApp: React.FC = () => {
                 onClose={() => setIsBrandProfileModalOpen(false)}
             />
         )}
+        {/* NEW: Pricing Modal */}
+        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
     </MainLayout>
   );
 };
 
-// THE WRAPPER
 const App: React.FC = () => {
   return (
     <AuthProvider>
