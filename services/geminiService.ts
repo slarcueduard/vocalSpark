@@ -1,9 +1,7 @@
-// IMPORTĂM SDK-UL STABIL
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
 // Inițializare SDK Stabil
 const genAI = new GoogleGenerativeAI(apiKey || "MISSING_KEY");
 
@@ -14,7 +12,6 @@ export async function generateImageForPost(postText: string, brandProfile?: Bran
   
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
   const seed = Math.floor(Math.random() * 1000);
-  // Folosim modelul flux pentru calitate maximă
   return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
 }
 
@@ -75,7 +72,7 @@ export async function overlayLogoOnImage(
   });
 }
 
-// --- 3. GENERARE TEXT (SDK STABIL - gemini-1.5-flash) ---
+// --- 3. GENERARE TEXT (GEMINI 1.5 FLASH 001 - VERSIUNE FIXĂ) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -89,8 +86,10 @@ export async function generateSocialMediaPosts(
   
   if (!apiKey) return [{ content: "API Key Missing. Check Settings." }];
   
-  // Obținem modelul (Sintaxa SDK-ului stabil)
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  // FIX: Folosim versiunea specifică '001' care este garantată să existe
+  // Dacă totuși dă eroare, poți încerca 'gemini-pro' ca ultim resort
+  const modelName = "gemini-1.5-flash-001"; 
+  const model = genAI.getGenerativeModel({ model: modelName });
   
   let userPrompt = `
   ACT AS: Expert Social Media Manager.
@@ -120,14 +119,12 @@ export async function generateSocialMediaPosts(
 
     parts.push({ text: userPrompt });
 
-    // Apelare Generare
     const result = await model.generateContent(parts);
     const response = await result.response;
     let text = response.text();
     
     if (!text) return [];
 
-    // Curățare JSON
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
     const parsed = JSON.parse(text);
@@ -139,7 +136,7 @@ export async function generateSocialMediaPosts(
   } catch (e: any) {
     console.error("Text generation failed", e);
     const errorMsg = e.message || "Unknown Error";
-    return [{ content: `Error generating text: ${errorMsg}. Please try again.` }];
+    return [{ content: `Error generating text (${modelName}): ${errorMsg}. Please try again.` }];
   }
 }
 
@@ -155,7 +152,7 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Adapt for ${platform}:\n"${originalContent}"`);
     return result.response.text();
   } catch (e) { return originalContent; }
@@ -163,7 +160,7 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Rewrite (${type}): "${content}"`);
     return result.response.text();
   } catch (e) { return content; }
@@ -171,7 +168,7 @@ export async function refinePostContent(content: string, type: RefinementType): 
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Analyze style: "${sampleText}"`);
     return result.response.text();
   } catch (e) { return ""; }
