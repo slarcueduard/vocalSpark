@@ -4,9 +4,8 @@ import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey || "MISSING_KEY");
 
-// --- 1. IMAGINI: POLLINATIONS (Gratis & Rapid) ---
+// --- 1. IMAGINI (Pollinations - Gratis & Stabil) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
-  console.log("Generating stock image...");
   await new Promise(r => setTimeout(r, 1000));
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
   const seed = Math.floor(Math.random() * 1000);
@@ -56,7 +55,7 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
   });
 }
 
-// --- 3. GENERARE TEXT (GEMINI 1.5 FLASH) ---
+// --- 3. GENERARE TEXT (FOLOSIM MODELUL STABIL 001) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -68,27 +67,26 @@ export async function generateSocialMediaPosts(
   imageMimeType?: string
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
   
-  if (!apiKey) return [{ content: "API Key Missing. Check Settings." }];
+  if (!apiKey) return [{ content: "API Key Missing." }];
   
-  // MODELUL STANDARD
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  // FIX SUPREM: Folosim versiunea specifică '-001'. Asta rezolvă eroarea 404.
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
   
   let userPrompt = `
   ACT AS: Expert Social Media Manager.
   TASK: Write ${postCount} engaging posts about: "${topic}".
   TONE: ${tone}.
   LANGUAGE: ${language}.
-  OUTPUT: JSON Array of objects with 'content' field. No markdown.
+  OUTPUT: JSON Array of objects. Example: [{"content": "..."}]
   `;
 
   if (brandVoice) userPrompt += `\nSTYLE: ${brandVoice}`;
 
   try {
     const parts: any[] = [];
-    
     if (imageBase64 && imageMimeType) {
         parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } });
-        userPrompt += `\nCONTEXT: Describe the image provided in the post.`;
+        userPrompt += `\nCONTEXT: Describe the image provided.`;
     }
     parts.push({ text: userPrompt });
 
@@ -99,14 +97,13 @@ export async function generateSocialMediaPosts(
     if (!text) return [];
 
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
     const parsed = JSON.parse(text);
     if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
     return [];
 
   } catch (e: any) {
     console.error("Text generation failed", e);
-    return [{ content: `Error: ${e.message}. Please update API Key.` }];
+    return [{ content: `Error: ${e.message}.` }];
   }
 }
 
@@ -122,7 +119,7 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Adapt for ${platform}:\n"${originalContent}"`);
     return result.response.text();
   } catch (e) { return originalContent; }
@@ -130,7 +127,7 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Rewrite (${type}): "${content}"`);
     return result.response.text();
   } catch (e) { return content; }
@@ -138,7 +135,7 @@ export async function refinePostContent(content: string, type: RefinementType): 
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Analyze style: "${sampleText}"`);
     return result.response.text();
   } catch (e) { return ""; }
