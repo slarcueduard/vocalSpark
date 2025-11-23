@@ -2,17 +2,20 @@ import { GoogleGenAI } from "@google/genai";
 import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+// Inițializare safe (nu crapă dacă lipsește cheia, dar dă eroare la apelare)
 const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
-// --- 1. IMAGINI: FOLOSIM POLLINATIONS (GRATIS & STABIL - FĂRĂ EROARE 400) ---
+// --- 1. GENERARE IMAGINI (Folosim Pollinations pentru stabilitate și cost $0) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
-  console.log("Generating image via Fallback...");
-  // Simulăm așteptare
+  console.log("Generating image via Fallback (Pollinations)...");
+  // Simulăm o mică întârziere pentru UX (să vadă userul loader-ul)
   await new Promise(r => setTimeout(r, 1000));
   
+  // Curățăm promptul și adăugăm un seed random ca să fie imagini diferite mereu
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
-  // Seed random pentru a avea imagini diferite la același prompt
   const seed = Math.floor(Math.random() * 1000);
+  
+  // Returnăm URL-ul direct
   return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}`;
 }
 
@@ -25,7 +28,7 @@ export async function generateImageVariation(base64ImageData: string, mimeType: 
   return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}`;
 }
 
-// --- 2. LOGO OVERLAY (FUNCȚIA CARE LIPSEA ȘI OPRA BUILD-UL) ---
+// --- 2. LOGO OVERLAY (Aceasta este funcția care lipsea și dădea eroare la build) ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 export async function overlayLogoOnImage(
@@ -77,7 +80,7 @@ export async function overlayLogoOnImage(
   });
 }
 
-// --- 3. TEXT: GOOGLE GEMINI (RĂMÂNE NESCHIMBAT) ---
+// --- 3. GENERARE TEXT (Google Gemini 2.0 Flash) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -89,7 +92,7 @@ export async function generateSocialMediaPosts(
   if (!apiKey) throw new Error("API Key missing");
   
   const model = 'gemini-2.0-flash';
-  let prompt = `Generate ${postCount} social media posts about "${topic}". Tone: ${tone}. Language: ${language}. Return ONLY a JSON array.`;
+  let prompt = `Generate ${postCount} social media posts about "${topic}". Tone: ${tone}. Language: ${language}. Return ONLY a JSON array with objects containing a 'content' field.`;
   
   try {
     const response = await ai.models.generateContent({
@@ -107,7 +110,7 @@ export async function generateSocialMediaPosts(
   }
 }
 
-// Helper Functions
+// --- Helper Functions ---
 export function fileToBase64(file: File): Promise<{mimeType: string, data: string}> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
