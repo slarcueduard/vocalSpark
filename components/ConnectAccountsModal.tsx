@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { fileToBase64, generateImageVariation } from '../services/geminiService';
 import { ARTISTIC_STYLES, ENHANCEMENT_STYLES } from '../constants';
