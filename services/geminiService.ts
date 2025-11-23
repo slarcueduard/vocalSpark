@@ -4,22 +4,9 @@ import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
 const genAI = new GoogleGenerativeAI(apiKey || "MISSING_KEY");
 
-// --- DIAGNOSTIC: Vezi în consolă ce modele ai disponibile ---
-(async () => {
-    if (!apiKey) return;
-    try {
-        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-        // Nu putem lista modelele direct din browser cu acest SDK din motive de securitate CORS uneori,
-        // dar încercăm un ping simplu.
-        console.log("Gemini Service Initialized. API Key present.");
-    } catch (e) {
-        console.error("Gemini Init Error:", e);
-    }
-})();
-
-// --- 1. IMAGINI (Pollinations - Stabil) ---
+// --- 1. IMAGINI: POLLINATIONS (Gratis & Rapid) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
-  console.log("Fetching stock image...");
+  console.log("Generating stock image...");
   await new Promise(r => setTimeout(r, 1000));
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
   const seed = Math.floor(Math.random() * 1000);
@@ -69,7 +56,7 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
   });
 }
 
-// --- 3. GENERARE TEXT (STRATEGIE FALLBACK) ---
+// --- 3. GENERARE TEXT (GEMINI 1.5 FLASH) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -81,82 +68,49 @@ export async function generateSocialMediaPosts(
   imageMimeType?: string
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
   
-  if (!apiKey) return [{ content: "API Key Missing." }];
-
+  if (!apiKey) return [{ content: "API Key Missing. Check Settings." }];
+  
+  // MODELUL STANDARD
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  
   let userPrompt = `
   ACT AS: Expert Social Media Manager.
   TASK: Write ${postCount} engaging posts about: "${topic}".
   TONE: ${tone}.
   LANGUAGE: ${language}.
-  OUTPUT: JSON Array only. Example: [{"content": "..."}]
+  OUTPUT: JSON Array of objects with 'content' field. No markdown.
   `;
+
   if (brandVoice) userPrompt += `\nSTYLE: ${brandVoice}`;
 
-  // Încercăm întâi modelul MODERN (vede imagini)
   try {
-    console.log("Attempting Primary Model: gemini-1.5-flash");
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
     const parts: any[] = [];
+    
     if (imageBase64 && imageMimeType) {
         parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } });
-        userPrompt += `\nCONTEXT: Describe the image provided.`;
+        userPrompt += `\nCONTEXT: Describe the image provided in the post.`;
     }
     parts.push({ text: userPrompt });
 
     const result = await model.generateContent(parts);
     const response = await result.response;
-    return parseResponse(response.text());
-
-  } catch (primaryError: any) {
-    console.warn("Primary model failed (404/Error). Switching to FALLBACK model (gemini-pro).", primaryError);
+    let text = response.text();
     
-    // Încercăm modelul CLASIC (doar text, fără imagini)
-    try {
-        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-pro" });
-        // Gemini Pro NU suportă imagini, deci trimitem doar textul
-        const fallbackResult = await fallbackModel.generateContent(userPrompt);
-        const fallbackResponse = await fallbackResult.response;
-        return parseResponse(fallbackResponse.text());
-    } catch (secondaryError: any) {
-        console.error("All models failed.", secondaryError);
-        return [{ content: `Generation failed. API Error: ${secondaryError.message || "Unknown"}` }];
-    }
+    if (!text) return [];
+
+    text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    const parsed = JSON.parse(text);
+    if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
+    return [];
+
+  } catch (e: any) {
+    console.error("Text generation failed", e);
+    return [{ content: `Error: ${e.message}. Please update API Key.` }];
   }
 }
 
-// Helper pentru curățarea JSON-ului
-function parseResponse(text: string): any[] {
-    if (!text) return [];
-    try {
-        const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleanText);
-        if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
-        return [];
-    } catch (e) {
-        return [{ content: text }]; // Dacă nu e JSON, returnăm textul brut
-    }
-}
-
-// --- HELPER FUNCTIONS (Fallback la gemini-pro dacă e nevoie) ---
-async function runTextTask(prompt: string): Promise<string> {
-    try {
-        // Încercăm flash
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const result = await model.generateContent(prompt);
-        return result.response.text();
-    } catch (e) {
-        // Fallback la pro
-        try {
-            const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-            const result = await model.generateContent(prompt);
-            return result.response.text();
-        } catch (e2) {
-            return "";
-        }
-    }
-}
-
+// --- HELPER FUNCTIONS ---
 export function fileToBase64(file: File): Promise<{mimeType: string, data: string}> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -167,13 +121,25 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 }
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
-  return runTextTask(`Adapt for ${platform}:\n"${originalContent}"`);
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Adapt for ${platform}:\n"${originalContent}"`);
+    return result.response.text();
+  } catch (e) { return originalContent; }
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
-  return runTextTask(`Rewrite (${type}): "${content}"`);
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Rewrite (${type}): "${content}"`);
+    return result.response.text();
+  } catch (e) { return content; }
 }
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
-  return runTextTask(`Analyze style: "${sampleText}"`);
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Analyze style: "${sampleText}"`);
+    return result.response.text();
+  } catch (e) { return ""; }
 }
