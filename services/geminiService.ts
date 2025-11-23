@@ -8,7 +8,15 @@ const rawApiKey = process.env.API_KEY || "";
 
 // Sanitization: Remove double quotes, single quotes, and extra whitespace
 // This fixes issues where users accidentally copy the key with quotes around it
-const apiKey = rawApiKey.replace(/["']/g, "").trim();
+// CRITICAL FIX: Use the Vite specific environment variable
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.error("CRITICAL ERROR: API Key is missing. Check Vercel Environment Variables.");
+  throw new Error("API Key is missing");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey);
 
 const isKeyValid = apiKey && apiKey.length > 10 && apiKey !== "MISSING_KEY";
 
