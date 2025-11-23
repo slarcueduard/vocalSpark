@@ -1,9 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { fileToBase64, generateImageVariation, generateImageForPost } from '../services/geminiService';
-import { ARTISTIC_STYLES, ENHANCEMENT_STYLES, PERSON_STYLES } from '../constants';
-import { CloseIcon, ImageIcon, SparklesIcon, CheckCircleIcon, UploadIcon, MagicWandIcon, DownloadIcon } from './Icons';
-import { Loader } from './Loader';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useRef, useEffect } from 'react';
+import { XIcon, MagicWandIcon, ImageIcon, Loader, SparklesIcon } from './Icons';
+import { generateImageForPost, generateImageVariation } from '../services/geminiService';
 
 interface ImageCreationModalProps {
   onClose: () => void;
@@ -11,383 +8,301 @@ interface ImageCreationModalProps {
   initialPrompt?: string;
 }
 
-type Tab = 'upload' | 'generate' | 'magic_edit';
-type Stage = 'input' | 'processing' | 'results';
+// 1. FILTRE INSTANT (CSS Styles) - Execuție Locală
+const INSTANT_FILTERS = [
+  { name: 'Original', filter: 'none' },
+  { name: 'B & W', filter: 'grayscale(100%)' },
+  { name: 'Vintage', filter: 'sepia(50%) contrast(85%) brightness(110%)' },
+  { name: 'Vivid', filter: 'saturate(150%) contrast(110%)' },
+  { name: 'Dramatic', filter: 'contrast(125%) brightness(90%)' },
+  { name: 'Soft', filter: 'brightness(110%) contrast(90%) saturate(90%)' },
+];
+
+// 2. AI STYLES - Execuție Server (Durează)
+const AI_STYLES = [
+  'Neon Noir', 'Cyberpunk', 'Pixar Animation', 'Fantasy Art', 
+  'Gothic Noir', 'Pop Art', 'Product Pro', 'Watercolor'
+];
+
+const ImagePreview: React.FC<{ src: string; onSelect: () => void; filter?: string }> = ({ src, onSelect, filter }) => {
+    const [loaded, setLoaded] = useState(false);
+    
+    return (
+        <div onClick={onSelect} className="relative aspect-square bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-primary cursor-pointer group transition-all">
+            {!loaded && <div className="absolute inset-0 flex items-center justify-center"><Loader /></div>}
+            <img 
+                src={src} 
+                alt="Generated" 
+                className={`w-full h-full object-cover transition-all duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+                style={{ filter: filter || 'none' }}
+                onLoad={() => setLoaded(true)}
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                <button className="bg-brand-primary text-black text-xs font-bold px-3 py-1.5 rounded-lg transform translate-y-2 group-hover:translate-y-0 transition">
+                    Select This
+                </button>
+            </div>
+        </div>
+    );
+};
 
 export const ImageCreationModal: React.FC<ImageCreationModalProps> = ({ onClose, onSelectImage, initialPrompt }) => {
-  const { brandProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('upload');
-  const [stage, setStage] = useState<Stage>('input');
+  const [activeTab, setActiveTab] = useState<'upload' | 'generate'>('upload');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   
-  // Upload State
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
-  
-  // Generate State
+  // State pentru Filtre Locale
+  const [activeFilter, setActiveFilter] = useState<string>('none');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // State pentru AI
   const [prompt, setPrompt] = useState(initialPrompt || '');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiResults, setAiResults] = useState<string[]>([]);
 
-  // Magic Edit State
-  const [magicEditPrompt, setMagicEditPrompt] = useState('');
-
-  // Results State
-  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setError(null);
-    }
+  // --- A. LOGICA PENTRU FILTRE INSTANT (LOCAL) ---
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const url = URL.createObjectURL(e.target.files[0]);
+          setSelectedImage(url);
+          setActiveTab('upload');
+          setActiveFilter('none'); // Reset filter
+      }
   };
 
-  const handleStyleToggle = (style: string) => {
-    setSelectedStyles(prev => {
-      if (prev.includes(style)) return prev.filter(s => s !== style);
-      if (prev.length < 3) return [...prev, style];
-      return prev;
-    });
-  };
-
-  const handleGenerateVariations = useCallback(async () => {
-    if (!uploadedFile || selectedStyles.length === 0) {
-        setError("Please upload an image and select at least one style.");
-        return;
-    }
-
-    setStage('processing');
-    setError(null);
-    setGeneratedImages([]);
-
-    try {
-      const { mimeType, data } = await fileToBase64(uploadedFile);
+  // Salvează imaginea cu filtrul CSS aplicat ("Burn in")
+  const saveFilteredImage = () => {
+      if (!selectedImage || !canvasRef.current) return;
       
-      // Process variations individually so one failure doesn't stop the others
-      const promises = selectedStyles.map(async style => {
-          try {
-              return await generateImageVariation(data, mimeType, style);
-          } catch (err) {
-              console.error(`Failed to generate ${style} variation:`, err);
-              return null;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.src = selectedImage;
+
+      img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          if (ctx) {
+              // Aplicăm filtrul pe contextul Canvas
+              ctx.filter = activeFilter;
+              ctx.drawImage(img, 0, 0, img.width, img.height);
+              
+              // Exportăm ca imagine nouă
+              const newDataUrl = canvas.toDataURL('image/png');
+              onSelectImage(newDataUrl);
+              onClose();
           }
-      });
-
-      const results = await Promise.all(promises);
-      const successfulImages = results.filter(img => img !== null) as string[];
-
-      if (successfulImages.length === 0) {
-          throw new Error("All image variations failed. Please try a different image or style.");
-      }
-
-      setGeneratedImages(successfulImages);
-      if (successfulImages.length < selectedStyles.length) {
-           setError("Some variations couldn't be generated due to safety filters, but here are the successful ones.");
-      }
-      
-      setStage('results');
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to generate variations. Please try again.');
-      setStage('input');
-    }
-  }, [uploadedFile, selectedStyles]);
-
-  const handleMagicEdit = useCallback(async () => {
-      if (!uploadedFile || !magicEditPrompt.trim()) {
-          setError("Please upload an image and describe the change.");
-          return;
-      }
-      setStage('processing');
-      setError(null);
-      
-      try {
-          const { mimeType, data } = await fileToBase64(uploadedFile);
-          // Pass the magic edit prompt as a special style string that the service detects
-          const result = await generateImageVariation(data, mimeType, `Magic Edit: ${magicEditPrompt}`);
-          setGeneratedImages([result]);
-          setStage('results');
-      } catch (err: any) {
-          console.error(err);
-          setError(err.message || "Failed to edit image.");
-          setStage('input');
-      }
-
-  }, [uploadedFile, magicEditPrompt]);
-
-  const handleGenerateFromText = useCallback(async () => {
-    if (!prompt.trim()) {
-        setError("Please enter a prompt.");
-        return;
-    }
-
-    setStage('processing');
-    setError(null);
-    setGeneratedImages([]);
-
-    try {
-        // Generate 3 unique calls to get variety
-        // Using map to handle individual errors
-        const promises = [1, 2, 3].map(async () => {
-            try {
-                return await generateImageForPost(prompt, brandProfile || undefined);
-            } catch (e) {
-                console.error(e);
-                return null;
-            }
-        });
-        
-        const results = await Promise.all(promises);
-        const successfulImages = results.filter(img => img !== null) as string[];
-
-        if (successfulImages.length === 0) {
-            throw new Error("Failed to generate images. Please refine your prompt.");
-        }
-
-        setGeneratedImages(successfulImages);
-        setStage('results');
-    } catch (err: any) {
-        console.error(err);
-        setError(err.message || 'Failed to generate images. Please try again.');
-        setStage('input');
-    }
-  }, [prompt, brandProfile]);
-
-  const handleSelect = (imgUrl: string) => {
-      onSelectImage(imgUrl);
-      onClose();
+      };
   };
 
-  const renderUploadBox = () => (
-      <div className="text-center">
-        {previewUrl ? (
-            <div className="relative inline-block group">
-                <img src={previewUrl} alt="Preview" className="h-48 rounded-lg border border-gray-600 object-cover" />
-                <button 
-                    onClick={() => { setUploadedFile(null); setPreviewUrl(null); }}
-                    className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 shadow-lg text-white hover:bg-red-600"
-                >
-                    <CloseIcon className="w-4 h-4" />
-                </button>
-            </div>
-        ) : (
-            <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 hover:border-brand-secondary hover:bg-brand-secondary/5 transition cursor-pointer relative">
-                <input type="file" onChange={handleFileChange} accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" />
-                <UploadIcon className="w-12 h-12 text-brand-text-secondary mx-auto mb-3" />
-                <p className="text-sm font-medium">Click to upload an image</p>
-                <p className="text-xs text-brand-text-secondary mt-1">We'll use this as a base for AI variations</p>
-            </div>
-        )}
-    </div>
-  );
+  // --- B. LOGICA PENTRU AI GENERATION ---
+  const handleGenerateAI = async () => {
+    if (!prompt.trim()) return;
+    setIsGenerating(true);
+    setAiResults([]);
+    try {
+        // Generăm 2 variante simultan pentru viteză
+        const promises = [1, 2].map(() => generateImageForPost(prompt));
+        const results = await Promise.all(promises);
+        setAiResults(results);
+    } catch (e) {
+        console.error(e);
+    } finally {
+        setIsGenerating(false);
+    }
+  };
+
+  // Remix AI (Styling transfer)
+  const handleAiRemix = async (style: string) => {
+      if (!selectedImage) return;
+      setIsGenerating(true);
+      try {
+          // Aici folosim funcția "Slow" dar puternică
+          const newImage = await generateImageVariation("placeholder_base64", "image/png", style);
+          setAiResults([newImage]);
+          setActiveTab('generate'); // Comutăm pe tab-ul de rezultate
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsGenerating(false);
+      }
+  };
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" aria-modal="true">
-      <div className="bg-brand-bg-light rounded-2xl shadow-2xl border border-gray-700 w-full max-w-3xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 backdrop-blur-md">
+      <div className="bg-gray-900 w-full max-w-5xl h-[90vh] rounded-2xl border border-gray-700 flex flex-col overflow-hidden shadow-2xl">
         
         {/* Header */}
-        <header className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h2 className="text-xl font-bold text-brand-text flex items-center gap-2">
-            <ImageIcon className="w-6 h-6 text-brand-secondary" />
-            Visuals Studio
-          </h2>
-          <button onClick={onClose} className="text-brand-text-secondary hover:text-white transition">
-            <CloseIcon className="w-6 h-6" />
-          </button>
-        </header>
-
-        {/* Tabs (Only visible in Input stage) */}
-        {stage === 'input' && (
-            <div className="flex border-b border-gray-700">
-                <button
-                    onClick={() => { setActiveTab('upload'); setError(null); }}
-                    className={`flex-1 py-4 text-sm font-semibold transition-colors ${activeTab === 'upload' ? 'bg-brand-bg-light text-brand-secondary border-b-2 border-brand-secondary' : 'bg-brand-bg-dark/50 text-brand-text-secondary hover:bg-brand-bg-light'}`}
-                >
-                    Upload & Remix
-                </button>
-                <button
-                    onClick={() => { setActiveTab('magic_edit'); setError(null); }}
-                    className={`flex-1 py-4 text-sm font-semibold transition-colors ${activeTab === 'magic_edit' ? 'bg-brand-bg-light text-brand-secondary border-b-2 border-brand-secondary' : 'bg-brand-bg-dark/50 text-brand-text-secondary hover:bg-brand-bg-light'}`}
-                >
-                    Magic Edit
-                </button>
-                <button
-                    onClick={() => { setActiveTab('generate'); setError(null); }}
-                    className={`flex-1 py-4 text-sm font-semibold transition-colors ${activeTab === 'generate' ? 'bg-brand-bg-light text-brand-secondary border-b-2 border-brand-secondary' : 'bg-brand-bg-dark/50 text-brand-text-secondary hover:bg-brand-bg-light'}`}
-                >
-                    Generate with AI
-                </button>
+        <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900">
+            <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-brand-primary" />
+                <h2 className="font-bold text-white tracking-wide">Visuals Studio</h2>
             </div>
-        )}
+            <button onClick={onClose} className="text-gray-400 hover:text-white transition"><XIcon className="w-6 h-6" /></button>
+        </div>
 
-        <div className="p-6 overflow-y-auto flex-grow">
+        <div className="flex-1 flex overflow-hidden">
             
-            {/* STAGE: INPUT */}
-            {stage === 'input' && activeTab === 'upload' && (
-                <div className="space-y-6">
-                    {renderUploadBox()}
-
-                    {uploadedFile && (
-                        <div className="animate-fadeIn space-y-5">
-                             <div className="flex justify-between items-end">
-                                <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider">Select up to 3 AI Filters</h3>
-                                <p className="text-xs text-right text-gray-500">{selectedStyles.length} / 3 selected</p>
-                             </div>
-                             
-                             {/* Category: Person & Portrait */}
-                             <div>
-                                <h4 className="text-xs font-semibold text-brand-primary mb-2 uppercase">Person & Portrait</h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {PERSON_STYLES.map(style => (
-                                        <button
-                                            key={style.value}
-                                            onClick={() => handleStyleToggle(style.value)}
-                                            className={`p-3 text-xs rounded-lg border transition-all text-center ${selectedStyles.includes(style.value) ? 'bg-brand-primary border-brand-primary text-white font-bold' : 'bg-gray-800 border-gray-700 hover:border-gray-500 text-gray-300'}`}
-                                        >
-                                            {style.label}
-                                        </button>
-                                    ))}
-                                </div>
-                             </div>
-
-                             {/* Category: General Enhancements */}
-                             <div>
-                                <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase">General Enhancements</h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {ENHANCEMENT_STYLES.map(style => (
-                                        <button
-                                            key={style.value}
-                                            onClick={() => handleStyleToggle(style.value)}
-                                            className={`p-3 text-xs rounded-lg border transition-all text-center ${selectedStyles.includes(style.value) ? 'bg-brand-primary border-brand-primary text-white font-bold' : 'bg-gray-800 border-gray-700 hover:border-gray-500 text-gray-300'}`}
-                                        >
-                                            {style.label}
-                                        </button>
-                                    ))}
-                                </div>
-                             </div>
-
-                             {/* Category: Artistic */}
-                             <div>
-                                <h4 className="text-xs font-semibold text-gray-500 mb-2 uppercase">Artistic Styles</h4>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    {ARTISTIC_STYLES.map(style => (
-                                        <button
-                                            key={style.value}
-                                            onClick={() => handleStyleToggle(style.value)}
-                                            className={`p-3 text-xs rounded-lg border transition-all text-center ${selectedStyles.includes(style.value) ? 'bg-brand-primary border-brand-primary text-white font-bold' : 'bg-gray-800 border-gray-700 hover:border-gray-500 text-gray-300'}`}
-                                        >
-                                            {style.label}
-                                        </button>
-                                    ))}
-                                </div>
-                             </div>
-
-                             <button
-                                onClick={handleGenerateVariations}
-                                disabled={selectedStyles.length === 0}
-                                className="w-full mt-6 bg-brand-secondary text-brand-bg-dark font-bold py-3 rounded-xl disabled:opacity-50 hover:opacity-90 transition flex items-center justify-center gap-2"
-                             >
-                                <MagicWandIcon className="w-5 h-5" />
-                                <span>Generate Variations</span>
-                             </button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* STAGE: MAGIC EDIT */}
-            {stage === 'input' && activeTab === 'magic_edit' && (
-                <div className="space-y-6">
-                    {renderUploadBox()}
-                    
-                    {uploadedFile && (
-                        <div className="animate-fadeIn">
-                             <label className="block text-sm font-medium mb-2 text-gray-300">What do you want to change?</label>
-                             <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={magicEditPrompt}
-                                    onChange={(e) => setMagicEditPrompt(e.target.value)}
-                                    placeholder="e.g. Change the background to a blue sky, Make it night time..."
-                                    className="flex-grow bg-brand-bg-dark border border-gray-600 rounded-xl px-4 py-3 focus:ring-2 focus:ring-brand-primary outline-none"
-                                />
-                                <button
-                                    onClick={handleMagicEdit}
-                                    disabled={!magicEditPrompt.trim()}
-                                    className="bg-brand-primary text-brand-bg-dark font-bold px-6 rounded-xl hover:opacity-90 transition disabled:opacity-50 whitespace-nowrap"
-                                >
-                                    Apply Edit
-                                </button>
-                             </div>
-                             <p className="text-xs text-gray-500 mt-2">
-                                Tip: Be specific. Try "Make the background transparent" or "Add a neon glow".
-                             </p>
-                        </div>
-                    )}
-                </div>
-            )}
-
-             {stage === 'input' && activeTab === 'generate' && (
-                <div className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-medium mb-2 text-gray-300">Describe the image you want</label>
-                        <textarea
-                            rows={4}
-                            value={prompt}
-                            onChange={(e) => setPrompt(e.target.value)}
-                            placeholder="A futuristic workspace with neon lights, high resolution, cyberpunk style..."
-                            className="w-full bg-brand-bg-dark border border-gray-600 rounded-xl p-4 focus:ring-2 focus:ring-brand-primary outline-none resize-none"
-                        ></textarea>
-                    </div>
-                     <button
-                        onClick={handleGenerateFromText}
-                        disabled={!prompt.trim()}
-                        className="w-full bg-brand-primary text-brand-bg-dark font-bold py-3 rounded-xl disabled:opacity-50 hover:opacity-90 transition flex items-center justify-center gap-2"
-                    >
-                        <SparklesIcon className="w-5 h-5" />
-                        <span>Generate Images</span>
+            {/* 1. SIDEBAR (CONTROLS) */}
+            <div className="w-80 border-r border-gray-800 p-5 bg-gray-900 overflow-y-auto flex flex-col gap-6">
+                
+                {/* Tabs */}
+                <div className="flex bg-gray-800 p-1 rounded-lg">
+                    <button onClick={() => setActiveTab('upload')} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${activeTab === 'upload' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-300'}`}>
+                        Edit & Filter
+                    </button>
+                    <button onClick={() => setActiveTab('generate')} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${activeTab === 'generate' ? 'bg-brand-primary text-black shadow' : 'text-gray-400 hover:text-gray-300'}`}>
+                        AI Generate
                     </button>
                 </div>
-            )}
 
-            {/* STAGE: PROCESSING */}
-            {stage === 'processing' && (
-                <div className="h-full flex flex-col items-center justify-center min-h-[300px]">
-                    <Loader size="lg" />
-                    <h3 className="text-xl font-bold mt-6 mb-2">Creating Visuals...</h3>
-                    <p className="text-brand-text-secondary text-sm">Applying AI magic to your request.</p>
+                {/* A. EDIT MODE */}
+                {activeTab === 'upload' && (
+                    <div className="space-y-6 animate-fadeIn">
+                        {/* Upload Area */}
+                        <div className="relative group">
+                            {!selectedImage ? (
+                                <div className="border-2 border-dashed border-gray-700 rounded-xl h-40 flex flex-col items-center justify-center text-gray-500 hover:border-brand-primary hover:bg-brand-primary/5 transition cursor-pointer">
+                                    <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
+                                    <ImageIcon className="w-8 h-8 mb-2 opacity-50" />
+                                    <span className="text-xs font-bold uppercase tracking-wider">Upload Image</span>
+                                </div>
+                            ) : (
+                                <div className="relative rounded-xl overflow-hidden border border-gray-600 bg-black h-48 flex items-center justify-center">
+                                    {/* PREVIEW CU FILTRU APLICAT */}
+                                    <img 
+                                        src={selectedImage} 
+                                        alt="Preview" 
+                                        className="h-full w-full object-contain transition-all duration-300"
+                                        style={{ filter: activeFilter }} 
+                                    />
+                                    {/* Canvas ascuns pentru procesare */}
+                                    <canvas ref={canvasRef} className="hidden"></canvas>
+                                    
+                                    <button onClick={() => setSelectedImage(null)} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition"><XIcon className="w-3 h-3"/></button>
+                                </div>
+                            )}
+                        </div>
+
+                        {selectedImage && (
+                            <>
+                                {/* Instant Filters */}
+                                <div>
+                                    <h3 className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></span>
+                                        Instant Filters (Zero Wait)
+                                    </h3>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {INSTANT_FILTERS.map(f => (
+                                            <button
+                                                key={f.name}
+                                                onClick={() => setActiveFilter(f.filter)}
+                                                className={`text-xs py-2 rounded border transition-all ${activeFilter === f.filter ? 'bg-white text-black border-white font-bold' : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-500'}`}
+                                            >
+                                                {f.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Save Button */}
+                                <button 
+                                    onClick={saveFilteredImage}
+                                    className="w-full py-3 bg-brand-secondary text-white font-bold rounded-xl hover:opacity-90 shadow-lg shadow-brand-secondary/20 flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircleIcon className="w-4 h-4" />
+                                    Use This Image
+                                </button>
+
+                                <div className="h-px bg-gray-800 my-4"></div>
+
+                                {/* AI Remix */}
+                                <div>
+                                    <h3 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                                        <SparklesIcon className="w-3 h-3" />
+                                        AI Remix (Slow)
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {AI_STYLES.map(style => (
+                                            <button
+                                                key={style}
+                                                onClick={() => handleAiRemix(style)}
+                                                disabled={isGenerating}
+                                                className="text-xs text-left px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg hover:border-purple-500 hover:text-purple-400 transition truncate"
+                                            >
+                                                {style}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {/* B. GENERATE MODE */}
+                {activeTab === 'generate' && (
+                    <div className="space-y-4 animate-fadeIn">
+                        <label className="block text-xs font-bold text-gray-400 uppercase">Describe your idea</label>
+                        <textarea 
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            rows={5}
+                            placeholder="A futuristic coffee shop on Mars..."
+                            className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-primary outline-none resize-none"
+                        />
+                        <button 
+                            onClick={handleGenerateAI}
+                            disabled={isGenerating || !prompt.trim()}
+                            className="w-full py-3 bg-gradient-to-r from-brand-primary to-blue-600 text-white font-bold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg"
+                        >
+                            {isGenerating ? <Loader size="sm"/> : <MagicWandIcon className="w-4 h-4" />}
+                            {isGenerating ? 'Generating...' : 'Generate New'}
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* 2. MAIN CANVAS (RESULTS) */}
+            <div className="flex-1 bg-black relative flex flex-col">
+                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#333 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                
+                <div className="flex-1 overflow-y-auto p-8 z-10">
+                    {activeTab === 'upload' && !selectedImage && (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-600">
+                            <ImageIcon className="w-16 h-16 mb-4 opacity-20" />
+                            <p>Upload an image to start editing</p>
+                        </div>
+                    )}
+
+                    {activeTab === 'generate' && (
+                        <>
+                            {isGenerating ? (
+                                <div className="h-full flex flex-col items-center justify-center animate-pulse">
+                                    <div className="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+                                    <h3 className="text-xl font-bold text-white">Dreaming up pixels...</h3>
+                                    <p className="text-gray-500 mt-2">This might take a moment.</p>
+                                </div>
+                            ) : aiResults.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {aiResults.map((url, idx) => (
+                                        <ImagePreview 
+                                            key={idx} 
+                                            src={url} 
+                                            onSelect={() => { onSelectImage(url); onClose(); }} 
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-gray-600">
+                                    <SparklesIcon className="w-16 h-16 mb-4 opacity-20" />
+                                    <p>Enter a prompt to generate new images</p>
+                                </div>
+                            )}
+                        </>
+                    )}
                 </div>
-            )}
-
-             {/* STAGE: RESULTS */}
-             {stage === 'results' && (
-                 <div>
-                     <h3 className="text-lg font-bold mb-4 text-center">Select an Image</h3>
-                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                         {generatedImages.map((img, idx) => (
-                             <div key={idx} className="group relative aspect-square rounded-xl overflow-hidden border-2 border-gray-700 hover:border-brand-primary transition cursor-pointer" onClick={() => handleSelect(img)}>
-                                 <img src={img} alt={`Result ${idx}`} className="w-full h-full object-cover" />
-                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                                     <button className="bg-brand-primary text-white px-4 py-2 rounded-full text-sm font-bold">Select</button>
-                                 </div>
-                             </div>
-                         ))}
-                     </div>
-                     <button 
-                        onClick={() => { setStage('input'); setGeneratedImages([]); }}
-                        className="w-full mt-6 py-3 text-brand-text-secondary hover:text-white transition"
-                    >
-                        Start Over
-                     </button>
-                 </div>
-             )}
-
-             {error && (
-                 <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm text-center">
-                     {error}
-                 </div>
-             )}
+            </div>
 
         </div>
       </div>
