@@ -2,28 +2,29 @@ import { GoogleGenAI } from "@google/genai";
 import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-// Initializare safe
 const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
-// --- 1. GENERARE IMAGINI (Pollinations - Rapid & Gratuit) ---
+// --- 1. IMAGINI: POLLINATIONS (GRATIS & STABIL) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
   console.log("Generating image via Fallback...");
-  await new Promise(r => setTimeout(r, 1000)); // Mică pauză pentru efect vizual
+  await new Promise(r => setTimeout(r, 1000));
   
-  // Curățăm promptul
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
   const seed = Math.floor(Math.random() * 1000);
-  return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}`;
+  // Folosim flux pentru calitate mai bună
+  return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
 }
 
 export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
+  console.log("Generating variation via Fallback...");
   await new Promise(r => setTimeout(r, 1500));
+  
   const cleanStyle = encodeURIComponent(style + " artistic style");
   const seed = Math.floor(Math.random() * 1000);
-  return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}`;
+  return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
 }
 
-// --- 2. LOGO OVERLAY (Esențial pentru PostCard) ---
+// --- 2. LOGO OVERLAY ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 export async function overlayLogoOnImage(
@@ -67,13 +68,15 @@ export async function overlayLogoOnImage(
           resolve(canvas.toDataURL('image/png'));
         }
       };
+      logoImg.onerror = (e) => reject(e);
       logoImg.src = logoUrl;
     };
+    mainImg.onerror = (e) => reject(e);
     mainImg.src = mainImageUrl;
   });
 }
 
-// --- 3. GENERARE TEXT (ROBUSTĂ - Curăță JSON-ul) ---
+// --- 3. GENERARE TEXT (GEMINI 2.0 FLASH EXP) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -87,10 +90,10 @@ export async function generateSocialMediaPosts(
   
   if (!apiKey) throw new Error("API Key missing");
   
-  // Folosim modelul Flash 1.5 pentru viteză și multimodalitate
-  const model = 'gemini-1.5-flash';
+  // FIX: Folosim modelul 2.0 Experimental care merge sigur cu acest SDK
+  const model = 'gemini-2.0-flash-exp';
   
-  let prompt = `
+  let userPrompt = `
   ACT AS: Expert Social Media Manager.
   TASK: Write ${postCount} engaging posts about: "${topic}".
   TONE: ${tone}.
@@ -100,12 +103,11 @@ export async function generateSocialMediaPosts(
   Example: [{"content": "Post text 1"}, {"content": "Post text 2"}]
   `;
 
-  if (brandVoice) prompt += `\nSTYLE: ${brandVoice}`;
+  if (brandVoice) userPrompt += `\nSTYLE: ${brandVoice}`;
 
   try {
     const parts: any[] = [];
     
-    // Dacă avem poză, o trimitem la AI
     if (imageBase64 && imageMimeType) {
         parts.push({
             inlineData: {
@@ -113,10 +115,10 @@ export async function generateSocialMediaPosts(
                 mimeType: imageMimeType
             }
         });
-        prompt += `\nCONTEXT: Describe the attached image in the post context.`;
+        userPrompt += `\nCONTEXT: Describe the attached image in the post context.`;
     }
 
-    parts.push({ text: prompt });
+    parts.push({ text: userPrompt });
 
     const response = await ai.models.generateContent({
       model,
@@ -127,8 +129,6 @@ export async function generateSocialMediaPosts(
     let text = response.text();
     if (!text) return [];
 
-    // --- CURĂȚARE CRITICĂ A RĂSPUNSULUI ---
-    // Uneori AI-ul pune ```json la început. Asta îl ștergem.
     text = text.replace(/```json|```/g, '').trim();
     
     const parsed = JSON.parse(text);
@@ -140,8 +140,8 @@ export async function generateSocialMediaPosts(
 
   } catch (e) {
     console.error("Text generation failed", e);
-    // Returnăm un fallback în loc să crăpăm, ca userul să vadă ceva
-    return [{ content: `Could not generate text for "${topic}". Please try again.` }];
+    // Mesaj de eroare prietenos în UI în loc de crash
+    return [{ content: `API Error: Could not generate text. Please check your API Key or try again later.` }];
   }
 }
 
@@ -156,19 +156,26 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 }
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
-  const model = 'gemini-1.5-flash';
-  const response = await ai.models.generateContent({ model, contents: `Adapt this post for ${platform}. Keep it engaging:\n"${originalContent}"` });
-  return response.text() || "";
+  // FIX: Folosim 2.0 Flash Exp și aici
+  const model = 'gemini-2.0-flash-exp';
+  try {
+    const response = await ai.models.generateContent({ model, contents: `Adapt this post for ${platform}. Keep it engaging:\n"${originalContent}"` });
+    return response.text() || "";
+  } catch (e) { return originalContent; }
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
-  const model = 'gemini-1.5-flash';
-  const response = await ai.models.generateContent({ model, contents: `Rewrite this post. Goal: ${type}.\nPost: "${content}"` });
-  return response.text() || "";
+  const model = 'gemini-2.0-flash-exp';
+  try {
+    const response = await ai.models.generateContent({ model, contents: `Rewrite this post. Goal: ${type}.\nPost: "${content}"` });
+    return response.text() || "";
+  } catch (e) { return content; }
 }
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
-    const model = 'gemini-1.5-flash';
-    const response = await ai.models.generateContent({ model, contents: `Analyze the writing style of this text: "${sampleText}"` });
-    return response.text() || "";
+    const model = 'gemini-2.0-flash-exp';
+    try {
+        const response = await ai.models.generateContent({ model, contents: `Analyze the writing style of this text: "${sampleText}"` });
+        return response.text() || "";
+    } catch (e) { return "Could not analyze."; }
 }
