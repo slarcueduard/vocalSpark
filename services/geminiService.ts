@@ -9,8 +9,8 @@ if (!apiKey) {
   console.error("CRITICAL ERROR: VITE_GEMINI_API_KEY is missing. Check Vercel Settings.");
 }
 
-// 3. Initialize the AI (Safe initialization)
-// We use a fallback string so the app doesn't crash on load, but calls will fail if key is bad.
+// 3. Initialize the AI
+// We use a fallback string so the app doesn't crash on load
 const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
 // --- Helper Functions ---
@@ -35,9 +35,9 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
   });
 }
 
+// --- Image Overlay Logic ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
-// Client-side function to overlay a logo on an image
 export async function overlayLogoOnImage(
   mainImageUrl: string, 
   logoUrl: string, 
@@ -115,13 +115,13 @@ export async function overlayLogoOnImage(
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
     checkApiKey();
-    const model = 'gemini-2.5-flash';
-    const prompt = `Analyze the writing style... (keep logic same as before)`; // Shortened for brevity, prompt logic unchanged
+    const model = 'gemini-2.0-flash';
+    const prompt = `Analyze the writing style of these posts. Return a concise "Voice DNA" paragraph describing tone, emojis, and structure.\n\nSample:\n"${sampleText}"`;
 
     try {
         const response = await ai.models.generateContent({
             model,
-            contents: `Analyze writing style: "${sampleText}"`, // Simplified prompt logic for this fix
+            contents: prompt,
         });
         return response.text?.replace('Voice DNA:', '').trim() || "Friendly, professional, and engaging.";
     } catch (error) {
@@ -139,7 +139,7 @@ export async function generateSocialMediaPosts(
   brandProfile?: BrandProfile
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
   checkApiKey();
-  const model = 'gemini-2.0-flash'; // Reverted to 2.0-flash as 2.5 is sometimes experimental/region-locked
+  const model = 'gemini-2.0-flash'; // TEXT MODEL
   
   let systemInstruction = `You are an expert social media manager.`;
   
@@ -186,9 +186,8 @@ export async function generateSocialMediaPosts(
 
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
   checkApiKey();
-  // IMPORTANT: Using 'gemini-2.0-flash' which handles text-to-image in the new SDK (or specialized model)
-  // If 'gemini-2.5-flash-image' is giving 400 errors, try 'gemini-2.0-flash'
-  const model = 'gemini-2.0-flash'; 
+  // CRITICAL FIX: Use the Experimental model for Image Generation
+  const model = 'gemini-2.0-flash-exp'; 
   
   let styleContext = brandProfile ? `Style: ${brandProfile.description}` : "";
   const prompt = `Generate a high-quality social media image. No text in image. Subject: "${postText}". ${styleContext}`;
@@ -212,13 +211,13 @@ export async function generateImageForPost(postText: string, brandProfile?: Bran
 
   } catch (error) {
     console.error("Error generating image:", error);
-    throw new Error("Failed to generate image.");
+    throw new Error("Failed to generate image from AI.");
   }
 }
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
   checkApiKey();
-  const model = 'gemini-2.0-flash';
+  const model = 'gemini-2.0-flash'; // TEXT MODEL
   const prompt = `Adapt this post for ${platform}: "${originalContent}"`;
 
   try {
@@ -232,7 +231,7 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
   checkApiKey();
-  const model = 'gemini-2.0-flash';
+  const model = 'gemini-2.0-flash'; // TEXT MODEL
   const prompt = `Refine this post (Type: ${type}): "${content}"`;
 
   try {
@@ -246,7 +245,7 @@ export async function refinePostContent(content: string, type: RefinementType): 
 
 export async function generateContentCalendar(topic: string, audience: string, duration: string): Promise<CalendarIdea[]> {
   checkApiKey();
-  const model = 'gemini-2.0-flash';
+  const model = 'gemini-2.0-flash'; // TEXT MODEL
   const prompt = `Create a ${duration} content calendar for topic "${topic}". JSON format.`;
 
   try {
@@ -279,7 +278,8 @@ export async function generateContentCalendar(topic: string, audience: string, d
 
 export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
   checkApiKey();
-  const model = 'gemini-2.0-flash'; // Unified model name
+  // CRITICAL FIX: Use Experimental model for Image Variations
+  const model = 'gemini-2.0-flash-exp'; 
   const prompt = `Edit/Recreate this image in style: ${style}`;
   
   try {
