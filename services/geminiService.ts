@@ -2,20 +2,16 @@ import { GoogleGenAI } from "@google/genai";
 import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-// Inițializare safe (nu crapă dacă lipsește cheia, dar dă eroare la apelare)
+// Initializare safe
 const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
-// --- 1. GENERARE IMAGINI (Folosim Pollinations pentru stabilitate și cost $0) ---
+// --- 1. GENERARE IMAGINI (Pollinations - Gratis & Stabil) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
-  console.log("Generating image via Fallback (Pollinations)...");
-  // Simulăm o mică întârziere pentru UX (să vadă userul loader-ul)
+  console.log("Generating image via Fallback...");
   await new Promise(r => setTimeout(r, 1000));
   
-  // Curățăm promptul și adăugăm un seed random ca să fie imagini diferite mereu
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
   const seed = Math.floor(Math.random() * 1000);
-  
-  // Returnăm URL-ul direct
   return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}`;
 }
 
@@ -28,7 +24,7 @@ export async function generateImageVariation(base64ImageData: string, mimeType: 
   return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}`;
 }
 
-// --- 2. LOGO OVERLAY (Aceasta este funcția care lipsea și dădea eroare la build) ---
+// --- 2. LOGO OVERLAY (Aceasta este funcția care LIPSEA) ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 
 export async function overlayLogoOnImage(
@@ -80,7 +76,7 @@ export async function overlayLogoOnImage(
   });
 }
 
-// --- 3. GENERARE TEXT (Google Gemini 2.0 Flash) ---
+// --- 3. TEXT (Google Gemini) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -110,7 +106,6 @@ export async function generateSocialMediaPosts(
   }
 }
 
-// --- Helper Functions ---
 export function fileToBase64(file: File): Promise<{mimeType: string, data: string}> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
