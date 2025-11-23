@@ -1,15 +1,33 @@
+
 import { GoogleGenAI, Modality, Type } from "@google/genai";
 import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from "../types";
 
 // In this environment we must use process.env.API_KEY
-// On Vercel, ensure this environment variable is set.
-const apiKey = process.env.API_KEY;
+// On Vercel, ensure this environment variable is set in Settings -> Environment Variables
+const rawApiKey = process.env.API_KEY || "";
 
-if (!apiKey) {
-  console.error("Missing API_KEY. Please check your .env file or Vercel settings.");
+// Sanitization: Remove double quotes, single quotes, and extra whitespace
+// This fixes issues where users accidentally copy the key with quotes around it
+const apiKey = rawApiKey.replace(/["']/g, "").trim();
+
+const isKeyValid = apiKey && apiKey.length > 10 && apiKey !== "MISSING_KEY";
+
+if (!isKeyValid) {
+  console.error("CRITICAL: Missing or invalid API_KEY. Please add VITE_GEMINI_API_KEY to your Vercel Environment Variables. Current value length:", apiKey?.length);
+} else {
+  // Safe log to confirm key is loaded (only showing first 4 chars)
+  console.log(`Gemini API Key loaded: ${apiKey.substring(0, 4)}...`);
 }
 
-const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
+// Initialize with a fallback to prevent immediate crash, but methods will throw clear errors
+const ai = new GoogleGenAI({ apiKey: isKeyValid ? apiKey : "MISSING_KEY" });
+
+// Helper to throw clear error if key is missing
+const checkApiKey = () => {
+    if (!isKeyValid) {
+        throw new Error("API Key is missing or invalid. Please check VITE_GEMINI_API_KEY in Vercel Settings.");
+    }
+};
 
 export function fileToBase64(file: File): Promise<{mimeType: string, data: string}> {
   return new Promise((resolve, reject) => {
@@ -128,6 +146,7 @@ export async function overlayLogoOnImage(
 
 // NEW: Analyze Brand Voice DNA
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
+    checkApiKey();
     const model = 'gemini-2.5-flash';
     const prompt = `
     Analyze the writing style, tone, emoji usage, sentence length, and unique quirks of the following social media posts.
@@ -163,6 +182,7 @@ export async function generateSocialMediaPosts(
   brandVoice: string,
   brandProfile?: BrandProfile
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
+  checkApiKey();
   const model = 'gemini-2.5-flash'; 
   
   let systemInstruction = `You are an expert social media manager.`;
@@ -245,6 +265,7 @@ Ensure each post is concise and includes relevant hashtags.`;
 }
 
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
+  checkApiKey();
   const model = 'gemini-2.5-flash-image';
   
   let styleContext = "";
@@ -305,6 +326,7 @@ const getPlatformAdaptationPrompt = (originalContent: string, platform: Platform
 };
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
+  checkApiKey();
   const model = 'gemini-2.5-flash';
   const prompt = getPlatformAdaptationPrompt(originalContent, platform);
 
@@ -322,6 +344,7 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
+  checkApiKey();
   const model = 'gemini-2.5-flash';
   let prompt: string;
 
@@ -357,6 +380,7 @@ export async function generateContentCalendar(
   audience: string,
   duration: '1 Week' | '2 Weeks' | '1 Month'
 ): Promise<CalendarIdea[]> {
+  checkApiKey();
   const model = 'gemini-2.5-flash';
   const numDays = duration === '1 Week' ? 7 : duration === '2 Weeks' ? 14 : 30;
 
@@ -401,6 +425,7 @@ export async function generateImageVariation(
   mimeType: string,
   style: string
 ): Promise<string> {
+  checkApiKey();
   const model = 'gemini-2.5-flash-image';
   let prompt: string;
 
@@ -488,6 +513,7 @@ export async function generateImageVariation(
 
 export async function verifyGeminiApiKey(): Promise<{ ok: boolean; message: string }> {
   try {
+    checkApiKey();
     await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: 'Hello',
