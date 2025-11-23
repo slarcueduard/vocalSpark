@@ -88,7 +88,6 @@ const SocialSparkApp: React.FC = () => {
     }
   };
 
-  // Helper functions reduse pentru claritate
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
@@ -112,7 +111,7 @@ const SocialSparkApp: React.FC = () => {
         onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}
         currentMode={appMode} onSwitchMode={setAppMode}
     >
-        {/* --- HEADER OBLIGATORIU --- */}
+        {/* HEADER v1.1 */}
         <div className="bg-gray-900 border-b border-gray-700 px-6 py-3 flex justify-between items-center shadow-md sticky top-0 z-50">
            <div className="flex items-center gap-3 text-sm">
                <span className="text-red-500 font-bold text-xs border border-red-500 px-1 rounded">v1.1</span>
@@ -133,7 +132,6 @@ const SocialSparkApp: React.FC = () => {
                         <h2 className="text-2xl font-bold">{appMode === 'creator' ? 'Creator Studio' : 'Business Hub'}</h2>
                     </header>
                     
-                    {/* INPUTS */}
                     <div className="space-y-6">
                         <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={3} placeholder="What to post?" className="w-full bg-brand-bg-dark border border-gray-700 rounded-xl p-4 focus:ring-2 focus:ring-brand-primary outline-none" />
                         
@@ -141,7 +139,6 @@ const SocialSparkApp: React.FC = () => {
                             {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} {isLoading ? 'Generating...' : 'Generate Content'}
                         </button>
 
-                        {/* RESULTS */}
                         {posts.length > 0 && (
                             <div className="space-y-6 mt-8">
                                 {posts.map(post => (
@@ -153,7 +150,6 @@ const SocialSparkApp: React.FC = () => {
                 </div>
             </div>
             
-            {/* PREVIEW */}
             <div className="hidden xl:flex w-[400px] bg-gray-900 flex-col items-center justify-center border-l border-gray-800">
                 <div className="scale-90 origin-center">
                     <PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user.displayName} userImage={user.photoURL} />
