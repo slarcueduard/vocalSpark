@@ -1,4 +1,16 @@
+export type SubscriptionTier = 'trial' | 'creator' | 'business';
 
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  subscriptionTier: SubscriptionTier;
+  subscriptionStatus: 'active' | 'expired' | 'cancelled';
+  trialStartDate: any; // Firestore Timestamp
+  imageCount: number;  // Câte imagini a generat luna asta
+  imageLimit: number;  // Limita (5, 50, sau 200)
+}
+
+// ... restul tipurilor (Post, BrandProfile etc) rămân la fel
 export enum Platform {
   Instagram = 'Instagram',
   TikTok = 'TikTok',
