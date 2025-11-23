@@ -1,18 +1,20 @@
-import { GoogleGenAI } from "@google/genai";
+// IMPORTĂM SDK-UL STABIL
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-// Initializare safe
-const ai = new GoogleGenAI({ apiKey: apiKey || "MISSING_KEY" });
 
-// --- 1. GENERARE IMAGINI (Pollinations - Gratis & Stabil) ---
+// Inițializare SDK Stabil
+const genAI = new GoogleGenerativeAI(apiKey || "MISSING_KEY");
+
+// --- 1. IMAGINI: POLLINATIONS (GRATIS & STABIL) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
   console.log("Generating image via Fallback...");
-  await new Promise(r => setTimeout(r, 1000)); // Efect vizual
+  await new Promise(r => setTimeout(r, 1000));
   
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
   const seed = Math.floor(Math.random() * 1000);
-  // Folosim modelul 'flux' pentru calitate maximă
+  // Folosim modelul flux pentru calitate maximă
   return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
 }
 
@@ -73,7 +75,7 @@ export async function overlayLogoOnImage(
   });
 }
 
-// --- 3. GENERARE TEXT (GEMINI 1.5 FLASH - STABIL) ---
+// --- 3. GENERARE TEXT (SDK STABIL - gemini-1.5-flash) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -85,10 +87,10 @@ export async function generateSocialMediaPosts(
   imageMimeType?: string
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
   
-  if (!apiKey) return [{ content: "API Key Missing." }];
+  if (!apiKey) return [{ content: "API Key Missing. Check Settings." }];
   
-  // FIX: Folosim 'gemini-1.5-flash' care este stabil și nu dă 404
-  const model = 'gemini-1.5-flash';
+  // Obținem modelul (Sintaxa SDK-ului stabil)
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
   
   let userPrompt = `
   ACT AS: Expert Social Media Manager.
@@ -96,8 +98,8 @@ export async function generateSocialMediaPosts(
   TONE: ${tone}.
   LANGUAGE: ${language}.
   
-  IMPORTANT: Return ONLY a JSON ARRAY of objects. Do not use markdown formatting.
-  Example: [{"content": "Post 1..."}, {"content": "Post 2..."}]
+  IMPORTANT: Return ONLY a JSON ARRAY of objects. Do not use markdown formatting (no \`\`\`).
+  Example: [{"content": "Post text 1"}, {"content": "Post text 2"}]
   `;
 
   if (brandVoice) userPrompt += `\nSTYLE: ${brandVoice}`;
@@ -105,7 +107,7 @@ export async function generateSocialMediaPosts(
   try {
     const parts: any[] = [];
     
-    // Adăugăm imaginea dacă există (Multimodal)
+    // Gestionare Imagine (Multimodal)
     if (imageBase64 && imageMimeType) {
         parts.push({
             inlineData: {
@@ -118,16 +120,14 @@ export async function generateSocialMediaPosts(
 
     parts.push({ text: userPrompt });
 
-    const response = await ai.models.generateContent({
-      model,
-      contents: [{ parts }],
-      config: { responseMimeType: "application/json" }
-    });
-    
+    // Apelare Generare
+    const result = await model.generateContent(parts);
+    const response = await result.response;
     let text = response.text();
+    
     if (!text) return [];
 
-    // Curățare JSON (pentru siguranță)
+    // Curățare JSON
     text = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
     const parsed = JSON.parse(text);
@@ -154,25 +154,25 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 }
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
-  const model = 'gemini-1.5-flash';
   try {
-    const response = await ai.models.generateContent({ model, contents: `Adapt for ${platform}:\n"${originalContent}"` });
-    return response.text() || "";
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Adapt for ${platform}:\n"${originalContent}"`);
+    return result.response.text();
   } catch (e) { return originalContent; }
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
-  const model = 'gemini-1.5-flash';
   try {
-    const response = await ai.models.generateContent({ model, contents: `Rewrite (${type}): "${content}"` });
-    return response.text() || "";
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Rewrite (${type}): "${content}"`);
+    return result.response.text();
   } catch (e) { return content; }
 }
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
-    const model = 'gemini-1.5-flash';
-    try {
-        const response = await ai.models.generateContent({ model, contents: `Analyze style: "${sampleText}"` });
-        return response.text() || "";
-    } catch (e) { return ""; }
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const result = await model.generateContent(`Analyze style: "${sampleText}"`);
+    return result.response.text();
+  } catch (e) { return ""; }
 }
