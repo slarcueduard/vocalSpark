@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-// 1. Importăm Iconițele din Icons
+// 1. Importăm doar iconițele din Icons
 import { XIcon, MagicWandIcon, ImageIcon, SparklesIcon, CheckCircleIcon } from './Icons';
-// 2. Importăm Loader-ul din fișierul lui corect
+// 2. Importăm Loader-ul din fișierul lui dedicat
 import { Loader } from './Loader'; 
 import { generateImageForPost, generateImageVariation } from '../services/geminiService';
 
@@ -11,7 +11,7 @@ interface ImageCreationModalProps {
   initialPrompt?: string;
 }
 
-// 1. FILTRE INSTANT (CSS Styles) - Execuție Locală
+// 1. FILTRE INSTANT (Local)
 const INSTANT_FILTERS = [
   { name: 'Original', filter: 'none' },
   { name: 'B & W', filter: 'grayscale(100%)' },
@@ -21,7 +21,7 @@ const INSTANT_FILTERS = [
   { name: 'Soft', filter: 'brightness(110%) contrast(90%) saturate(90%)' },
 ];
 
-// 2. AI STYLES - Execuție Server
+// 2. AI STYLES (Server)
 const AI_STYLES = [
   'Neon Noir', 'Cyberpunk', 'Pixar Animation', 'Fantasy Art', 
   'Gothic Noir', 'Pop Art', 'Product Pro', 'Watercolor'
@@ -107,7 +107,7 @@ export const ImageCreationModal: React.FC<ImageCreationModalProps> = ({ onClose,
       if (!selectedImage) return;
       setIsGenerating(true);
       try {
-          const newImage = await generateImageVariation("placeholder_base64", "image/png", style);
+          const newImage = await generateImageVariation("placeholder", "image/png", style);
           setAiResults([newImage]);
           setActiveTab('generate');
       } catch (e) {
