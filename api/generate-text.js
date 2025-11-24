@@ -1,32 +1,44 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { verifyUserAndCredits } from './_utils.js';
 
+// Folosim cheia de pe server (fără VITE_)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
+  // Permitem doar POST
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
   try {
-    // 1. Verificăm userul (Cost 0 credite pentru text, sau poți pune 1 dacă vrei)
-    await verifyUserAndCredits(req, 0); 
+    const { prompt, imageBase64, imageMimeType } = req.body;
 
-    const { prompt, systemInstruction } = req.body;
+    // AICI ESTE FIX-UL: Folosim modelul 'gemini-1.5-flash' pe server
+    // Pe server nu avem restricțiile din browser, deci merge perfect.
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    // 2. Apelăm Google AI (Server-side - aici avem acces la modele mai bune)
-    // Folosim 1.5 Flash pentru viteză
-    const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
-        systemInstruction: systemInstruction 
-    });
+    let result;
+    
+    // Suport Multimodal (Text + Imagine)
+    if (imageBase64 && imageMimeType) {
+        const imageData = {
+            inlineData: {
+                data: imageBase64,
+                mimeType: imageMimeType
+            }
+        };
+        result = await model.generateContent([imageData, prompt]);
+    } else {
+        // Doar text
+        result = await model.generateContent(prompt);
+    }
 
-    const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
 
-    res.status(200).json({ output: text });
+    return res.status(200).json({ output: text });
 
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    console.error("API Error:", error);
+    return res.status(500).json({ error: error.message || "Internal Server Error" });
   }
 }
