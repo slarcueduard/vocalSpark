@@ -1,46 +1,56 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// api/generate-text.js - VARIANTĂ FĂRĂ SDK (Direct FETCH)
 
 export default async function handler(req, res) {
-  // CORS
+  // 1. Configurare CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
   try {
-    console.log("--- DEBUG START ---");
-    console.log("Checking API Key permissions...");
-    
-    // Cerem lista de modele disponibile pentru această cheie
-    // Dacă cheia e proastă sau proiectul e blocat, aici va crăpa.
-    const modelInstance = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    
-    // Atenție: SDK-ul nu are o metodă directă simplă de "listModels" expusă ușor în toate versiunile,
-    // așa că testăm o generare simplă de "Hello".
-    
-    const result = await modelInstance.generateContent("Hello check");
-    const response = await result.response;
-    const text = response.text();
+    const { prompt } = req.body;
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    console.log("--- DEBUG SUCCESS ---");
-    return res.status(200).json({ 
-        status: "Success", 
-        message: "API Key is working!", 
-        output: text 
+    if (!apiKey) throw new Error("GEMINI_API_KEY is missing");
+
+    // 2. Construim URL-ul manual pentru Gemini 1.5 Flash
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+    // 3. Facem cererea direct (ca un browser)
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: prompt || "Hello AI" }]
+        }]
+      })
     });
+
+    const data = await response.json();
+
+    // 4. Verificăm erorile venite de la Google
+    if (!response.ok) {
+      console.error("Google API Error:", JSON.stringify(data, null, 2));
+      
+      // Dacă e 404 aici, e 100% de la Cheie/Proiect
+      throw new Error(data.error?.message || `Google API Error: ${response.status}`);
+    }
+
+    // 5. Extragem textul
+    const output = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    
+    if (!output) throw new Error("No content generated.");
+
+    return res.status(200).json({ output });
 
   } catch (error) {
-    console.error("--- DEBUG ERROR ---");
-    console.error(error);
-    
-    return res.status(500).json({ 
-        status: "Error",
-        message: error.message,
-        details: "Verifică consola Vercel pentru detalii complete."
-    });
+    console.error("Server Error:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
