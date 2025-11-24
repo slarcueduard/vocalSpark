@@ -12,59 +12,99 @@ async function getAuthHeader() {
     };
 }
 
-// --- HELPER CRITIC: Fetch Sigur (Rezolvă eroarea "Unexpected token 'A'") ---
+// --- HELPER CRITIC: Fetch Sigur ---
+// Gestionează erorile de rețea și răspunsurile non-JSON (ex: erori Vercel 504/404)
 async function safeFetch(url: string, body: any) {
     const headers = await getAuthHeader();
     
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: headers as any,
-        body: JSON.stringify(body)
-    });
-
-    // 1. Citim răspunsul ca TEXT pur (nu JSON direct)
-    const text = await response.text();
-    
-    // 2. Încercăm să îl transformăm în JSON
-    let data;
     try {
-        data = JSON.parse(text);
-    } catch (e) {
-        // Dacă nu e JSON, înseamnă că serverul a crăpat urât (HTML error page)
-        console.error("Server Raw Response:", text);
-        throw new Error(`Server Error (${response.status}): The server returned an invalid response.`);
-    }
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: headers as any,
+            body: JSON.stringify(body)
+        });
 
-    // 3. Verificăm dacă API-ul a raportat o eroare logică
-    if (!response.ok) {
-        throw new Error(data.error || `API Error: ${response.statusText}`);
-    }
+        const text = await response.text();
+        
+        // Verificăm dacă e JSON valid
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error("Server Raw Response (Not JSON):", text);
+            // Dacă primim HTML (eroare Vercel), extragem titlul sau mesajul scurt
+            throw new Error(`Server Error (${response.status}): Invalid response format.`);
+        }
 
-    return data;
+        if (!response.ok) {
+            throw new Error(data.error || `API Error: ${response.statusText}`);
+        }
+
+        return data;
+
+    } catch (error: any) {
+        console.error(`Fetch failed for ${url}:`, error);
+        throw error; // Aruncăm eroarea mai departe ca să fie prinsă de funcțiile specifice
+    }
 }
 
-// --- 1. IMAGINI (Prin Backend cu Fallback Inteligent) ---
+// --- HELPER: Extragere JSON din textul AI ---
+// AI-ul pune adesea text înainte sau după JSON. Asta curăță totul.
+function extractJsonArray(text: string): any[] {
+    try {
+        // 1. Încercare directă
+        return JSON.parse(text);
+    } catch (e) {
+        // 2. Căutăm parantezele de array [...]
+        const firstBracket = text.indexOf('[');
+        const lastBracket = text.lastIndexOf(']');
+        
+        if (firstBracket !== -1 && lastBracket !== -1) {
+            const jsonStr = text.substring(firstBracket, lastBracket + 1);
+            try {
+                return JSON.parse(jsonStr);
+            } catch (innerE) {
+                console.error("Failed to parse extracted JSON string:", jsonStr);
+            }
+        }
+        throw new Error("AI did not return a valid JSON list.");
+    }
+}
+
+// --- 1. IMAGINI (Prin Backend cu Fallback) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
     try {
-        // Încercăm Backend-ul (care scade credite și încearcă Google)
-        const data = await safeFetch('/api/generate-image', { prompt: postText });
+        // Construim un prompt vizual mai bun
+        const imagePrompt = `Editorial photo representing: ${postText}`;
+        const style = brandProfile?.visualStyle || "cinematic";
+
+        // Încercăm Backend-ul (Verifică credite -> OpenAI/Replicate)
+        const data = await safeFetch('/api/generate-image', { 
+            prompt: imagePrompt,
+            style: style 
+        });
         return data.imageUrl;
+
     } catch (e) {
         console.warn("Backend image generation failed, using Client-Side Fallback.", e);
-        // Dacă backend-ul eșuează (ex: eroare 500), generăm imaginea local prin Pollinations (Gratis, nu necesită credite)
-        const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
-        return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&model=flux`;
+        
+        // Fallback: Pollinations (Gratis, Client-side direct)
+        // Nu necesită backend, merge direct din browser
+        const cleanPrompt = encodeURIComponent(postText.substring(0, 150));
+        const seed = Math.floor(Math.random() * 1000);
+        return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
     }
 }
 
 export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
-    // Variațiile le facem direct prin fallback pentru viteză în acest MVP
-    await new Promise(r => setTimeout(r, 1500));
-    const cleanStyle = encodeURIComponent(style + " artistic style");
-    return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&model=flux`;
+    // Momentan folosim fallback-ul rapid pentru variații
+    await new Promise(r => setTimeout(r, 1000)); // Mic delay artificial pt UX
+    const cleanStyle = encodeURIComponent(style + " artistic style, high quality");
+    const seed = Math.floor(Math.random() * 1000);
+    return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
 }
 
-// --- 2. LOGO OVERLAY (Client-Side - Performanță Maximă) ---
+// --- 2. LOGO OVERLAY (Client-Side - Neschimbat) ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, position: LogoPosition = 'top-left', removeBg: boolean = false): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -105,43 +145,46 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
     });
 }
 
-// --- 3. TEXT (Prin Backend - Sigur și Robust) ---
+// --- 3. TEXT (Prin Backend) ---
 export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
+    // Prompt optimizat pentru Gemini
     let prompt = `
-    ACT AS: Expert Social Media Manager.
-    TASK: Write ${postCount} engaging posts about: "${topic}".
+    ROLE: Expert Social Media Manager.
+    TASK: Write ${postCount} highly engaging social media posts about: "${topic}".
     TONE: ${tone}.
     LANGUAGE: ${language}.
-    OUTPUT: JSON Array only. Example: [{"content": "..."}]
+    FORMAT: Return ONLY a raw JSON Array. Do not use Markdown blocks.
+    Structure: [{"content": "Post text here... emojis included"}]
     `;
-    if (brandVoice) prompt += `\nSTYLE: ${brandVoice}`;
+    
+    if (brandVoice) prompt += `\nBRAND VOICE INSTRUCTIONS: ${brandVoice}`;
 
     try {
-        // Apelăm funcția noastră sigură
         const data = await safeFetch('/api/generate-text', { 
             prompt, 
-            imageBase64, // Trimite imaginea la backend dacă există (pentru multimodal)
+            imageBase64, 
             imageMimeType 
         });
 
-        // Curățăm răspunsul primit de la backend (în caz că are markdown)
-        const cleanText = data.output.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(cleanText);
+        // Folosim extractorul robust
+        const parsed = extractJsonArray(data.output);
         
-        if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
+        if(Array.isArray(parsed)) {
+            return parsed.map((p: any) => ({ content: p.content || p }));
+        }
         return [];
 
     } catch (e: any) {
-        console.error("Backend Text Gen failed:", e);
-        // Returnăm o eroare vizibilă în UI ca să știi ce s-a întâmplat
-        return [{ content: `Generation Error: ${e.message}` }];
+        console.error("Text Generation Logic Error:", e);
+        // Returnăm o eroare în UI, dar într-un format care nu sparge aplicația
+        return [{ content: `⚠️ Could not generate posts. Error: ${e.message}. Please try again.` }];
     }
 }
 
-// --- Helper Functions ---
+// --- Helper Functions (Adapters) ---
 export function fileToBase64(file: File): Promise<{mimeType: string, data: string}> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -153,21 +196,27 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {
-        const data = await safeFetch('/api/generate-text', { prompt: `Adapt for ${platform}: "${originalContent}"` });
+        const data = await safeFetch('/api/generate-text', { prompt: `Adapt this post for ${platform}, keeping the same meaning but optimizing for the platform's best practices: "${originalContent}"` });
         return data.output;
     } catch(e) { return originalContent; }
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
     try {
-        const data = await safeFetch('/api/generate-text', { prompt: `Rewrite (${type}): "${content}"` });
+        const promptMap: Record<string, string> = {
+            'shorten': 'Shorten this post while keeping the punchline:',
+            'expand': 'Expand this post with more details and value:',
+            'more-emojis': 'Add relevant emojis to this post:',
+            'formal': 'Rewrite this post to be more professional and formal:'
+        };
+        const data = await safeFetch('/api/generate-text', { prompt: `${promptMap[type] || 'Rewrite:'} "${content}"` });
         return data.output;
     } catch(e) { return content; }
 }
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
     try {
-        const data = await safeFetch('/api/generate-text', { prompt: `Analyze style: "${sampleText}"` });
+        const data = await safeFetch('/api/generate-text', { prompt: `Analyze the tone, style, and vocabulary of this text. Describe the "Brand Voice" in 3 concise sentences: "${sampleText}"` });
         return data.output;
     } catch(e) { return ""; }
 }
