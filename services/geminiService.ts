@@ -2,11 +2,27 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Post, Tone, Platform, RefinementType, CalendarIdea, BrandProfile } from "../types";
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey || "MISSING_KEY");
+// Inițializare safe
+const ai = new GoogleGenerativeAI(apiKey || "MISSING_KEY");
 
-// --- 1. IMAGINI (Pollinations) ---
+// --- FUNCȚIA CARE LIPSEA (CRITICĂ PENTRU BUILD) ---
+export async function analyzeBrandVoice(sampleText: string): Promise<string> {
+  try {
+    // Folosim modelul stabil 1.5-flash-001
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+    const result = await model.generateContent(`Analyze the writing style of this text and create a brief 'Voice DNA' description:\n"${sampleText}"`);
+    return result.response.text() || "Professional and engaging.";
+  } catch (e) { 
+    console.error("Voice analysis failed", e);
+    return "Professional tone."; 
+  }
+}
+
+// --- 1. GENERARE IMAGINI (Pollinations) ---
 export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
+  console.log("Generating image via Fallback...");
   await new Promise(r => setTimeout(r, 1000));
+  
   const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
   const seed = Math.floor(Math.random() * 1000);
   return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
@@ -19,32 +35,46 @@ export async function generateImageVariation(base64ImageData: string, mimeType: 
   return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
 }
 
-// --- 2. LOGO ---
+// --- 2. LOGO OVERLAY ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, position: LogoPosition = 'top-left', removeBg: boolean = false): Promise<string> {
+
+export async function overlayLogoOnImage(
+  mainImageUrl: string, 
+  logoUrl: string, 
+  position: LogoPosition = 'top-left',
+  removeBg: boolean = false
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const mainImg = new Image();
     const logoImg = new Image();
-    mainImg.crossOrigin = "Anonymous"; logoImg.crossOrigin = "Anonymous";
+
+    mainImg.crossOrigin = "Anonymous";
+    logoImg.crossOrigin = "Anonymous";
+
     mainImg.onload = () => {
-      canvas.width = mainImg.width; canvas.height = mainImg.height;
+      canvas.width = mainImg.width;
+      canvas.height = mainImg.height;
       ctx?.drawImage(mainImg, 0, 0);
+
       logoImg.onload = () => {
         if (ctx) {
           const logoWidth = canvas.width * 0.20;
           const scaleFactor = logoWidth / logoImg.width;
           const logoHeight = logoImg.height * scaleFactor;
           const padding = canvas.width * 0.05;
-          let x = padding, y = padding;
+          let x = padding;
+          let y = padding;
+
           switch (position) {
               case 'top-left': x = padding; y = padding; break;
               case 'top-right': x = canvas.width - logoWidth - padding; y = padding; break;
               case 'bottom-left': x = padding; y = canvas.height - logoHeight - padding; break;
               case 'bottom-right': x = canvas.width - logoWidth - padding; y = canvas.height - logoHeight - padding; break;
           }
-          ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 15;
+          ctx.shadowColor = "rgba(0,0,0,0.5)";
+          ctx.shadowBlur = 15;
           ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
           resolve(canvas.toDataURL('image/png'));
         }
@@ -55,7 +85,7 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
   });
 }
 
-// --- 3. TEXT (Gemini 1.5 Flash 001) ---
+// --- 3. GENERARE TEXT (GEMINI 1.5 FLASH 001) ---
 export async function generateSocialMediaPosts(
   topic: string,
   tone: Tone,
@@ -69,14 +99,14 @@ export async function generateSocialMediaPosts(
   
   if (!apiKey) return [{ content: "API Key Missing." }];
   
-  // Modelul Stabil
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+  const model = ai.getGenerativeModel({ model: "gemini-1.5-flash-001" });
   
   let userPrompt = `
-  TASK: Write ${postCount} posts about: "${topic}".
+  ACT AS: Expert Social Media Manager.
+  TASK: Write ${postCount} engaging posts about: "${topic}".
   TONE: ${tone}.
   LANGUAGE: ${language}.
-  OUTPUT: JSON Array. [{"content": "..."}]
+  OUTPUT: JSON Array of objects. Example: [{"content": "..."}]
   `;
 
   if (brandVoice) userPrompt += `\nSTYLE: ${brandVoice}`;
@@ -85,7 +115,7 @@ export async function generateSocialMediaPosts(
     const parts: any[] = [];
     if (imageBase64 && imageMimeType) {
         parts.push({ inlineData: { data: imageBase64, mimeType: imageMimeType } });
-        userPrompt += `\nCONTEXT: Describe the image.`;
+        userPrompt += `\nCONTEXT: Describe the image provided.`;
     }
     parts.push({ text: userPrompt });
 
@@ -100,8 +130,8 @@ export async function generateSocialMediaPosts(
     return [];
 
   } catch (e: any) {
-    console.error("Text gen failed", e);
-    return [{ content: `Error: ${e.message}` }];
+    console.error("Text generation failed", e);
+    return [{ content: `Error: ${e.message}.` }];
   }
 }
 
@@ -117,7 +147,7 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Adapt for ${platform}:\n"${originalContent}"`);
     return result.response.text();
   } catch (e) { return originalContent; }
@@ -125,17 +155,8 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash-001" });
     const result = await model.generateContent(`Rewrite (${type}): "${content}"`);
     return result.response.text();
   } catch (e) { return content; }
-}
-
-// CRITIC: Această funcție lipsea sau era scrisă greșit și cauza eroarea de build
-export async function analyzeBrandVoice(sampleText: string): Promise<string> {
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-001" });
-    const result = await model.generateContent(`Analyze style: "${sampleText}"`);
-    return result.response.text();
-  } catch (e) { return ""; }
 }
