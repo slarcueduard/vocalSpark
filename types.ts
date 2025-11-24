@@ -1,4 +1,59 @@
+// --- ENUMS ---
+export enum Platform {
+  Instagram = 'Instagram',
+  Facebook = 'Facebook',
+  X = 'X (Twitter)',
+  LinkedIn = 'LinkedIn',
+  TikTok = 'TikTok'
+}
+
+export enum Tone {
+  Inspirational = 'Inspirational',
+  Professional = 'Professional',
+  Humorous = 'Humorous',
+  Educational = 'Educational',
+  Casual = 'Casual',
+  Urgent = 'Urgent'
+}
+
+// --- TYPES ---
+export type AppMode = 'creator' | 'business';
+
+export type ViralHook = 
+  | 'Straight to the Point'
+  | 'Storytime' 
+  | 'Controversial' 
+  | 'Behind the Scenes' 
+  | 'Myth vs Fact' 
+  | 'Transformation'
+  | 'Unpopular Opinion'
+  | 'Day in the Life'
+  | 'Hack / Trick';
+
+export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion';
+
 export type SubscriptionTier = 'trial' | 'creator' | 'business';
+
+// --- INTERFACES ---
+
+// Aceasta este interfața care lipsea și dădea eroare
+export interface BrandProfile {
+  industry: string;
+  customIndustry?: string;
+  description: string;
+  voiceDNA: string;
+  websiteUrl?: string;
+  socialUrl?: string;
+}
+
+export interface Post {
+  id: string;
+  content: string;
+  imageUrl?: string | null;
+  isGeneratingImage?: boolean;
+  adaptedContent: Partial<Record<Platform, string>>;
+  isLocked?: boolean;
+}
 
 export interface UserProfile {
   uid: string;
@@ -6,78 +61,14 @@ export interface UserProfile {
   subscriptionTier: SubscriptionTier;
   subscriptionStatus: 'active' | 'expired' | 'cancelled';
   trialStartDate: any; // Firestore Timestamp
-  imageCount: number;  // Câte imagini a generat luna asta
-  imageLimit: number;  // Limita (5, 50, sau 200)
+  imageCount: number;
+  imageLimit: number;
+  createdAt?: any;
 }
-
-// ... restul tipurilor (Post, BrandProfile etc) rămân la fel
-export enum Platform {
-  Instagram = 'Instagram',
-  TikTok = 'TikTok',
-  Facebook = 'Facebook',
-  X = 'X',
-  LinkedIn = 'LinkedIn'
-}
-
-export enum Tone {
-  Professional = 'Professional',
-  Casual = 'Casual',
-  Humorous = 'Humorous',
-  Inspirational = 'Inspirational',
-  Controversial = 'Controversial',
-  Empathetic = 'Empathetic'
-}
-
-export type AppMode = 'creator' | 'business';
-
-export type ViralHook = 
-    | 'Storytime' 
-    | 'Controversial' 
-    | 'Behind the Scenes' 
-    | 'Myth vs Fact' 
-    | 'Transformation'
-    | 'Unpopular Opinion'
-    | 'Day in the Life'
-    | 'Hack / Trick'
-    | 'Straight to the Point';
-
-export interface Post {
-  id: string;
-  content: string; // The original generated content
-  adaptedContent: Partial<Record<Platform, string>>;
-  imageUrl: string | null;
-  isGeneratingImage: boolean;
-  isLocked?: boolean; // For the "Keep" functionality
-}
-
-export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion';
 
 export interface CalendarIdea {
   day: number;
   idea: string;
   postType: string;
   hashtags: string;
-}
-
-export interface BrandProfile {
-  industry: string;
-  customIndustry?: string;
-  websiteUrl: string;
-  socialUrl: string;
-  description: string;
-  logoUrl?: string; // New field for logo asset
-  voiceDNA?: string; // The analyzed style instructions
-  examplePosts?: string; // The raw text used for training
-}
-
-// Represents the user's data stored in Firestore
-export interface UserProfile {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-  photoURL: string | null;
-  trialStartDate: string; // ISO string format
-  trialEndDate: string; // ISO string format
-  subscriptionStatus: 'none' | 'trial' | 'active';
-  brandProfile?: BrandProfile;
 }
