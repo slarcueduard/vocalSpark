@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { XIcon, BriefcaseIcon, SparklesIcon, CheckCircleIcon, Loader } from './Icons';
+// 1. Importăm iconițele
+import { XIcon, BriefcaseIcon, SparklesIcon, CheckCircleIcon } from './Icons';
+// 2. Importăm Loader CORECT din fișierul lui
+import { Loader } from './Loader';
 import { analyzeBrandVoice } from '../services/geminiService';
 import { BrandProfile } from '../types';
 
@@ -41,8 +44,8 @@ export const BrandProfileModal: React.FC<BrandProfileModalProps> = ({ currentPro
       customIndustry: industry === 'Other' ? customIndustry : undefined,
       description,
       voiceDNA,
-      websiteUrl: '', // Optional
-      socialUrl: ''   // Optional
+      websiteUrl: '',
+      socialUrl: ''
     });
     onClose();
   };
