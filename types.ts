@@ -36,7 +36,7 @@ export type SubscriptionTier = 'trial' | 'creator' | 'business';
 
 // --- INTERFACES ---
 
-// Aceasta este interfața care lipsea și dădea eroare
+// CRITIC: Aceasta trebuie să existe pentru ca eroarea să dispară
 export interface BrandProfile {
   industry: string;
   customIndustry?: string;
@@ -60,7 +60,7 @@ export interface UserProfile {
   email: string | null;
   subscriptionTier: SubscriptionTier;
   subscriptionStatus: 'active' | 'expired' | 'cancelled';
-  trialStartDate: any; // Firestore Timestamp
+  trialStartDate: any;
   imageCount: number;
   imageLimit: number;
   createdAt?: any;
