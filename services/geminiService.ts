@@ -1,10 +1,10 @@
 import { Post, Tone, Platform, RefinementType, BrandProfile } from "../types";
-import { auth } from "./firebase"; // Avem nevoie de auth pentru a trimite token-ul la backend
+import { auth } from "./firebase"; 
 
-// Helper: Obține tokenul de securitate al userului logat
+// --- HELPER: Obține tokenul de securitate ---
 async function getAuthHeader() {
     const user = auth.currentUser;
-    if (!user) return {}; // Sau throw error, depinde de flow
+    if (!user) return {}; 
     const token = await user.getIdToken();
     return {
         'Content-Type': 'application/json',
@@ -12,36 +12,59 @@ async function getAuthHeader() {
     };
 }
 
-// --- 1. IMAGINI (Prin Backend - Pollinations Fallback integrat acolo) ---
-export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
+// --- HELPER CRITIC: Fetch Sigur (Rezolvă eroarea "Unexpected token 'A'") ---
+async function safeFetch(url: string, body: any) {
     const headers = await getAuthHeader();
     
-    // Apelăm serverul nostru
-    const response = await fetch('/api/generate-image', {
+    const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }, // Nu cerem auth pt imagini momentan ca să meargă rapid
-        body: JSON.stringify({ prompt: postText })
+        headers: headers as any,
+        body: JSON.stringify(body)
     });
 
+    // 1. Citim răspunsul ca TEXT pur (nu JSON direct)
+    const text = await response.text();
+    
+    // 2. Încercăm să îl transformăm în JSON
+    let data;
+    try {
+        data = JSON.parse(text);
+    } catch (e) {
+        // Dacă nu e JSON, înseamnă că serverul a crăpat urât (HTML error page)
+        console.error("Server Raw Response:", text);
+        throw new Error(`Server Error (${response.status}): The server returned an invalid response.`);
+    }
+
+    // 3. Verificăm dacă API-ul a raportat o eroare logică
     if (!response.ok) {
-        // Fallback client-side dacă serverul eșuează
-        console.warn("Backend image generation failed, using client fallback.");
+        throw new Error(data.error || `API Error: ${response.statusText}`);
+    }
+
+    return data;
+}
+
+// --- 1. IMAGINI (Prin Backend cu Fallback Inteligent) ---
+export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
+    try {
+        // Încercăm Backend-ul (care scade credite și încearcă Google)
+        const data = await safeFetch('/api/generate-image', { prompt: postText });
+        return data.imageUrl;
+    } catch (e) {
+        console.warn("Backend image generation failed, using Client-Side Fallback.", e);
+        // Dacă backend-ul eșuează (ex: eroare 500), generăm imaginea local prin Pollinations (Gratis, nu necesită credite)
         const cleanPrompt = encodeURIComponent(postText.substring(0, 100));
         return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&model=flux`;
     }
-
-    const data = await response.json();
-    return data.imageUrl;
 }
 
 export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
-    // Pentru variații, momentan folosim fallback-ul direct pentru viteză
+    // Variațiile le facem direct prin fallback pentru viteză în acest MVP
     await new Promise(r => setTimeout(r, 1500));
     const cleanStyle = encodeURIComponent(style + " artistic style");
     return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&model=flux`;
 }
 
-// --- 2. LOGO OVERLAY (Rămâne Client-Side - e pur grafic) ---
+// --- 2. LOGO OVERLAY (Client-Side - Performanță Maximă) ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, position: LogoPosition = 'top-left', removeBg: boolean = false): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -50,9 +73,11 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
         const mainImg = new Image();
         const logoImg = new Image();
         mainImg.crossOrigin = "Anonymous"; logoImg.crossOrigin = "Anonymous";
+        
         mainImg.onload = () => {
           canvas.width = mainImg.width; canvas.height = mainImg.height;
           ctx?.drawImage(mainImg, 0, 0);
+          
           logoImg.onload = () => {
             if (ctx) {
               const logoWidth = canvas.width * 0.20;
@@ -60,12 +85,14 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
               const logoHeight = logoImg.height * scaleFactor;
               const padding = canvas.width * 0.05;
               let x = padding, y = padding;
+              
               switch (position) {
                   case 'top-left': x = padding; y = padding; break;
                   case 'top-right': x = canvas.width - logoWidth - padding; y = padding; break;
                   case 'bottom-left': x = padding; y = canvas.height - logoHeight - padding; break;
                   case 'bottom-right': x = canvas.width - logoWidth - padding; y = canvas.height - logoHeight - padding; break;
               }
+              
               ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 15;
               ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
               resolve(canvas.toDataURL('image/png'));
@@ -73,26 +100,16 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
           };
           logoImg.src = logoUrl;
         };
+        mainImg.onerror = (e) => reject(e);
         mainImg.src = mainImageUrl;
-      });
+    });
 }
 
-// --- 3. TEXT (PRIN BACKEND - AICI REZOLVĂM EROAREA) ---
+// --- 3. TEXT (Prin Backend - Sigur și Robust) ---
 export async function generateSocialMediaPosts(
-  topic: string,
-  tone: Tone,
-  postCount: number,
-  language: string,
-  brandVoice: string,
-  brandProfile?: BrandProfile,
-  imageBase64?: string,
-  imageMimeType?: string
+  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
-    // Obținem tokenul ca să știm cine face cererea (pentru credite)
-    const headers = await getAuthHeader();
-
-    // Construim prompt-ul
     let prompt = `
     ACT AS: Expert Social Media Manager.
     TASK: Write ${postCount} engaging posts about: "${topic}".
@@ -103,24 +120,14 @@ export async function generateSocialMediaPosts(
     if (brandVoice) prompt += `\nSTYLE: ${brandVoice}`;
 
     try {
-        // APELĂM SERVERUL NOSTRU (/api/generate-text)
-        const response = await fetch('/api/generate-text', {
-            method: 'POST',
-            headers: headers as any,
-            body: JSON.stringify({ 
-                prompt,
-                imageBase64, // Trimitem și imaginea la backend dacă e cazul
-                imageMimeType
-            })
+        // Apelăm funcția noastră sigură
+        const data = await safeFetch('/api/generate-text', { 
+            prompt, 
+            imageBase64, // Trimite imaginea la backend dacă există (pentru multimodal)
+            imageMimeType 
         });
 
-        if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error || "Server Error");
-        }
-        
-        const data = await response.json();
-        // Backend-ul ne dă textul gata generat
+        // Curățăm răspunsul primit de la backend (în caz că are markdown)
         const cleanText = data.output.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleanText);
         
@@ -129,7 +136,8 @@ export async function generateSocialMediaPosts(
 
     } catch (e: any) {
         console.error("Backend Text Gen failed:", e);
-        return [{ content: `Error: ${e.message}. Please try again.` }];
+        // Returnăm o eroare vizibilă în UI ca să știi ce s-a întâmplat
+        return [{ content: `Generation Error: ${e.message}` }];
     }
 }
 
@@ -144,38 +152,22 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 }
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
-    // Folosim tot backend-ul pentru adaptare
-    const headers = await getAuthHeader();
     try {
-        const res = await fetch('/api/generate-text', {
-            method: 'POST', headers: headers as any,
-            body: JSON.stringify({ prompt: `Adapt for ${platform}: "${originalContent}"` })
-        });
-        const data = await res.json();
+        const data = await safeFetch('/api/generate-text', { prompt: `Adapt for ${platform}: "${originalContent}"` });
         return data.output;
     } catch(e) { return originalContent; }
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
-    const headers = await getAuthHeader();
     try {
-        const res = await fetch('/api/generate-text', {
-            method: 'POST', headers: headers as any,
-            body: JSON.stringify({ prompt: `Rewrite (${type}): "${content}"` })
-        });
-        const data = await res.json();
+        const data = await safeFetch('/api/generate-text', { prompt: `Rewrite (${type}): "${content}"` });
         return data.output;
     } catch(e) { return content; }
 }
 
 export async function analyzeBrandVoice(sampleText: string): Promise<string> {
-    const headers = await getAuthHeader();
     try {
-        const res = await fetch('/api/generate-text', {
-            method: 'POST', headers: headers as any,
-            body: JSON.stringify({ prompt: `Analyze style: "${sampleText}"` })
-        });
-        const data = await res.json();
+        const data = await safeFetch('/api/generate-text', { prompt: `Analyze style: "${sampleText}"` });
         return data.output;
     } catch(e) { return ""; }
 }
