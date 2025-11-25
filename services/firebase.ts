@@ -1,8 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth"; // Importăm GoogleAuthProvider
+import { getAuth, GoogleAuthProvider } from "firebase/auth"; 
 import { getFirestore } from "firebase/firestore";
 
-// Folosim variabilele din Vercel
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -12,12 +11,8 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// 1. Inițializăm aplicația
 const app = initializeApp(firebaseConfig);
 
-// 2. Exportăm Auth și Database
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
-// 3. Exportăm Google Provider (ASTA LIPSEA!)
-export const googleProvider = new GoogleAuthProvider();
+export const googleProvider = new GoogleAuthProvider(); // <--- Aceasta este linia critică!
