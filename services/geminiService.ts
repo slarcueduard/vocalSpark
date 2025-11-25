@@ -74,16 +74,20 @@ function extractJsonArray(text: string): any[] {
 
 // --- 1. IMAGINI (Prin Backend) ---
 // Aceasta este singura definiție a funcției!
-export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
-    try {
-        // Construim un prompt mai bun pentru imagine
-        const imagePrompt = postText.length > 200 ? `Editorial photo representing: ${postText.substring(0, 200)}` : postText;
+export async function generateSocialMediaPosts(
+  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string
+) {
+    // Folosim limba din profil dacă există, altfel parametrul language, altfel English
+    const finalLang = brandProfile?.language || language || 'English';
 
-        // Apelăm backend-ul (care verifică creditele și alege modelul)
-        const data = await safeFetch('/api/generate-image', { 
-            prompt: imagePrompt,
-            isPremium: isPremium 
-        });
+    // ... în request body către backend:
+    const data = await safeFetch('/api/generate-text', { 
+            prompt, 
+            brandContext: brandVoice, 
+            language: finalLang, // <--- TRIMITEM LIMBA AICI
+            imageBase64, 
+            imageMimeType 
+    });
         
         return data.imageUrl;
 
