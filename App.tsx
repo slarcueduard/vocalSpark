@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { generateSocialMediaPosts, generateImageForPost, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { Post, Tone, Platform, AppMode, ViralHook, RefinementType } from './types';
+import React, { useState, useRef } from 'react';
+import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
+import { Post, Tone, Platform, ViralHook, RefinementType } from './types';
 import { TONES, PLATFORMS } from './constants';
 import { Loader } from './components/Loader';
-import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock } from 'lucide-react'; // Iconița de lacăt pentru Paywall
+import { SparklesIcon, ImageIcon } from './components/Icons';
+import { Lock } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -17,33 +17,13 @@ const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial'
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired } = useAuth();
-  const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
   // State pentru Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
-  // În interiorul componentei SocialSparkApp, după declararea state-urilor:
-
-  // --- AUTO-SUGESTIE BAZATĂ PE INDUSTRIE ---
-  useEffect(() => {
-    // Dacă userul nu a scris nimic și avem un profil de brand
-    if (!topic && brandProfile?.industry && !isLoading) {
-        const ideas = [
-            `Trending topic in ${brandProfile.industry} industry`,
-            `Behind the scenes of a ${brandProfile.industry} business`,
-            `Myth vs Fact about ${brandProfile.industry}`,
-            `Tips for ${brandProfile.industry} customers`
-        ];
-        // Alegem una random
-        const randomIdea = ideas[Math.floor(Math.random() * ideas.length)];
-        // O punem ca placeholder sau chiar ca valoare (opțional)
-        // Aici o punem doar dacă userul dă click pe un buton "Suggest Idea", 
-        // SAU o putem seta direct:
-        // setTopic(randomIdea); <--- Dacă vrei să scrie singur
-    }
-  }, [brandProfile]);
+  
   // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
@@ -56,11 +36,9 @@ const SocialSparkApp: React.FC = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [viralHook, setViralHook] = useState<ViralHook | ''>('');
-  const [isCampaignMode, setIsCampaignMode] = useState(false);
+  const [isCampaignMode, setIsCampaignMode] = useState(false); // Păstrat pentru viitor
   const [posts, setPosts] = useState<Post[]>([]);
   
-  useEffect(() => { if (brandProfile && appMode === 'creator') setAppMode('business'); }, [brandProfile]);
-
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
           const response = await fetch(url);
@@ -102,7 +80,7 @@ const SocialSparkApp: React.FC = () => {
     
     // Check Credits & Trial Status
     if (!checkCredits(1)) { 
-        if (isTrialExpired) return; // UI handles the paywall
+        if (isTrialExpired) return; 
         alert("Insufficient credits!"); 
         return; 
     }
@@ -110,7 +88,7 @@ const SocialSparkApp: React.FC = () => {
     setIsLoading(true); setError(null);
     try {
       let finalTopic = topic;
-      if (appMode === 'creator' && viralHook) finalTopic = `${viralHook}: ${topic}`;
+      if (viralHook) finalTopic = `${viralHook}: ${topic}`;
       
       let imgData = undefined, imgMime = undefined;
       if (attachedImage) {
@@ -118,7 +96,16 @@ const SocialSparkApp: React.FC = () => {
           if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
       }
 
-      const generatedPosts = await generateSocialMediaPosts(finalTopic, tone, isCampaignMode ? 3 : 1, 'English', '', (appMode === 'business' && brandProfile) ? brandProfile : undefined, imgData, imgMime);
+      const generatedPosts = await generateSocialMediaPosts(
+          finalTopic, 
+          tone, 
+          1, 
+          'English', 
+          brandProfile?.voiceDNA || '', // Trimitem doar stringul Voice DNA
+          brandProfile || undefined, 
+          imgData, 
+          imgMime
+      );
       
       const newPosts: Post[] = generatedPosts.map(p => ({ 
           ...p, 
@@ -157,48 +144,36 @@ const SocialSparkApp: React.FC = () => {
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
 
   return (
-    <MainLayout>
+    // AICI CONECTĂM BUTONUL DIN SIDEBAR CU MODALUL DIN APP
+    <MainLayout onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}>
         
-        {/* --- PAYWALL OVERLAY (Apare doar dacă trial-ul a expirat) --- */}
+        {/* --- PAYWALL OVERLAY --- */}
         {isTrialExpired && (
-            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-xl overflow-hidden">
+            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-xl overflow-hidden pointer-events-auto">
                 <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20 mx-4">
                     <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Lock size={32} className="text-red-500" />
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-2">Free Trial Expired</h2>
                     <p className="text-gray-400 mb-6 text-sm">
-                        You've enjoyed 5 days of premium creation. To keep generating viral content and visuals, please verify your account by choosing a plan.
+                        To keep generating viral content and visuals, please verify your account by choosing a plan.
                     </p>
-                    {/* Notă: Acest buton se bazează pe faptul că userul poate da click pe "Upgrade Plan" din header-ul MainLayout care rămâne vizibil de obicei */}
                     <div className="text-xs text-gray-500 bg-gray-900 p-3 rounded-lg">
-                        Click the <b>UPGRADE PLAN</b> button in the top right corner to continue.
+                        Click the <b>UPGRADE PLAN</b> button in the top right corner.
                     </div>
                 </div>
             </div>
         )}
 
         <div className="flex h-full gap-6 relative">
+            {/* Left: Input & Results */}
             <div className="flex-1 min-w-0">
                 <div className="max-w-2xl mx-auto pb-20">
                     <header className="mb-8">
-                        <h2 className="text-2xl font-bold text-white">{appMode === 'creator' ? 'Creator Studio' : 'Business Hub'}</h2>
+                        <h2 className="text-2xl font-bold text-white">Creator Studio</h2>
                         <p className="text-gray-500 text-sm mt-1">Create content that converts.</p>
                     </header>
                     
-                    {appMode === 'business' && (
-                        <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 mb-6 flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <BriefcaseIcon className="w-5 h-5 text-blue-400" />
-                                <div>
-                                    <h3 className="font-semibold text-white text-sm">Brand Voice</h3>
-                                    <p className="text-xs text-gray-500">{brandProfile ? 'Active' : 'Not configured'}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => setIsBrandProfileModalOpen(true)} className="text-xs text-blue-400 hover:underline">Settings</button>
-                        </div>
-                    )}
-
                     <div className="space-y-6">
                         <div className="relative">
                             <label className="block text-sm font-medium mb-2 text-gray-300">What to post?</label>
@@ -219,22 +194,20 @@ const SocialSparkApp: React.FC = () => {
                             </button>
                         </div>
 
-                        {appMode === 'creator' && (
-                            <div>
-                                <label className="block text-sm font-medium mb-2 text-gray-300">Viral Strategy</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {HOOKS.map(hook => (
-                                        <button 
-                                            key={hook} 
-                                            onClick={() => setViralHook(hook === viralHook ? '' : hook)} 
-                                            className={`py-2 px-2 rounded-lg text-[10px] font-medium border transition-all ${viralHook === hook ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}
-                                        >
-                                            {hook}
-                                        </button>
-                                    ))}
-                                </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-2 text-gray-300">Viral Strategy</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {HOOKS.map(hook => (
+                                    <button 
+                                        key={hook} 
+                                        onClick={() => setViralHook(hook === viralHook ? '' : hook)} 
+                                        className={`py-2 px-2 rounded-lg text-[10px] font-medium border transition-all ${viralHook === hook ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}
+                                    >
+                                        {hook}
+                                    </button>
+                                ))}
                             </div>
-                        )}
+                        </div>
 
                         <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -285,6 +258,7 @@ const SocialSparkApp: React.FC = () => {
                 </div>
             </div>
             
+            {/* Right: Phone Preview */}
             <div className="hidden xl:block w-[400px] shrink-0">
                 <div className="sticky top-6">
                     <PhonePreview 
@@ -301,6 +275,7 @@ const SocialSparkApp: React.FC = () => {
             </div>
         </div>
 
+        {/* MODALE */}
         {isImageModalOpen && (
             <ImageCreationModal 
                 onClose={() => setIsImageModalOpen(false)} 
@@ -309,7 +284,13 @@ const SocialSparkApp: React.FC = () => {
             />
         )}
         
-        {isBrandProfileModalOpen && <BrandProfileModal currentProfile={brandProfile} onSave={saveBrandProfile} onClose={() => setIsBrandProfileModalOpen(false)} />}
+        {isBrandProfileModalOpen && (
+            <BrandProfileModal 
+                currentProfile={brandProfile} 
+                onSave={saveBrandProfile} 
+                onClose={() => setIsBrandProfileModalOpen(false)} 
+            />
+        )}
     </MainLayout>
   );
 };
