@@ -27,15 +27,29 @@ export async function verifyUserAndCredits(req, costInCredits) {
     
     const doc = await userRef.get();
     
-    // Dăm 10 credite gratis la userii noi
+    // ... (importurile de firebase admin rămân la fel) ...
+
+// În interiorul funcției verifyUserAndCredits:
+    
+    const doc = await userRef.get();
+    
+    // USER NOU (TRIAL START)
     if (!doc.exists) {
+      const trialCredits = 150; // BONUS DE BUN VENIT
       await userRef.set({ 
-        credits: 10, 
+        credits: trialCredits, 
         email: decodedToken.email,
+        subscriptionTier: 'trial',
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
-      return { userRef, userData: { credits: 10 } };
+      
+      // Dacă cere mai mult decât are din start (puțin probabil)
+      if (costInCredits > trialCredits) throw new Error('Insufficient credits');
+      
+      return { userRef, userData: { credits: trialCredits } };
     }
+
+// ... (restul verificărilor rămân la fel)
 
     const userData = doc.data();
     const currentCredits = userData.credits || 0;
