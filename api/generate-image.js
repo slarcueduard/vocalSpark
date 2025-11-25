@@ -4,7 +4,6 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req, res) {
-  // CORS Configuration
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -19,17 +18,13 @@ export default async function handler(req, res) {
     
     let finalImageUrl = "";
 
-    // --- LOGICA HIBRIDĂ ---
     if (isPremium) {
-        // >>> PREMIUM (DALL-E 3) - TRECE PRIN PROXY (Backend) <<<
-        // DALL-E are URL-uri care expiră și reguli CORS stricte, deci trebuie procesat de server.
-        
-        // 1. Îmbunătățire Prompt cu GPT-4o
+        // --- PREMIUM (DALL-E 3) ---
         let enhancedPrompt = prompt;
         try {
              const enhancement = await openai.chat.completions.create({
                 messages: [
-                    { role: "system", content: "Rewrite this image prompt to be photorealistic and highly detailed." },
+                    { role: "system", content: "Rewrite this image prompt to be photorealistic, highly detailed, and artistic. Keep it concise." },
                     { role: "user", content: prompt }
                 ],
                 model: "gpt-4o-mini",
@@ -45,25 +40,25 @@ export default async function handler(req, res) {
           quality: "standard",
         });
         
+        // Proxy prin server pentru a evita CORS
         const tempUrl = response.data[0].url;
-
-        // Download și conversie la Base64 pe server
         const imageResponse = await fetch(tempUrl);
         const arrayBuffer = await imageResponse.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         finalImageUrl = `data:image/png;base64,${buffer.toString('base64')}`;
 
     } else {
-        // >>> STANDARD (Pollinations) - DIRECT URL (Fără Proxy) <<<
-        // Pollinations permite hotlinking. Trimitem URL-ul direct browserului.
-        // Asta rezolvă eroarea 504 Gateway Timeout!
+        // --- STANDARD (Pollinations) ---
+        // FIX: Folosim un prompt mult mai simplu și modelul 'flux' standard care e cel mai stabil
+        // Eliminăm orice caracter care nu e literă/cifră pentru a nu sparge URL-ul
+        const safePrompt = prompt.replace(/[^a-zA-Z0-9 ,]/g, '');
+        const cleanPrompt = encodeURIComponent(safePrompt);
+        const seed = Math.floor(Math.random() * 1000000);
         
-        const cleanPrompt = encodeURIComponent(prompt.replace(/[^a-zA-Z0-9 ,]/g, ''));
-        const seed = Math.floor(Math.random() * 10000);
-        finalImageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&seed=${seed}&model=flux-realism&nologo=true`;
+        // URL simplificat care merge 100%
+        finalImageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
     }
 
-    // 3. Scădem banii
     await deductCredits(userRef, COST);
 
     return res.status(200).json({ imageUrl: finalImageUrl });
