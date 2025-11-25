@@ -12,6 +12,42 @@ async function getAuthHeader() {
     };
 }
 
+// src/services/geminiService.ts
+
+// ... alte importuri
+
+// Modificăm funcția ca să accepte isPremium
+export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
+    try {
+        const token = await auth.currentUser?.getIdToken();
+        
+        const response = await fetch('/api/generate-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ 
+                prompt: postText,
+                isPremium: isPremium // Trimitem alegerea la backend
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Image generation failed");
+        }
+
+        return data.imageUrl;
+    } catch (e) {
+        console.error("Image Gen Error:", e);
+        throw e;
+    }
+}
+
+// ... restul funcțiilor rămân la fel
+
 // --- HELPER CRITIC: Fetch Sigur ---
 // Gestionează erorile de rețea și răspunsurile non-JSON (ex: erori Vercel 504/404)
 async function safeFetch(url: string, body: any) {
