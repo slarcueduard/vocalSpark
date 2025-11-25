@@ -19,29 +19,22 @@ export enum Tone {
 // --- TYPES ---
 export type AppMode = 'creator' | 'business';
 
+// Updated Subscription Tiers
+export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
+
 export type ViralHook = 
-  | 'Straight to the Point'
-  | 'Storytime' 
-  | 'Controversial' 
-  | 'Behind the Scenes' 
-  | 'Myth vs Fact' 
-  | 'Transformation'
-  | 'Unpopular Opinion'
-  | 'Day in the Life'
-  | 'Hack / Trick';
+  | 'Straight to the Point' | 'Storytime' | 'Controversial' | 'Behind the Scenes' 
+  | 'Myth vs Fact' | 'Transformation' | 'Unpopular Opinion' | 'Day in the Life' | 'Hack / Trick';
 
 export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion';
 
-export type SubscriptionTier = 'trial' | 'creator' | 'business';
-
 // --- INTERFACES ---
 
-// CRITIC: Aceasta trebuie să existe pentru ca eroarea să dispară
 export interface BrandProfile {
   industry: string;
   customIndustry?: string;
   description: string;
-  voiceDNA: string;
+  voiceDNA: string; // The "WOW" factor: AI analyzes and saves this
   websiteUrl?: string;
   socialUrl?: string;
 }
@@ -60,9 +53,9 @@ export interface UserProfile {
   email: string | null;
   subscriptionTier: SubscriptionTier;
   subscriptionStatus: 'active' | 'expired' | 'cancelled';
-  trialStartDate: any;
-  imageCount: number;
-  imageLimit: number;
+  trialStartDate?: any;
+  credits: number; // The currency of your app
+  imageCount?: number; // Kept for legacy statistics
   createdAt?: any;
 }
 
@@ -72,3 +65,68 @@ export interface CalendarIdea {
   postType: string;
   hashtags: string;
 }
+
+// --- CONFIGURATION & PLANS (The Source of Truth) ---
+export interface PlanConfig {
+  id: SubscriptionTier;
+  name: string;
+  price: number;
+  credits: number;
+  label: string;
+  features: string[];
+  highlight?: boolean;
+}
+
+export const PLANS: Record<SubscriptionTier, PlanConfig> = {
+  trial: {
+    id: 'trial',
+    name: 'Free Trial',
+    price: 0,
+    credits: 150,
+    label: '5 Days Free',
+    features: ['150 Credits', 'Standard Images', 'Basic Text Gen', '1 Brand Voice']
+  },
+  creator: {
+    id: 'creator',
+    name: 'Creator',
+    price: 4.99,
+    credits: 600,
+    label: 'Starter',
+    features: [
+      '600 Credits / mo',
+      'Standard AI Images (Fast)',
+      'Platform Optimizer (IG, LI, X)',
+      '1 Brand Voice Profile',
+      'Viral Hook Templates'
+    ]
+  },
+  pro: {
+    id: 'pro',
+    name: 'Pro',
+    price: 11.99,
+    credits: 2500,
+    label: 'Growth',
+    highlight: true,
+    features: [
+      '2,500 Credits / mo',
+      'Premium DALL-E 3 Images',
+      '3 Brand Voice Profiles',
+      'Carousel Wizard (Coming Soon)',
+      'Competitor Rewrite'
+    ]
+  },
+  agency: {
+    id: 'agency',
+    name: 'Agency',
+    price: 29.99,
+    credits: 7000,
+    label: 'Scale',
+    features: [
+      '7,000 Credits / mo',
+      'Bulk Content Generation',
+      'Unlimited Brand Voices',
+      'Logo Injection on Images',
+      'Priority Support'
+    ]
+  }
+};
