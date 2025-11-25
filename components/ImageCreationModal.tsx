@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Sparkles, Zap, Crown, Download, AlertCircle, ArrowLeft, Upload, Image as ImageIcon } from 'lucide-react';
+import { X, Sparkles, Zap, Crown, Download, AlertCircle, ArrowLeft, Upload, Image as ImageIcon, Palette } from 'lucide-react';
 import { generateImageForPost } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,11 +9,59 @@ interface ImageCreationModalProps {
   initialPrompt?: string;
 }
 
+// --- DEFINIREA FILTRELOR ---
+const IMAGE_STYLES = [
+  { 
+    id: 'velocity', 
+    label: 'Velocity Dark', 
+    description: 'Cyberpunk, Neon, Moody',
+    // Promptul secret pentru stilul vostru
+    promptSuffix: ', dark moody cyberpunk aesthetic, neon blue and purple lighting, high contrast, John Wick style, cinematic atmosphere, sharp focus, 8k',
+    isExclusive: true 
+  },
+  { 
+    id: 'cinematic', 
+    label: 'Cinematic', 
+    description: 'Movie look, Dramatic',
+    promptSuffix: ', cinematic lighting, dramatic shadows, shallow depth of field, anamorphic lens, color graded, hyperrealistic',
+    isExclusive: false
+  },
+  { 
+    id: 'minimalist', 
+    label: 'Minimalist', 
+    description: 'Clean, Bright, Modern',
+    promptSuffix: ', minimalist style, clean background, bright soft lighting, apple aesthetic, modern design, high key',
+    isExclusive: false
+  },
+  { 
+    id: 'vibrant', 
+    label: 'Vibrant Pop', 
+    description: 'Punchy colors, Social',
+    promptSuffix: ', vibrant colors, high saturation, pop art style, energetic, instagram aesthetic, bright',
+    isExclusive: false
+  },
+  { 
+    id: 'vintage', 
+    label: 'Vintage 90s', 
+    description: 'Retro, Film Grain',
+    promptSuffix: ', vintage 90s film photography, kodak portra, film grain, warm tones, nostalgia, flash photography',
+    isExclusive: false
+  },
+  { 
+    id: '3d', 
+    label: '3D Render', 
+    description: 'Cute, Plastic, Tech',
+    promptSuffix: ', 3d render, blender style, isometric view, clay material, soft lighting, cute, tech startup vibe',
+    isExclusive: false
+  }
+];
+
 export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
   const { checkCredits, credits } = useAuth();
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate');
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
+  const [selectedStyle, setSelectedStyle] = useState<string>('velocity'); // Default pe stilul vostru
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +82,17 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     setResultImage(null);
 
     try {
-      const imageUrl = await generateImageForPost(prompt, modelType === 'premium');
+      // 1. Găsim stilul selectat
+      const styleObj = IMAGE_STYLES.find(s => s.id === selectedStyle);
+      
+      // 2. Combinăm promptul userului cu stilul
+      // Ex: "A dog" + ", dark moody cyberpunk..."
+      const finalPrompt = styleObj 
+        ? `${prompt}${styleObj.promptSuffix}` 
+        : prompt;
+
+      // 3. Trimitem la backend
+      const imageUrl = await generateImageForPost(finalPrompt, modelType === 'premium');
       setResultImage(imageUrl);
     } catch (err: any) {
       setError(err.message || "Failed to generate image.");
@@ -57,10 +115,10 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-4xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[600px] shadow-2xl">
+      <div className="w-full max-w-5xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[700px] shadow-2xl">
         
-        {/* LEFT: Controls */}
-        <div className="w-full md:w-1/2 p-6 flex flex-col border-r border-gray-800 bg-[#161b22]">
+        {/* LEFT: Controls (Scrollable if needed) */}
+        <div className="w-full md:w-1/2 p-6 flex flex-col border-r border-gray-800 bg-[#161b22] overflow-y-auto custom-scrollbar">
           
           {/* Header */}
           <div className="flex justify-between items-center mb-6">
@@ -68,12 +126,12 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                 <ArrowLeft size={16} /> Back
             </button>
             <div className="bg-gray-800 px-3 py-1 rounded-full border border-gray-700 text-xs text-gray-300">
-                Credits: <span className="text-white font-bold">{credits}</span>
+                Credits: <span className={canAfford ? "text-white font-bold" : "text-red-400 font-bold"}>{credits}</span>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex p-1 bg-gray-900 rounded-xl mb-6 border border-gray-800">
+          <div className="flex p-1 bg-gray-900 rounded-xl mb-6 border border-gray-800 sticky top-0 z-10">
               <button 
                 onClick={() => setActiveTab('generate')}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition ${activeTab === 'generate' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
@@ -92,46 +150,82 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
           {activeTab === 'generate' ? (
             <>
                 <div className="mb-4">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2 block">PROMPT</label>
                     <textarea
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    className="w-full h-28 bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-white text-sm focus:border-blue-500 outline-none resize-none placeholder-gray-600"
-                    placeholder="Describe your visual..."
+                    className="w-full h-24 bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-white text-sm focus:border-blue-500 outline-none resize-none placeholder-gray-600"
+                    placeholder="Describe your visual idea..."
                     />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mb-auto">
+                {/* Quality Selection */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
                     <div 
                         onClick={() => setModelType('standard')}
-                        className={`cursor-pointer p-3 rounded-xl border-2 transition ${modelType === 'standard' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-800'}`}
+                        className={`cursor-pointer p-3 rounded-xl border-2 transition ${modelType === 'standard' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-900'}`}
                     >
-                        <div className="flex justify-between mb-2"><Zap size={18} className="text-blue-400" /><span className="text-xs bg-black/30 px-2 py-0.5 rounded text-gray-300">{COST_STANDARD} Cr</span></div>
+                        <div className="flex justify-between mb-1"><Zap size={16} className="text-blue-400" /><span className="text-[10px] bg-gray-800 px-1.5 rounded text-gray-300">{COST_STANDARD} Cr</span></div>
                         <div className="font-bold text-sm text-white">Standard</div>
                     </div>
 
                     <div 
                         onClick={() => setModelType('premium')}
-                        className={`cursor-pointer p-3 rounded-xl border-2 transition ${modelType === 'premium' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 bg-gray-800'}`}
+                        className={`cursor-pointer p-3 rounded-xl border-2 transition ${modelType === 'premium' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 bg-gray-900'}`}
                     >
-                        <div className="flex justify-between mb-2"><Crown size={18} className="text-purple-400" /><span className="text-xs bg-black/30 px-2 py-0.5 rounded text-gray-300">{COST_PREMIUM} Cr</span></div>
+                        <div className="flex justify-between mb-1"><Crown size={16} className="text-purple-400" /><span className="text-[10px] bg-gray-800 px-1.5 rounded text-gray-300">{COST_PREMIUM} Cr</span></div>
                         <div className="font-bold text-sm text-white">Premium</div>
+                    </div>
+                </div>
+
+                {/* FILTERS / STYLES */}
+                <div className="mb-6">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <Palette size={12} /> Select Style
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {IMAGE_STYLES.map((style) => (
+                            <button
+                                key={style.id}
+                                onClick={() => setSelectedStyle(style.id)}
+                                className={`relative p-3 rounded-lg border text-left transition-all ${
+                                    selectedStyle === style.id 
+                                    ? style.isExclusive 
+                                        ? 'border-blue-400 bg-gradient-to-r from-blue-900/40 to-purple-900/40' // Velocity Style Highlight
+                                        : 'border-gray-400 bg-gray-800'
+                                    : 'border-gray-800 bg-[#0f1115] hover:border-gray-600'
+                                }`}
+                            >
+                                {style.isExclusive && (
+                                    <span className="absolute top-0 right-0 text-[8px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-bl-lg rounded-tr-lg">
+                                        VELOCITY
+                                    </span>
+                                )}
+                                <div className={`text-xs font-bold mb-0.5 ${selectedStyle === style.id ? 'text-white' : 'text-gray-300'}`}>
+                                    {style.label}
+                                </div>
+                                <div className="text-[10px] text-gray-500 leading-tight">
+                                    {style.description}
+                                </div>
+                            </button>
+                        ))}
                     </div>
                 </div>
 
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating || !prompt || !canAfford}
-                    className={`w-full py-3 mt-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 ${
-                        isGenerating ? 'bg-gray-700' : 'bg-blue-600 hover:bg-blue-500'
-                    } text-white transition disabled:opacity-50`}
+                    className={`w-full py-3 mt-auto rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg ${
+                        isGenerating ? 'bg-gray-700' : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:scale-[1.02]'
+                    } text-white transition disabled:opacity-50 disabled:scale-100`}
                 >
-                    {isGenerating ? "Generating..." : `Generate (${currentCost} Cr)`}
+                    {isGenerating ? "Creating Magic..." : `Generate Image (${currentCost} Cr)`}
                 </button>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-gray-700 rounded-xl bg-[#0f1115] hover:border-gray-500 transition cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-gray-700 rounded-xl bg-[#0f1115] hover:border-gray-500 transition cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
                 <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" hidden />
-                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition">
                     <ImageIcon size={32} className="text-gray-400" />
                 </div>
                 <p className="text-white font-medium mb-1">Click to upload</p>
@@ -139,7 +233,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             </div>
           )}
 
-          {error && <div className="mt-2 text-red-400 text-xs flex items-center gap-1"><AlertCircle size={12}/> {error}</div>}
+          {error && <div className="mt-4 p-3 bg-red-900/20 border border-red-800/50 rounded-lg flex items-center gap-2 text-red-400 text-xs"><AlertCircle size={14}/> {error}</div>}
         </div>
 
         {/* RIGHT: Preview */}
@@ -148,15 +242,20 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             
             {resultImage ? (
                 <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in">
-                    <img src={resultImage} alt="Result" className="max-h-[400px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain" />
-                    <button onClick={() => { onSelectImage(resultImage); onClose(); }} className="w-full max-w-xs bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg">
-                        Use This Image
-                    </button>
+                    <img src={resultImage} alt="Result" className="max-h-[400px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black" />
+                    <div className="flex gap-3 w-full max-w-xs">
+                        <button onClick={() => { onSelectImage(resultImage); onClose(); }} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg">
+                            Use Image
+                        </button>
+                        <a href={resultImage} download="velocity-ai-image.png" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700">
+                            <Download size={20}/>
+                        </a>
+                    </div>
                 </div>
             ) : (
                 <div className="text-center text-gray-500">
-                    <Sparkles className={`w-12 h-12 mx-auto mb-4 ${isGenerating ? 'animate-spin text-blue-500' : 'text-gray-700'}`} />
-                    <p>{isGenerating ? "Creating magic..." : "Your visual will appear here"}</p>
+                    <Sparkles className={`w-12 h-12 mx-auto mb-4 ${isGenerating ? 'animate-spin text-blue-500' : 'text-gray-800'}`} />
+                    <p className="text-sm">{isGenerating ? "Applying Velocity Magic..." : "Your visual will appear here"}</p>
                 </div>
             )}
         </div>
