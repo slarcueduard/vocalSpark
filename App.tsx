@@ -37,15 +37,49 @@ const SocialSparkApp: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   
   // --- SUGESTIE AUTOMATĂ BAZATĂ PE BRAND ---
+  // --- SUGESTIE AUTOMATĂ BAZATĂ PE BRAND & LIMBĂ ---
   useEffect(() => {
     if (!loading && brandProfile?.industry && !topic && posts.length === 0) {
-        // Alegem o idee random bazată pe nișă
-        const templates = [
-            `3 myths about ${brandProfile.industry} needed to be debunked`,
-            `How to start with ${brandProfile.industry} in 2024`,
-            `Behind the scenes of a ${brandProfile.industry} business`,
-            `The future of ${brandProfile.industry}: What to expect`
-        ];
+        const lang = brandProfile.language || 'English';
+        const niche = brandProfile.industry;
+        
+        let templates: string[] = [];
+
+        // Definim șabloane în funcție de limbă
+        if (lang === 'Romanian') {
+            templates = [
+                `3 mituri despre ${niche} care trebuie demontate`,
+                `Cum să începi cu ${niche} în 2024`,
+                `În culisele unei afaceri de ${niche}`,
+                `Viitorul în ${niche}: La ce să ne așteptăm`,
+                `O greșeală comună în ${niche} și cum să o eviți`,
+                `Top sfaturi pentru cei interesați de ${niche}`
+            ];
+        } else if (lang === 'Spanish') {
+            templates = [
+                `3 mitos sobre ${niche} que debes conocer`,
+                `Cómo empezar con ${niche} en 2024`,
+                `Detrás de escena en el mundo de ${niche}`,
+                `El futuro de ${niche}: Qué esperar`
+            ];
+        } else if (lang === 'French') {
+            templates = [
+                `3 mythes sur ${niche} à démystifier`,
+                `Comment débuter avec ${niche} en 2024`,
+                `Les coulisses de ${niche}`,
+                `L'avenir de ${niche}: À quoi s'attendre`
+            ];
+        } else {
+            // Default English
+            templates = [
+                `3 myths about ${niche} needed to be debunked`,
+                `How to start with ${niche} in 2024`,
+                `Behind the scenes of a ${niche} business`,
+                `The future of ${niche}: What to expect`,
+                `One common mistake in ${niche} and how to fix it`
+            ];
+        }
+
         const randomIdea = templates[Math.floor(Math.random() * templates.length)];
         setTopic(randomIdea);
     }
