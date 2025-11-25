@@ -1,9 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
-// 1. Importăm doar iconițele din Icons
-import { XIcon, MagicWandIcon, ImageIcon, SparklesIcon, CheckCircleIcon } from './Icons';
-// 2. Importăm Loader-ul din fișierul lui dedicat
-import { Loader } from './Loader'; 
-import { generateImageForPost, generateImageVariation } from '../services/geminiService';
+import React, { useState } from 'react';
+import { X, Sparkles, Zap, Crown, Download, AlertCircle } from 'lucide-react';
+import { generateImageForPost } from '../services/geminiService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface ImageCreationModalProps {
   onClose: () => void;
@@ -11,215 +9,207 @@ interface ImageCreationModalProps {
   initialPrompt?: string;
 }
 
-// 1. FILTRE INSTANT (Local)
-const INSTANT_FILTERS = [
-  { name: 'Original', filter: 'none' },
-  { name: 'B & W', filter: 'grayscale(100%)' },
-  { name: 'Vintage', filter: 'sepia(50%) contrast(85%) brightness(110%)' },
-  { name: 'Vivid', filter: 'saturate(150%) contrast(110%)' },
-  { name: 'Dramatic', filter: 'contrast(125%) brightness(90%)' },
-  { name: 'Soft', filter: 'brightness(110%) contrast(90%) saturate(90%)' },
-];
-
-// 2. AI STYLES (Server)
-const AI_STYLES = [
-  'Neon Noir', 'Cyberpunk', 'Pixar Animation', 'Fantasy Art', 
-  'Gothic Noir', 'Pop Art', 'Product Pro', 'Watercolor'
-];
-
-const ImagePreview: React.FC<{ src: string; onSelect: () => void; filter?: string }> = ({ src, onSelect, filter }) => {
-    const [loaded, setLoaded] = useState(false);
-    
-    return (
-        <div onClick={onSelect} className="relative aspect-square bg-gray-800 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-primary cursor-pointer group transition-all">
-            {!loaded && <div className="absolute inset-0 flex items-center justify-center"><Loader size="sm" /></div>}
-            <img 
-                src={src} 
-                alt="Generated" 
-                className={`w-full h-full object-cover transition-all duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
-                style={{ filter: filter || 'none' }}
-                onLoad={() => setLoaded(true)}
-            />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                <button className="bg-brand-primary text-black text-xs font-bold px-3 py-1.5 rounded-lg transform translate-y-2 group-hover:translate-y-0 transition">
-                    Select This
-                </button>
-            </div>
-        </div>
-    );
-};
-
-export const ImageCreationModal: React.FC<ImageCreationModalProps> = ({ onClose, onSelectImage, initialPrompt }) => {
-  const [activeTab, setActiveTab] = useState<'upload' | 'generate'>('upload');
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<string>('none');
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [prompt, setPrompt] = useState(initialPrompt || '');
+export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
+  const { checkCredits, credits, incrementImageCount } = useAuth(); // incrementImageCount e doar pt update local rapid
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [aiResults, setAiResults] = useState<string[]>([]);
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-          const url = URL.createObjectURL(e.target.files[0]);
-          setSelectedImage(url);
-          setActiveTab('upload');
-          setActiveFilter('none'); 
-      }
-  };
+  // Definim costurile (Trebuie să fie la fel ca în Backend!)
+  const COST_STANDARD = 2;
+  const COST_PREMIUM = 20;
+  
+  const currentCost = modelType === 'standard' ? COST_STANDARD : COST_PREMIUM;
+  const canAfford = checkCredits(currentCost);
 
-  const saveFilteredImage = () => {
-      if (!selectedImage || !canvasRef.current) return;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      img.crossOrigin = "Anonymous";
-      img.src = selectedImage;
-
-      img.onload = () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          if (ctx) {
-              ctx.filter = activeFilter;
-              ctx.drawImage(img, 0, 0, img.width, img.height);
-              const newDataUrl = canvas.toDataURL('image/png');
-              onSelectImage(newDataUrl);
-              onClose();
-          }
-      };
-  };
-
-  const handleGenerateAI = async () => {
+  const handleGenerate = async () => {
     if (!prompt.trim()) return;
+    if (!canAfford) {
+        setError(`Not enough credits. You need ${currentCost}, but have ${credits}.`);
+        return;
+    }
+
     setIsGenerating(true);
-    setAiResults([]);
+    setError(null);
+    setGeneratedImage(null);
+
     try {
-        const promises = [1, 2].map(() => generateImageForPost(prompt));
-        const results = await Promise.all(promises);
-        setAiResults(results);
-    } catch (e) {
-        console.error(e);
+      // Apelăm API-ul cu tipul selectat
+      const imageUrl = await generateImageForPost(prompt, modelType === 'premium');
+      
+      setGeneratedImage(imageUrl);
+      // Backend-ul scade creditele, dar putem forța un refresh vizual dacă avem funcția expusă, 
+      // sau ne bazăm pe onSnapshot din AuthContext care va actualiza automat creditele în câteva secunde.
+    } catch (err: any) {
+      setError(err.message || "Failed to generate image. Please try again.");
     } finally {
-        setIsGenerating(false);
+      setIsGenerating(false);
     }
   };
 
-  const handleAiRemix = async (style: string) => {
-      if (!selectedImage) return;
-      setIsGenerating(true);
-      try {
-          const newImage = await generateImageVariation("placeholder", "image/png", style);
-          setAiResults([newImage]);
-          setActiveTab('generate');
-      } catch (e) {
-          console.error(e);
-      } finally {
-          setIsGenerating(false);
-      }
+  const handleUseImage = () => {
+    if (generatedImage) {
+      onSelectImage(generatedImage);
+      onClose();
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-      <div className="bg-gray-900 w-full max-w-5xl h-[90vh] rounded-2xl border border-gray-700 flex flex-col overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-4xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[600px] shadow-2xl">
         
-        {/* Header */}
-        <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900">
-            <div className="flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-brand-primary" />
-                <h2 className="font-bold text-white tracking-wide">Visuals Studio</h2>
+        {/* LEFT: Controls */}
+        <div className="w-full md:w-1/2 p-6 flex flex-col border-r border-gray-800">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Sparkles className="text-blue-500" /> Visuals Studio
+            </h2>
+            
+            {/* Credit Display */}
+            <div className="bg-gray-800 px-3 py-1 rounded-full border border-gray-700 text-xs font-medium text-gray-300">
+                Credits: <span className={canAfford ? "text-white" : "text-red-400"}>{credits}</span>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white transition"><XIcon className="w-6 h-6" /></button>
+          </div>
+
+          {/* Prompt Input */}
+          <div className="mb-6">
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 block">
+                Describe your idea
+            </label>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              className="w-full h-24 bg-[#161b22] border border-gray-700 rounded-xl p-3 text-white text-sm focus:ring-2 focus:ring-blue-600 outline-none resize-none"
+              placeholder="A futuristic workspace with neon lights..."
+            />
+          </div>
+
+          {/* Model Selection Cards */}
+          <div className="grid grid-cols-2 gap-3 mb-auto">
+            {/* Standard Card */}
+            <div 
+                onClick={() => setModelType('standard')}
+                className={`cursor-pointer p-3 rounded-xl border-2 transition-all ${
+                    modelType === 'standard' 
+                    ? 'border-blue-500 bg-blue-500/10' 
+                    : 'border-gray-800 bg-gray-900 hover:border-gray-700'
+                }`}
+            >
+                <div className="flex justify-between items-start mb-2">
+                    <Zap size={20} className={modelType === 'standard' ? 'text-blue-400' : 'text-gray-600'} />
+                    <span className="text-xs font-bold bg-gray-800 px-1.5 py-0.5 rounded text-gray-300">
+                        {COST_STANDARD} Cr
+                    </span>
+                </div>
+                <div className="text-sm font-bold text-white">Standard</div>
+                <div className="text-[10px] text-gray-400">Fast generation. Good for social posts.</div>
+            </div>
+
+            {/* Premium Card */}
+            <div 
+                onClick={() => setModelType('premium')}
+                className={`cursor-pointer p-3 rounded-xl border-2 transition-all ${
+                    modelType === 'premium' 
+                    ? 'border-purple-500 bg-purple-500/10' 
+                    : 'border-gray-800 bg-gray-900 hover:border-gray-700'
+                }`}
+            >
+                <div className="flex justify-between items-start mb-2">
+                    <Crown size={20} className={modelType === 'premium' ? 'text-purple-400' : 'text-gray-600'} />
+                    <span className="text-xs font-bold bg-gray-800 px-1.5 py-0.5 rounded text-gray-300">
+                        {COST_PREMIUM} Cr
+                    </span>
+                </div>
+                <div className="text-sm font-bold text-white">Premium</div>
+                <div className="text-[10px] text-gray-400">DALL-E 3 Quality. HD & High detail.</div>
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-900/20 border border-red-800/50 rounded-lg flex items-center gap-2 text-red-400 text-xs">
+                <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 mt-4">
+            <button onClick={onClose} className="px-4 py-3 rounded-xl text-gray-400 hover:bg-gray-800 text-sm font-medium">
+                Cancel
+            </button>
+            <button 
+                onClick={handleGenerate}
+                disabled={isGenerating || !prompt || !canAfford}
+                className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                    isGenerating || !canAfford
+                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                    : modelType === 'premium' 
+                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-900/30 hover:scale-[1.02]'
+                        : 'bg-blue-600 text-white hover:bg-blue-500'
+                }`}
+            >
+                {isGenerating ? (
+                    <span className="animate-pulse">Generating...</span>
+                ) : (
+                    <>
+                        <Sparkles size={16} /> 
+                        Generate ({currentCost} Credits)
+                    </>
+                )}
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
-            {/* SIDEBAR */}
-            <div className="w-80 border-r border-gray-800 p-5 bg-gray-900 overflow-y-auto flex flex-col gap-6">
-                <div className="flex bg-gray-800 p-1 rounded-lg">
-                    <button onClick={() => setActiveTab('upload')} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${activeTab === 'upload' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-gray-300'}`}>Edit & Filter</button>
-                    <button onClick={() => setActiveTab('generate')} className={`flex-1 py-2 text-xs font-bold rounded-md transition ${activeTab === 'generate' ? 'bg-brand-primary text-black shadow' : 'text-gray-400 hover:text-gray-300'}`}>AI Generate</button>
+        {/* RIGHT: Preview Area */}
+        <div className="w-full md:w-1/2 bg-[#0a0c10] flex flex-col items-center justify-center relative p-6">
+            {generatedImage ? (
+                <div className="relative w-full h-full flex flex-col items-center justify-center animate-in zoom-in-50 duration-300">
+                    <img 
+                        src={generatedImage} 
+                        alt="Generated AI" 
+                        className="max-w-full max-h-[400px] rounded-lg shadow-2xl border border-gray-800 object-contain"
+                    />
+                    <div className="mt-6 flex gap-3 w-full max-w-xs">
+                        <button 
+                            onClick={handleUseImage}
+                            className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg text-sm font-bold shadow-lg"
+                        >
+                            Use Image
+                        </button>
+                        <a 
+                            href={generatedImage} 
+                            download="social-spark-ai.png"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 border border-gray-700"
+                        >
+                            <Download size={20} />
+                        </a>
+                    </div>
                 </div>
-
-                {activeTab === 'upload' && (
-                    <div className="space-y-6 animate-fadeIn">
-                        <div className="relative group">
-                            {!selectedImage ? (
-                                <div className="border-2 border-dashed border-gray-700 rounded-xl h-40 flex flex-col items-center justify-center text-gray-500 hover:border-brand-primary hover:bg-brand-primary/5 transition cursor-pointer">
-                                    <input type="file" onChange={handleFileUpload} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
-                                    <ImageIcon className="w-8 h-8 mb-2 opacity-50" />
-                                    <span className="text-xs font-bold uppercase tracking-wider">Upload Image</span>
-                                </div>
-                            ) : (
-                                <div className="relative rounded-xl overflow-hidden border border-gray-600 bg-black h-48 flex items-center justify-center">
-                                    <img src={selectedImage} alt="Preview" className="h-full w-full object-contain transition-all duration-300" style={{ filter: activeFilter }} />
-                                    <canvas ref={canvasRef} className="hidden"></canvas>
-                                    <button onClick={() => setSelectedImage(null)} className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-red-600 transition"><XIcon className="w-3 h-3"/></button>
-                                </div>
-                            )}
-                        </div>
-
-                        {selectedImage && (
-                            <>
-                                <div>
-                                    <h3 className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mb-3">Instant Filters</h3>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {INSTANT_FILTERS.map(f => (
-                                            <button key={f.name} onClick={() => setActiveFilter(f.filter)} className={`text-xs py-2 rounded border transition-all ${activeFilter === f.filter ? 'bg-white text-black border-white font-bold' : 'bg-gray-800 text-gray-400 border-gray-700 hover:border-gray-500'}`}>{f.name}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <button onClick={saveFilteredImage} className="w-full py-3 bg-brand-secondary text-white font-bold rounded-xl hover:opacity-90 shadow-lg flex items-center justify-center gap-2"><CheckCircleIcon className="w-4 h-4" /> Use This Image</button>
-                                <div className="h-px bg-gray-800 my-4"></div>
-                                <div>
-                                    <h3 className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2"><SparklesIcon className="w-3 h-3" /> AI Remix (Slow)</h3>
-                                    <div className="grid grid-cols-2 gap-2">
-                                        {AI_STYLES.map(style => (
-                                            <button key={style} onClick={() => handleAiRemix(style)} disabled={isGenerating} className="text-xs text-left px-3 py-2 bg-gray-800/50 border border-gray-700 rounded-lg hover:border-purple-500 hover:text-purple-400 transition truncate">{style}</button>
-                                        ))}
-                                    </div>
-                                </div>
-                            </>
+            ) : (
+                <div className="text-center">
+                    <div className="w-24 h-24 bg-gray-900 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-gray-800 border-dashed">
+                        {isGenerating ? (
+                            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <Sparkles className="text-gray-700 w-10 h-10" />
                         )}
                     </div>
-                )}
-
-                {activeTab === 'generate' && (
-                    <div className="space-y-4 animate-fadeIn">
-                        <label className="block text-xs font-bold text-gray-400 uppercase">Describe your idea</label>
-                        <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={5} placeholder="A futuristic city..." className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-primary outline-none resize-none" />
-                        <button onClick={handleGenerateAI} disabled={isGenerating || !prompt.trim()} className="w-full py-3 bg-gradient-to-r from-brand-primary to-blue-600 text-white font-bold rounded-xl hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg">
-                            {isGenerating ? <Loader size="sm"/> : <MagicWandIcon className="w-4 h-4" />} {isGenerating ? 'Generating...' : 'Generate New'}
-                        </button>
-                    </div>
-                )}
-            </div>
-
-            {/* MAIN CANVAS */}
-            <div className="flex-1 bg-black relative flex flex-col">
-                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(#333 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
-                <div className="flex-1 overflow-y-auto p-8 z-10">
-                    {activeTab === 'upload' && !selectedImage && (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-600"><ImageIcon className="w-16 h-16 mb-4 opacity-20" /><p>Upload an image to start editing</p></div>
-                    )}
-                    {activeTab === 'generate' && (
-                        <>
-                            {isGenerating ? (
-                                <div className="h-full flex flex-col items-center justify-center animate-pulse">
-                                    <div className="w-16 h-16 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mb-6"></div>
-                                    <h3 className="text-xl font-bold text-white">Dreaming up pixels...</h3>
-                                    <p className="text-gray-500 mt-2">This might take a moment.</p>
-                                </div>
-                            ) : aiResults.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {aiResults.map((url, idx) => <ImagePreview key={idx} src={url} onSelect={() => { onSelectImage(url); onClose(); }} />)}
-                                </div>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-600"><SparklesIcon className="w-16 h-16 mb-4 opacity-20" /><p>Enter a prompt to generate new images</p></div>
-                            )}
-                        </>
-                    )}
+                    <p className="text-gray-500 text-sm">
+                        {isGenerating ? "Creating your masterpiece..." : "Your visualization will appear here"}
+                    </p>
                 </div>
-            </div>
+            )}
+            
+            {/* Close X top right (Mobile friendly) */}
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-black/50 rounded-full text-white hover:bg-white/20 md:hidden">
+                <X size={20} />
+            </button>
         </div>
       </div>
     </div>
   );
-};
+}
