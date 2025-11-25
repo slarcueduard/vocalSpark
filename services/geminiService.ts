@@ -1,6 +1,6 @@
 import { Post, Tone, Platform, RefinementType, BrandProfile } from "../types";
 import { auth } from "./firebase"; 
-
+import { PostObjective } from '../types'; // Asigură-te că imporți tipul nou
 // --- HELPER: Obține tokenul de securitate ---
 async function getAuthHeader() {
     const user = auth.currentUser;
@@ -143,42 +143,55 @@ export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, 
 
 // --- 3. TEXT (Prin Backend) ---
 export async function generateSocialMediaPosts(
-  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string
-): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
+  topic: string, 
+  tone: Tone, 
+  postCount: number, 
+  language: string, 
+  brandVoice: string, 
+  brandProfile?: BrandProfile, 
+  imageBase64?: string, 
+  imageMimeType?: string,
+  objective: PostObjective = 'engagement' // <--- PARAMETRU NOU
+): Promise<any[]> { // Poți pune tipul de retur complet dacă vrei
     
+    // Instrucțiuni specifice pentru backend (OpenAI)
+    const objectiveInstructions = {
+        engagement: "Focus on asking questions and sparking debate. Use a relatable hook.",
+        sales: "Use AIDA framework (Attention, Interest, Desire, Action). Focus on benefits and a strong CTA.",
+        education: "Use bullet points or steps. Provide clear value and actionable advice.",
+        viral: "Keep it short, punchy, and controversial or surprising. Maximize shareability.",
+        traffic: "Create a curiosity gap. Tease the value but make them click the link to get it."
+    };
+
     let prompt = `
     ROLE: Expert Social Media Manager.
-    TASK: Write ${postCount} highly engaging social media posts about: "${topic}".
+    GOAL: ${objectiveInstructions[objective]}
+    TOPIC: "${topic}"
     TONE: ${tone}.
     LANGUAGE: ${language}.
-    FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here... emojis included"}]
+    FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here..."}]
     `;
     
-    // Adăugăm Brand Voice în promptul vizibil (optional, pt debug)
     if (brandVoice) prompt += `\nBRAND VOICE: ${brandVoice}`;
-
-    // Determinăm limba corectă (Profil > Dropdown > Default)
-    const finalLang = brandProfile?.language || language || 'English';
 
     try {
         const data = await safeFetch('/api/generate-text', { 
             prompt, 
-            brandContext: brandVoice, // Trimitem la backend pentru system prompt
-            language: finalLang,      // Trimitem limba la backend
+            brandContext: brandVoice, 
+            language,
             imageBase64, 
             imageMimeType 
         });
 
         const parsed = extractJsonArray(data.output);
-        
         if(Array.isArray(parsed)) {
             return parsed.map((p: any) => ({ content: p.content || p }));
         }
         return [];
 
     } catch (e: any) {
-        console.error("Text Generation Logic Error:", e);
-        return [{ content: `⚠️ Could not generate posts. Error: ${e.message}. Please try again.` }];
+        console.error("Text Gen Error:", e);
+        return [{ content: `⚠️ Error: ${e.message}` }];
     }
 }
 
