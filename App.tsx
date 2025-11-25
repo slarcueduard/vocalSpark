@@ -3,8 +3,8 @@ import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } fro
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType } from './types';
 import { TONES, PLATFORMS } from './constants';
 import { Loader } from './components/Loader';
-import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock } from 'lucide-react'; 
+import { SparklesIcon, ImageIcon, BriefcaseIcon, XIcon } from './components/Icons'; // Asigură-te că ai XIcon sau importă X din lucide-react
+import { Lock, X, Image as LucideImage } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -16,8 +16,7 @@ import { PostCard } from './components/PostCard';
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading } = useAuth();
-  const [appMode, setAppMode] = useState<AppMode>('creator');
+  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -37,15 +36,20 @@ const SocialSparkApp: React.FC = () => {
   const [viralHook, setViralHook] = useState<ViralHook | ''>('');
   const [posts, setPosts] = useState<Post[]>([]);
   
+  // --- SUGESTIE AUTOMATĂ BAZATĂ PE BRAND ---
   useEffect(() => {
-      if (!loading && user && !brandProfile) {
-          // Mic delay ca să nu fie prea agresiv
-          const timer = setTimeout(() => {
-              setIsBrandProfileModalOpen(true);
-          }, 1000);
-          return () => clearTimeout(timer);
-      }
-  }, [loading, user, brandProfile]);
+    if (!loading && brandProfile?.industry && !topic && posts.length === 0) {
+        // Alegem o idee random bazată pe nișă
+        const templates = [
+            `3 myths about ${brandProfile.industry} needed to be debunked`,
+            `How to start with ${brandProfile.industry} in 2024`,
+            `Behind the scenes of a ${brandProfile.industry} business`,
+            `The future of ${brandProfile.industry}: What to expect`
+        ];
+        const randomIdea = templates[Math.floor(Math.random() * templates.length)];
+        setTopic(randomIdea);
+    }
+  }, [loading, brandProfile]);
 
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
@@ -59,7 +63,6 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
-  // --- IMAGE MODAL LOGIC ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -82,7 +85,6 @@ const SocialSparkApp: React.FC = () => {
       setActivePostIdForImage(null);
   };
 
-  // --- GENERATE TEXT ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Enter a topic."); return; }
     
@@ -99,15 +101,23 @@ const SocialSparkApp: React.FC = () => {
       
       let imgData = undefined, imgMime = undefined;
       if (attachedImage) {
-          const converted = await urlToBase64(attachedImage);
-          if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
+          // Verificăm dacă e imagine uploadată (Base64) sau URL extern
+          if (attachedImage.startsWith('data:')) {
+              const parts = attachedImage.split(',');
+              imgData = parts[1];
+              imgMime = parts[0].split(':')[1].split(';')[0];
+          } else {
+              // E URL (Standard Image), îl convertim
+              const converted = await urlToBase64(attachedImage);
+              if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
+          }
       }
 
       const generatedPosts = await generateSocialMediaPosts(
           finalTopic, 
           tone, 
           1, 
-          'English', 
+          'English', // Sau limba din profil
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
           imgData, 
@@ -153,7 +163,6 @@ const SocialSparkApp: React.FC = () => {
   return (
     <MainLayout onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}>
         
-        {/* --- PAYWALL OVERLAY --- */}
         {isTrialExpired && (
             <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-xl overflow-hidden pointer-events-auto">
                 <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20 mx-4">
@@ -172,7 +181,6 @@ const SocialSparkApp: React.FC = () => {
         )}
 
         <div className="flex h-full gap-6 relative">
-            {/* Left: Input & Results */}
             <div className="flex-1 min-w-0">
                 <div className="max-w-2xl mx-auto pb-20">
                     <header className="mb-8">
@@ -191,6 +199,22 @@ const SocialSparkApp: React.FC = () => {
                                 className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-12 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600" 
                             />
                             
+                            {/* MINIATURA IMAGINE ATAȘATĂ */}
+                            {attachedImage && (
+                                <div className="absolute bottom-4 left-4 group">
+                                    <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-blue-500 shadow-lg">
+                                        <img src={attachedImage} alt="Attached" className="w-full h-full object-cover" />
+                                        <button 
+                                            onClick={() => setAttachedImage(null)}
+                                            className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                                        >
+                                            <X size={14} className="text-white" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* BUTON ATTACH */}
                             <button 
                                 onClick={openImageModalGlobal}
                                 className={`absolute bottom-3 right-3 p-2 rounded-lg transition ${attachedImage ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
@@ -281,7 +305,6 @@ const SocialSparkApp: React.FC = () => {
             </div>
         </div>
 
-        {/* MODALE */}
         {isImageModalOpen && (
             <ImageCreationModal 
                 onClose={() => setIsImageModalOpen(false)} 
