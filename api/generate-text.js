@@ -51,4 +51,16 @@ export default async function handler(req, res) {
     console.error("OpenAI Text Error:", error);
     return res.status(500).json({ error: error.message || "Failed to generate text" });
   }
+   const { prompt, brandContext, platform, language } = req.body; // <--- Primim language
+
+    let systemPrompt = "You are an expert Social Media Manager. Generate engaging, viral content.";
+    
+    // REGULA DE AUR: Limba
+    // Dacă primim limba din frontend, o forțăm. Dacă nu, default English.
+    const targetLanguage = language || 'English';
+    systemPrompt += `\n\nIMPORTANT: You MUST write the content strictly in ${targetLanguage}.`;
+
+    if (brandContext) {
+      systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
+    }
 }
