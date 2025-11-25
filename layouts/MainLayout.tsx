@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
+import { ..., Briefcase } from 'lucide-react';
 
 interface MainLayoutProps {
   children: React.ReactNode;
