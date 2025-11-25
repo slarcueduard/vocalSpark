@@ -73,33 +73,27 @@ function extractJsonArray(text: string): any[] {
 }
 
 // --- 1. IMAGINI (Prin Backend) ---
-// Aceasta este singura definiție a funcției!
-export async function generateSocialMediaPosts(
-  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string
-) {
-    // Folosim limba din profil dacă există, altfel parametrul language, altfel English
-    const finalLang = brandProfile?.language || language || 'English';
+export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
+    try {
+        // Construim un prompt mai bun pentru imagine
+        const imagePrompt = postText.length > 200 ? `Editorial photo representing: ${postText.substring(0, 200)}` : postText;
 
-    // ... în request body către backend:
-    const data = await safeFetch('/api/generate-text', { 
-            prompt, 
-            brandContext: brandVoice, 
-            language: finalLang, // <--- TRIMITEM LIMBA AICI
-            imageBase64, 
-            imageMimeType 
-    });
+        // Apelăm backend-ul (care verifică creditele și alege modelul)
+        const data = await safeFetch('/api/generate-image', { 
+            prompt: imagePrompt,
+            isPremium: isPremium 
+        });
         
         return data.imageUrl;
 
     } catch (e) {
         console.error("Image Generation Failed:", e);
-        throw e; // Aruncăm eroarea ca să o vadă UI-ul (ex: "Not enough credits")
+        throw e; 
     }
 }
 
 export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
-    // Variațiile momentan folosesc un fallback rapid (Pollinations)
-    // Într-un viitor update putem muta și asta pe backend
+    // Fallback rapid (Pollinations)
     await new Promise(r => setTimeout(r, 1000)); 
     const cleanStyle = encodeURIComponent(style + " artistic style, high quality");
     const seed = Math.floor(Math.random() * 1000);
@@ -160,13 +154,17 @@ export async function generateSocialMediaPosts(
     FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here... emojis included"}]
     `;
     
-    // Trimitem brandContext separat în body, dar îl includem și în prompt text pentru siguranță
+    // Adăugăm Brand Voice în promptul vizibil (optional, pt debug)
     if (brandVoice) prompt += `\nBRAND VOICE: ${brandVoice}`;
+
+    // Determinăm limba corectă (Profil > Dropdown > Default)
+    const finalLang = brandProfile?.language || language || 'English';
 
     try {
         const data = await safeFetch('/api/generate-text', { 
             prompt, 
             brandContext: brandVoice, // Trimitem la backend pentru system prompt
+            language: finalLang,      // Trimitem limba la backend
             imageBase64, 
             imageMimeType 
         });
