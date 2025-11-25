@@ -11,7 +11,6 @@ import { AuthWrapper } from './components/AuthWrapper';
 import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
-import { PricingModal } from './components/PricingModal';
 
 const TOPIC_HISTORY_KEY = 'socialSparkTopicHistory';
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
@@ -211,7 +210,7 @@ const SocialSparkApp: React.FC = () => {
 
         {isImageModalOpen && <ImageCreationModal onClose={() => setIsImageModalOpen(false)} onSelectImage={setAttachedImage} initialPrompt={topic} />}
         {isBrandProfileModalOpen && <BrandProfileModal currentProfile={brandProfile} onSave={saveBrandProfile} onClose={() => setIsBrandProfileModalOpen(false)} />}
-        {showPricing && <PricingModal onClose={() => setShowPricing(false)} />}
+        {showPricing onClose={() => setShowPricing(false)} />}
     </MainLayout>
   );
 };
