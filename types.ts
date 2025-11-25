@@ -36,9 +36,17 @@ export type AppMode = 'creator' | 'business';
 // Updated Subscription Tiers (Trebuie să coincidă cu ce e în PricingModal)
 export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
 
-export type ViralHook = 
-  | 'Straight to the Point' | 'Storytime' | 'Controversial' | 'Behind the Scenes' 
-  | 'Myth vs Fact' | 'Transformation' | 'Unpopular Opinion' | 'Day in the Life' | 'Hack / Trick';
+// ... (restul enum-urilor rămân la fel)
+
+// ȘTERGEM ViralHook și punem PostObjective
+export type PostObjective = 
+  | 'engagement' 
+  | 'sales' 
+  | 'education' 
+  | 'viral' 
+  | 'traffic';
+
+// ... (Interfețele UserProfile, BrandProfile etc. rămân la fel)
 
 export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion';
 
