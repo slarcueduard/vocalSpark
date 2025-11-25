@@ -14,30 +14,31 @@ import { PricingModal } from '../components/PricingModal';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  onOpenBrandProfile: () => void; // <--- Prop nou pentru a deschide modalul din App
+  onOpenBrandProfile: () => void;
 }
 
 export function MainLayout({ children, onOpenBrandProfile }: MainLayoutProps) {
-  const { userProfile, logout, credits } = useAuth(); 
+  // --- FIX: O SINGURĂ DECLARAȚIE PENTRU TOT CE AVEM NEVOIE ---
+  const { userProfile, logout, credits, user, brandProfile } = useAuth(); 
+  
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false); 
 
   const planName = userProfile?.subscriptionTier === 'trial' 
     ? 'Free Trial' 
     : userProfile?.subscriptionTier?.toUpperCase() + ' PLAN';
-const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- ADAGUAT brandProfile
+
   const isPremium = userProfile?.subscriptionTier !== 'trial';
 
   return (
     <div className="min-h-screen bg-[#0f1115] text-white flex font-sans">
       
-      {/* Modalul de Prețuri (Global) */}
       <PricingModal 
         isOpen={isPricingOpen} 
         onClose={() => setIsPricingOpen(false)} 
       />
 
-      {/* Mobile Menu Toggle */}
+      {/* Mobile Toggle */}
       <button 
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-gray-800 rounded-md"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -61,29 +62,28 @@ const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- 
         </div>
 
         {/* Navigation */}
-       <nav className="flex-1 px-4 py-6 space-y-2">
-  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-    Workspace
-  </div>
-  
-  <NavItem icon={<LayoutDashboard size={20} />} label="Creator Studio" active />
-  
-  {/* BUTON BRAND PROFILE + PREVIEW */}
-  <div onClick={onOpenBrandProfile}>
-    <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
-    
-    {/* AICI AFIȘĂM REZUMATUL DACĂ EXISTĂ */}
-    {brandProfile && (
-        <div className="ml-12 mt-1 p-2 bg-[#1c1c2e] rounded-lg border border-gray-800 text-[10px] text-gray-400 cursor-pointer hover:border-gray-600 transition">
-            <p><span className="text-blue-400 font-bold">Niche:</span> {brandProfile.industry}</p>
-            <p><span className="text-purple-400 font-bold">Lang:</span> {brandProfile.language}</p>
-            <p className="truncate mt-1 opacity-70">"{brandProfile.voiceDNA}"</p>
-        </div>
-    )}
-  </div>
-</nav>
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Workspace
+          </div>
+          
+          <NavItem icon={<LayoutDashboard size={20} />} label="Creator Studio" active />
+          
+          {/* BRAND PROFILE BUTTON */}
+          <div onClick={onOpenBrandProfile} className="cursor-pointer">
+            <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
+            
+            {/* Mini Preview al Brandului */}
+            {brandProfile && brandProfile.industry && (
+                <div className="ml-12 mt-1 p-2 bg-[#1c1c2e] rounded-lg border border-gray-800 text-[10px] text-gray-400 hover:border-gray-600 transition group">
+                    <p><span className="text-blue-400 font-bold">Niche:</span> {brandProfile.industry}</p>
+                    <p><span className="text-purple-400 font-bold">Lang:</span> {brandProfile.language || 'English'}</p>
+                </div>
+            )}
+          </div>
+        </nav>
 
-        {/* User Profile (Bottom) */}
+        {/* User Profile Bottom */}
         <div className="p-4 border-t border-gray-800">
           <div className="bg-[#0f1115] rounded-xl p-4 border border-gray-800">
             <div className="flex justify-between items-center mb-3">
@@ -96,14 +96,14 @@ const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- 
             </div>
 
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                 <span className="font-bold">{userProfile?.email?.[0].toUpperCase()}</span>
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden text-sm font-bold">
+                 {user?.email?.[0].toUpperCase()}
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-medium truncate">{userProfile?.email?.split('@')[0]}</p>
+                <p className="text-sm font-medium truncate w-32">{user?.email?.split('@')[0]}</p>
                 <button 
                   onClick={() => logout()}
-                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"
+                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 mt-0.5"
                 >
                   <LogOut size={10} /> Sign Out
                 </button>
@@ -113,12 +113,10 @@ const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- 
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT AREA --- */}
+      {/* --- MAIN AREA --- */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
-        {/* Top Header */}
         <header className="h-16 border-b border-gray-800 bg-[#0f1115]/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-30">
-          
           <div className="flex items-center gap-3">
              <span className="px-2 py-1 rounded border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-mono">
                v1.4 PRO
@@ -126,7 +124,6 @@ const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- 
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Credits Display */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1c1c2e] border border-gray-700 rounded-full">
               <Zap size={14} className={credits > 0 ? "text-yellow-400 fill-yellow-400" : "text-gray-500"} />
               <span className="text-sm font-medium text-gray-200">
@@ -134,7 +131,6 @@ const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- 
               </span>
             </div>
 
-            {/* Upgrade Button */}
             <button 
               onClick={() => setIsPricingOpen(true)}
               className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20"
@@ -145,7 +141,6 @@ const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- 
           </div>
         </header>
 
-        {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             {children}
@@ -157,7 +152,6 @@ const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- 
   );
 }
 
-// Helper Component
 function NavItem({ icon, label, active }: { icon: any, label: string, active?: boolean }) {
   return (
     <div className={`
