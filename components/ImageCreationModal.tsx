@@ -1,5 +1,17 @@
 import React, { useState, useRef } from 'react';
-import { X, Sparkles, Zap, Crown, Download, AlertCircle, ArrowLeft, Upload, Image as ImageIcon, Palette } from 'lucide-react';
+import { 
+  X, 
+  Sparkles, 
+  Zap, 
+  Crown, 
+  Download, 
+  AlertCircle, 
+  ArrowLeft, 
+  Upload, 
+  Image as ImageIcon, 
+  Palette,
+  Trash
+} from 'lucide-react';
 import { generateImageForPost } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,7 +21,7 @@ interface ImageCreationModalProps {
   initialPrompt?: string;
 }
 
-// --- DEFINIREA FILTRELOR ---
+// --- DEFINIREA FILTRELOR (Focus: Realism & Business) ---
 const IMAGE_STYLES = [
   { 
     id: 'velocity', 
@@ -21,14 +33,14 @@ const IMAGE_STYLES = [
   { 
     id: 'lifestyle', 
     label: 'Lifestyle Social', 
-    description: 'Natural, Influencer, Bright',
+    description: 'Natural, Influencer',
     promptSuffix: ', authentic lifestyle photography, shot on iPhone 15 Pro, natural sunlight, candid moment, instagram aesthetic, soft bokeh, high quality, trending',
     isExclusive: false
   },
   { 
     id: 'studio', 
     label: 'Studio Pro', 
-    description: 'Clean, Product, Crisp',
+    description: 'Clean, Product',
     promptSuffix: ', professional studio photography, neutral background, softbox lighting, 85mm lens, sharp details, 4k, commercial look, product photography',
     isExclusive: false
   },
@@ -60,7 +72,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate');
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
-  const [selectedStyle, setSelectedStyle] = useState<string>('velocity'); // Default pe stilul vostru
+  const [selectedStyle, setSelectedStyle] = useState<string>('velocity');
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +97,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
       const styleObj = IMAGE_STYLES.find(s => s.id === selectedStyle);
       
       // 2. Combinăm promptul userului cu stilul
-      // Ex: "A dog" + ", dark moody cyberpunk..."
       const finalPrompt = styleObj 
         ? `${prompt}${styleObj.promptSuffix}` 
         : prompt;
@@ -105,18 +116,25 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validare simplă dimensiune (ex: max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+        setError("File is too large (Max 5MB)");
+        return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
         setResultImage(reader.result as string);
+        setError(null); // Curățăm erorile anterioare
     };
     reader.readAsDataURL(file);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-5xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[700px] shadow-2xl">
+      <div className="w-full max-w-6xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[750px] shadow-2xl">
         
-        {/* LEFT: Controls (Scrollable if needed) */}
+        {/* LEFT: Controls */}
         <div className="w-full md:w-1/2 p-6 flex flex-col border-r border-gray-800 bg-[#161b22] overflow-y-auto custom-scrollbar">
           
           {/* Header */}
@@ -203,7 +221,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                                 <div className={`text-xs font-bold mb-0.5 ${selectedStyle === style.id ? 'text-white' : 'text-gray-300'}`}>
                                     {style.label}
                                 </div>
-                                <div className="text-[10px] text-gray-500 leading-tight">
+                                <div className="text-[10px] text-gray-500 leading-tight truncate">
                                     {style.description}
                                 </div>
                             </button>
@@ -237,16 +255,28 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
         {/* RIGHT: Preview */}
         <div className="w-full md:w-1/2 bg-[#050505] flex flex-col items-center justify-center p-6 relative">
-            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white"><X size={20}/></button>
+            {/* Buton X pentru închidere modal */}
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10"><X size={20}/></button>
             
             {resultImage ? (
-                <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in">
-                    <img src={resultImage} alt="Result" className="max-h-[400px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black" />
+                <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
+                    
+                    {/* Buton Ștergere */}
+                    <button 
+                        onClick={() => setResultImage(null)} 
+                        className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10"
+                        title="Delete Image"
+                    >
+                        <Trash size={16} /> 
+                    </button>
+
+                    <img src={resultImage} alt="Result" className="max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black" />
+                    
                     <div className="flex gap-3 w-full max-w-xs">
                         <button onClick={() => { onSelectImage(resultImage); onClose(); }} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg">
                             Use Image
                         </button>
-                        <a href={resultImage} download="velocity-ai-image.png" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700">
+                        <a href={resultImage} download="velocity-ai.png" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700">
                             <Download size={20}/>
                         </a>
                     </div>
@@ -256,30 +286,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                     <Sparkles className={`w-12 h-12 mx-auto mb-4 ${isGenerating ? 'animate-spin text-blue-500' : 'text-gray-800'}`} />
                     <p className="text-sm">{isGenerating ? "Applying Velocity Magic..." : "Your visual will appear here"}</p>
                 </div>
-      {/* RIGHT: Preview */}
-<div className="w-full md:w-1/2 bg-[#050505] flex flex-col items-center justify-center p-6 relative">
-    {/* Buton X pentru închidere modal */}
-    <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white"><X size={20}/></button>
-    
-    {resultImage ? (
-        <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
-            
-            {/* --- BUTON NOU: DELETE IMAGE --- */}
-            <button 
-                onClick={() => setResultImage(null)} // Șterge imaginea din state
-                className="absolute top-2 left-2 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition"
-                title="Remove Image"
-            >
-                <TrashIcon size={16} /> 
-            </button>
-
-            <img src={resultImage} alt="Result" className="max-h-[400px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black" />
-            {/* ... butoanele de Use / Download ... */}
-        </div>
-    ) : (
-       // ...
-    )}
-</div>
             )}
         </div>
       </div>
