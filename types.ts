@@ -1,3 +1,5 @@
+// src/types.ts
+
 // --- ENUMS ---
 export enum Platform {
   Instagram = 'Instagram',
@@ -19,7 +21,7 @@ export enum Tone {
 // --- TYPES ---
 export type AppMode = 'creator' | 'business';
 
-// Updated Subscription Tiers
+// Updated Subscription Tiers (Trebuie să coincidă cu ce e în PricingModal)
 export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
 
 export type ViralHook = 
@@ -34,7 +36,7 @@ export interface BrandProfile {
   industry: string;
   customIndustry?: string;
   description: string;
-  voiceDNA: string; // The "WOW" factor: AI analyzes and saves this
+  voiceDNA: string; 
   websiteUrl?: string;
   socialUrl?: string;
 }
@@ -54,8 +56,8 @@ export interface UserProfile {
   subscriptionTier: SubscriptionTier;
   subscriptionStatus: 'active' | 'expired' | 'cancelled';
   trialStartDate?: any;
-  credits: number; // The currency of your app
-  imageCount?: number; // Kept for legacy statistics
+  credits: number; 
+  imageCount?: number; 
   createdAt?: any;
 }
 
@@ -66,7 +68,7 @@ export interface CalendarIdea {
   hashtags: string;
 }
 
-// --- CONFIGURATION & PLANS (The Source of Truth) ---
+// --- CONFIGURATION & PLANS (Aceasta este partea care lipsea!) ---
 export interface PlanConfig {
   id: SubscriptionTier;
   name: string;
