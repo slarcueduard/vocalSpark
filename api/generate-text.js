@@ -15,20 +15,30 @@ export default async function handler(req, res) {
     // 1. Verify Credits (Cost: 1 Credit for Text)
     const { userRef } = await verifyUserAndCredits(req, 1);
 
-    const { prompt, brandContext, platform } = req.body;
+// ... (cod existent) ...
 
-    // --- THE WOW FACTOR: SMART SYSTEM PROMPT ---
-    let systemPrompt = "You are an expert Social Media Manager. Generate engaging, viral content.";
+    const { prompt, brandContext, platform, language } = req.body;
+
+    // Default language
+    const targetLanguage = language || 'English';
+
+    let systemPrompt = `You are an expert Social Media Manager. 
+    CRITICAL INSTRUCTION: You MUST write the content STRICTLY in ${targetLanguage}. 
+    Do NOT use English unless it is a specific technical term that is commonly used in ${targetLanguage} (like 'branding' or 'crypto').
+    Translate the user's request context into ${targetLanguage} if necessary before generating the post.`;
     
-    // If user has a Brand Profile (Creator/Pro/Agency), we inject it here
-    if (brandContext) {
-      systemPrompt += `\n\nCRITICAL INSTRUCTION: Adopt the following Brand Voice strictly:\n${brandContext}`;
-    }
+    systemPrompt += "\nGenerate engaging, viral content.";
 
     // Platform optimization
     if (platform) {
-      systemPrompt += `\n\nOptimize specifically for ${platform} (hashtags, formatting, length).`;
+      systemPrompt += `\nOptimize specifically for ${platform} (hashtags, formatting, length).`;
     }
+
+    if (brandContext) {
+      systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
+    }
+
+    // ... (restul codului cu openai.chat.completions.create)
 
     // 2. Call OpenAI
     const completion = await openai.chat.completions.create({
