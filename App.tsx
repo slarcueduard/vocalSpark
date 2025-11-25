@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { generateSocialMediaPosts, generateImageForPost, adaptPostForPlatform, refinePostContent } from './services/geminiService';
+import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType } from './types';
 import { TONES, PLATFORMS } from './constants';
 import { Loader } from './components/Loader';
@@ -15,12 +15,19 @@ import { PostCard } from './components/PostCard';
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-  const { user, brandProfile, saveBrandProfile, checkCredits, credits } = useAuth(); // Folosim checkCredits
+  const { user, brandProfile, saveBrandProfile, checkCredits } = useAuth();
   const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // State pentru Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
+  
+  // State pentru a ști pentru CE postare deschidem modalul (null = input principal)
+  const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
+  const [currentPromptForImage, setCurrentPromptForImage] = useState('');
+
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
@@ -46,10 +53,38 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
+  // --- LOGICA NOUĂ PENTRU IMAGINI ---
+  
+  // 1. Deschide modalul pentru un Post specific
+  const openImageModalForPost = (postId: string, content: string) => {
+      setActivePostIdForImage(postId);
+      setCurrentPromptForImage(content); // Pre-populăm promptul cu textul postării
+      setIsImageModalOpen(true);
+  };
+
+  // 2. Deschide modalul pentru Inputul Principal
+  const openImageModalGlobal = () => {
+      setActivePostIdForImage(null);
+      setCurrentPromptForImage(topic);
+      setIsImageModalOpen(true);
+  };
+
+  // 3. Când utilizatorul dă "Use Image" în modal
+  const handleImageSelected = (url: string) => {
+      if (activePostIdForImage) {
+          // Cazul A: Imagine pentru o postare specifică
+          setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
+      } else {
+          // Cazul B: Imagine pentru inputul principal (Global)
+          setAttachedImage(url);
+      }
+      setIsImageModalOpen(false);
+      setActivePostIdForImage(null);
+  };
+
+  // --- GENERARE TEXT ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Enter a topic."); return; }
-    
-    // Verificăm creditele (1 credit pt text)
     if (!checkCredits(1)) { alert("Insufficient credits!"); return; }
 
     setIsLoading(true); setError(null);
@@ -65,41 +100,33 @@ const SocialSparkApp: React.FC = () => {
 
       const generatedPosts = await generateSocialMediaPosts(finalTopic, tone, isCampaignMode ? 3 : 1, 'English', '', (appMode === 'business' && brandProfile) ? brandProfile : undefined, imgData, imgMime);
       
-      const newPosts: Post[] = generatedPosts.map(p => ({ ...p, id: crypto.randomUUID(), adaptedContent: {}, imageUrl: attachedImage || null, isGeneratingImage: !attachedImage, isLocked: false }));
+      // Creăm postările (fără imagine atașată pe ele încă, doar dacă era globală)
+      const newPosts: Post[] = generatedPosts.map(p => ({ 
+          ...p, 
+          id: crypto.randomUUID(), 
+          adaptedContent: {}, 
+          imageUrl: attachedImage || null, // Dacă aveam imagine globală, o punem. Altfel null.
+          isGeneratingImage: false, // NU mai generăm automat
+          isLocked: false 
+      }));
+
       setPosts(prev => [...newPosts, ...prev].slice(0, 6));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
 
-      // Auto-generate image if none attached (and has credits for it - 2 credits)
-      if (!attachedImage && checkCredits(2)) {
-        newPosts.forEach(async (post) => {
-            try {
-                const url = await generateImageForPost(post.content); 
-                // Backend scade automat creditele
-                setPosts(curr => curr.map(p => p.id === post.id ? { ...p, imageUrl: url, isGeneratingImage: false } : p));
-            } catch (e) { setPosts(curr => curr.map(p => p.id === post.id ? { ...p, isGeneratingImage: false } : p)); }
-        });
-      }
+      // AM SCOS GENERAREA AUTOMATĂ DE AICI (Issue Fixed)
+
     } catch (err) { setError('Failed to generate content.'); } 
     finally { setIsLoading(false); }
   };
 
-  const handleGenerateImageForPost = async (postId: string, postContent: string) => {
-    // Verificăm creditele (2 pt standard, 20 pt premium - backend decide, dar verificăm minimul)
-    if (!checkCredits(2)) { alert("Insufficient credits for image generation."); return; }
-    
-    setPosts(prev => prev.map(p => p.id === postId ? { ...p, isGeneratingImage: true } : p));
-    try {
-        const url = await generateImageForPost(postContent);
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, imageUrl: url, isGeneratingImage: false } : p));
-    } catch (error) { setPosts(prev => prev.map(p => p.id === postId ? { ...p, isGeneratingImage: false } : p)); }
-  };
-
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
+  
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
       const adapted = await adaptPostForPlatform(content, platform);
       setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p));
   };
+  
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
       setRefiningPostId(id);
       const refined = await refinePostContent(content, type);
@@ -112,10 +139,7 @@ const SocialSparkApp: React.FC = () => {
 
   return (
     <MainLayout>
-        {/* Two-Column Layout */}
         <div className="flex h-full gap-6">
-            
-            {/* Left: Input & Results */}
             <div className="flex-1 min-w-0">
                 <div className="max-w-2xl mx-auto pb-20">
                     <header className="mb-8">
@@ -148,9 +172,9 @@ const SocialSparkApp: React.FC = () => {
                             />
                             
                             <button 
-                                onClick={() => setIsImageModalOpen(true)}
+                                onClick={openImageModalGlobal} // Deschide modalul global
                                 className={`absolute bottom-3 right-3 p-2 rounded-lg transition ${attachedImage ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-                                title={attachedImage ? "Change Image" : "Attach Image"}
+                                title={attachedImage ? "Change Image" : "Attach AI Image"}
                             >
                                 <ImageIcon className="w-5 h-5" />
                             </button>
@@ -208,7 +232,7 @@ const SocialSparkApp: React.FC = () => {
                                             key={post.id} 
                                             post={post} 
                                             isRefining={refiningPostId === post.id} 
-                                            onGenerateImage={handleGenerateImageForPost} 
+                                            onGenerateImage={(id, content) => openImageModalForPost(id, content)} // AICI AM SCHIMBAT: Deschidem modalul
                                             onAdaptPost={handleAdaptPost} 
                                             onRefinePost={handleRefinePost} 
                                             onDelete={handleDeletePost} 
@@ -222,7 +246,6 @@ const SocialSparkApp: React.FC = () => {
                 </div>
             </div>
             
-            {/* Right: Phone Preview (Sticky) */}
             <div className="hidden xl:block w-[400px] shrink-0">
                 <div className="sticky top-6">
                     <PhonePreview 
@@ -239,7 +262,14 @@ const SocialSparkApp: React.FC = () => {
             </div>
         </div>
 
-        {isImageModalOpen && <ImageCreationModal onClose={() => setIsImageModalOpen(false)} onSelectImage={setAttachedImage} initialPrompt={topic} />}
+        {isImageModalOpen && (
+            <ImageCreationModal 
+                onClose={() => setIsImageModalOpen(false)} 
+                onSelectImage={handleImageSelected} // Funcția nouă inteligentă
+                initialPrompt={currentPromptForImage} 
+            />
+        )}
+        
         {isBrandProfileModalOpen && <BrandProfileModal currentProfile={brandProfile} onSave={saveBrandProfile} onClose={() => setIsBrandProfileModalOpen(false)} />}
     </MainLayout>
   );
