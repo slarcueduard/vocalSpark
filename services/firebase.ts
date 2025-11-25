@@ -1,18 +1,19 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, onAuthStateChanged, NextOrObserver, User } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { firebaseConfig as localConfig } from "../firebaseConfig";
+// src/services/firebaseConfig.ts (sau .js)
 
-// Use the local config in this environment.
-// In a real Vercel/Vite environment, you might use import.meta.env,
-// but for this preview to work, we rely on the firebaseConfig.ts file.
-const firebaseConfig = localConfig;
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
+// AICI ESTE SECRETUL: Nu scrie cheile în clar! Folosește import.meta.env
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
-
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
-export const signOut = () => firebaseSignOut(auth);
-export const onAuthChanged = (observer: NextOrObserver<User>) => onAuthStateChanged(auth, observer);
