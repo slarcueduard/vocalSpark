@@ -12,44 +12,7 @@ async function getAuthHeader() {
     };
 }
 
-// src/services/geminiService.ts
-
-// ... alte importuri
-
-// Modificăm funcția ca să accepte isPremium
-export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
-    try {
-        const token = await auth.currentUser?.getIdToken();
-        
-        const response = await fetch('/api/generate-image', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ 
-                prompt: postText,
-                isPremium: isPremium // Trimitem alegerea la backend
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || "Image generation failed");
-        }
-
-        return data.imageUrl;
-    } catch (e) {
-        console.error("Image Gen Error:", e);
-        throw e;
-    }
-}
-
-// ... restul funcțiilor rămân la fel
-
 // --- HELPER CRITIC: Fetch Sigur ---
-// Gestionează erorile de rețea și răspunsurile non-JSON (ex: erori Vercel 504/404)
 async function safeFetch(url: string, body: any) {
     const headers = await getAuthHeader();
     
@@ -62,13 +25,11 @@ async function safeFetch(url: string, body: any) {
 
         const text = await response.text();
         
-        // Verificăm dacă e JSON valid
         let data;
         try {
             data = JSON.parse(text);
         } catch (e) {
             console.error("Server Raw Response (Not JSON):", text);
-            // Dacă primim HTML (eroare Vercel), extragem titlul sau mesajul scurt
             throw new Error(`Server Error (${response.status}): Invalid response format.`);
         }
 
@@ -80,18 +41,15 @@ async function safeFetch(url: string, body: any) {
 
     } catch (error: any) {
         console.error(`Fetch failed for ${url}:`, error);
-        throw error; // Aruncăm eroarea mai departe ca să fie prinsă de funcțiile specifice
+        throw error;
     }
 }
 
 // --- HELPER: Extragere JSON din textul AI ---
-// AI-ul pune adesea text înainte sau după JSON. Asta curăță totul.
 function extractJsonArray(text: string): any[] {
     try {
-        // 1. Încercare directă
         return JSON.parse(text);
     } catch (e) {
-        // 2. Căutăm parantezele de array [...]
         const firstBracket = text.indexOf('[');
         const lastBracket = text.lastIndexOf(']');
         
@@ -103,44 +61,48 @@ function extractJsonArray(text: string): any[] {
                 console.error("Failed to parse extracted JSON string:", jsonStr);
             }
         }
+        // Fallback: Uneori AI-ul returnează doar un obiect, nu o listă
+        try {
+             if (text.trim().startsWith('{')) {
+                 return [JSON.parse(text)];
+             }
+        } catch (e2) {}
+        
         throw new Error("AI did not return a valid JSON list.");
     }
 }
 
-// --- 1. IMAGINI (Prin Backend cu Fallback) ---
-export async function generateImageForPost(postText: string, brandProfile?: BrandProfile): Promise<string> {
+// --- 1. IMAGINI (Prin Backend) ---
+// Aceasta este singura definiție a funcției!
+export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
     try {
-        // Construim un prompt vizual mai bun
-        const imagePrompt = `Editorial photo representing: ${postText}`;
-        const style = brandProfile?.visualStyle || "cinematic";
+        // Construim un prompt mai bun pentru imagine
+        const imagePrompt = postText.length > 200 ? `Editorial photo representing: ${postText.substring(0, 200)}` : postText;
 
-        // Încercăm Backend-ul (Verifică credite -> OpenAI/Replicate)
+        // Apelăm backend-ul (care verifică creditele și alege modelul)
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
-            style: style 
+            isPremium: isPremium 
         });
+        
         return data.imageUrl;
 
     } catch (e) {
-        console.warn("Backend image generation failed, using Client-Side Fallback.", e);
-        
-        // Fallback: Pollinations (Gratis, Client-side direct)
-        // Nu necesită backend, merge direct din browser
-        const cleanPrompt = encodeURIComponent(postText.substring(0, 150));
-        const seed = Math.floor(Math.random() * 1000);
-        return `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
+        console.error("Image Generation Failed:", e);
+        throw e; // Aruncăm eroarea ca să o vadă UI-ul (ex: "Not enough credits")
     }
 }
 
 export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
-    // Momentan folosim fallback-ul rapid pentru variații
-    await new Promise(r => setTimeout(r, 1000)); // Mic delay artificial pt UX
+    // Variațiile momentan folosesc un fallback rapid (Pollinations)
+    // Într-un viitor update putem muta și asta pe backend
+    await new Promise(r => setTimeout(r, 1000)); 
     const cleanStyle = encodeURIComponent(style + " artistic style, high quality");
     const seed = Math.floor(Math.random() * 1000);
-    return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&nologo=true&seed=${seed}&model=flux`;
+    return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&seed=${seed}&model=flux`;
 }
 
-// --- 2. LOGO OVERLAY (Client-Side - Neschimbat) ---
+// --- 2. LOGO OVERLAY (Client-Side) ---
 export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
 export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, position: LogoPosition = 'top-left', removeBg: boolean = false): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -186,26 +148,25 @@ export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
-    // Prompt optimizat pentru Gemini
     let prompt = `
     ROLE: Expert Social Media Manager.
     TASK: Write ${postCount} highly engaging social media posts about: "${topic}".
     TONE: ${tone}.
     LANGUAGE: ${language}.
-    FORMAT: Return ONLY a raw JSON Array. Do not use Markdown blocks.
-    Structure: [{"content": "Post text here... emojis included"}]
+    FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here... emojis included"}]
     `;
     
-    if (brandVoice) prompt += `\nBRAND VOICE INSTRUCTIONS: ${brandVoice}`;
+    // Trimitem brandContext separat în body, dar îl includem și în prompt text pentru siguranță
+    if (brandVoice) prompt += `\nBRAND VOICE: ${brandVoice}`;
 
     try {
         const data = await safeFetch('/api/generate-text', { 
             prompt, 
+            brandContext: brandVoice, // Trimitem la backend pentru system prompt
             imageBase64, 
             imageMimeType 
         });
 
-        // Folosim extractorul robust
         const parsed = extractJsonArray(data.output);
         
         if(Array.isArray(parsed)) {
@@ -215,7 +176,6 @@ export async function generateSocialMediaPosts(
 
     } catch (e: any) {
         console.error("Text Generation Logic Error:", e);
-        // Returnăm o eroare în UI, dar într-un format care nu sparge aplicația
         return [{ content: `⚠️ Could not generate posts. Error: ${e.message}. Please try again.` }];
     }
 }
@@ -232,7 +192,10 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
 
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {
-        const data = await safeFetch('/api/generate-text', { prompt: `Adapt this post for ${platform}, keeping the same meaning but optimizing for the platform's best practices: "${originalContent}"` });
+        const data = await safeFetch('/api/generate-text', { 
+            prompt: `Adapt this post for ${platform}, optimizing formatting and hashtags: "${originalContent}"`,
+            platform: platform 
+        });
         return data.output;
     } catch(e) { return originalContent; }
 }
@@ -240,10 +203,10 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
     try {
         const promptMap: Record<string, string> = {
-            'shorten': 'Shorten this post while keeping the punchline:',
-            'expand': 'Expand this post with more details and value:',
-            'more-emojis': 'Add relevant emojis to this post:',
-            'formal': 'Rewrite this post to be more professional and formal:'
+            'shorten': 'Shorten this post while keeping the impact:',
+            'expand': 'Expand this post with more value:',
+            'more-emojis': 'Add relevant emojis:',
+            'formal': 'Rewrite to be more professional:'
         };
         const data = await safeFetch('/api/generate-text', { prompt: `${promptMap[type] || 'Rewrite:'} "${content}"` });
         return data.output;
