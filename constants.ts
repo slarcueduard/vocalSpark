@@ -1,17 +1,20 @@
-import { Platform, Tone } from './types';
+import { Platform, Tone, PostObjective } from './types';
+import { MessageCircle, ShoppingBag, BookOpen, Zap, MousePointerClick } from 'lucide-react';
 
 export const PLATFORMS = [
   { value: Platform.Instagram, label: 'Instagram' },
-  { value: Platform.TikTok, label: 'TikTok' },
   { value: Platform.Facebook, label: 'Facebook' },
   { value: Platform.X, label: 'X (Twitter)' },
+  { value: Platform.LinkedIn, label: 'LinkedIn' },
+  { value: Platform.TikTok, label: 'TikTok Script' }
 ];
-
 export const TONES = [
-  { value: Tone.Professional, label: 'Professional' },
-  { value: Tone.Casual, label: 'Casual' },
-  { value: Tone.Humorous, label: 'Humorous' },
-  { value: Tone.Inspirational, label: 'Inspirational' },
+  { value: Tone.Inspirational, label: '✨ Inspirational' },
+  { value: Tone.Professional, label: '👔 Professional' },
+  { value: Tone.Humorous, label: '🤪 Humorous & Witty' },
+  { value: Tone.Educational, label: '📚 Educational' },
+  { value: Tone.Casual, label: '☕ Casual & Friendly' },
+  { value: Tone.Urgent, label: '🔥 Urgent / FOMO' }
 ];
 
 export const PERSON_STYLES = [
@@ -49,4 +52,37 @@ export const INDUSTRIES = [
   'Marketing & Agency',
   'Education',
   'Other'
+];
+
+export const OBJECTIVES: { id: PostObjective; label: string; description: string; icon: any }[] = [
+  { 
+    id: 'engagement', 
+    label: 'Get Comments', 
+    description: 'Ask questions & start conversations.',
+    icon: MessageCircle 
+  },
+  { 
+    id: 'sales', 
+    label: 'Sell Product', 
+    description: 'Persuade users to buy or sign up.',
+    icon: ShoppingBag 
+  },
+  { 
+    id: 'education', 
+    label: 'Teach Value', 
+    description: 'Build trust with tips & guides.',
+    icon: BookOpen 
+  },
+  { 
+    id: 'viral', 
+    label: 'Go Viral', 
+    description: 'Short, punchy & shareable content.',
+    icon: Zap 
+  },
+  { 
+    id: 'traffic', 
+    label: 'Get Clicks', 
+    description: 'Drive traffic to your link/bio.',
+    icon: MousePointerClick 
+  }
 ];
