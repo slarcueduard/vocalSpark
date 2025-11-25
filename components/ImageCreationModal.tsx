@@ -256,6 +256,30 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                     <Sparkles className={`w-12 h-12 mx-auto mb-4 ${isGenerating ? 'animate-spin text-blue-500' : 'text-gray-800'}`} />
                     <p className="text-sm">{isGenerating ? "Applying Velocity Magic..." : "Your visual will appear here"}</p>
                 </div>
+      {/* RIGHT: Preview */}
+<div className="w-full md:w-1/2 bg-[#050505] flex flex-col items-center justify-center p-6 relative">
+    {/* Buton X pentru închidere modal */}
+    <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white"><X size={20}/></button>
+    
+    {resultImage ? (
+        <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
+            
+            {/* --- BUTON NOU: DELETE IMAGE --- */}
+            <button 
+                onClick={() => setResultImage(null)} // Șterge imaginea din state
+                className="absolute top-2 left-2 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition"
+                title="Remove Image"
+            >
+                <TrashIcon size={16} /> 
+            </button>
+
+            <img src={resultImage} alt="Result" className="max-h-[400px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black" />
+            {/* ... butoanele de Use / Download ... */}
+        </div>
+    ) : (
+       // ...
+    )}
+</div>
             )}
         </div>
       </div>
