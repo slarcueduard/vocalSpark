@@ -47,44 +47,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (currentUser) {
         const userRef = doc(db, 'users', currentUser.uid);
 
-        const unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
-          if (!docSnap.exists()) {
-            // NEW USER: Initialize with TRIAL Credits (150)
-            const newProfile: any = {
-              uid: currentUser.uid,
-              email: currentUser.email,
-              subscriptionTier: 'trial',
-              subscriptionStatus: 'active',
-              createdAt: serverTimestamp(),
-              credits: PLANS.trial.credits, // 150 Credits
-              imageCount: 0 
-            };
-            await setDoc(userRef, newProfile);
-          } else {
-            // EXISTING USER
-            const data = docSnap.data() as UserProfile;
-            
-            // Sync local credits state
-            const currentCredits = data.credits !== undefined ? data.credits : 0;
-            
-            setUserProfile(data);
-            setCredits(currentCredits);
-
-            // Calculate Trial Days Remaining
-            if (data.subscriptionTier === 'trial' && data.createdAt) {
-               // @ts-ignore
-               const startDate = data.createdAt.toDate(); 
-               const now = new Date();
-               const diffTime = Math.abs(now.getTime() - startDate.getTime());
-               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-               const remaining = 5 - diffDays; // 5 Days Trial
-               setDaysRemaining(remaining > 0 ? remaining : 0);
+        // --- FIX: Am adăugat gestionarea erorilor la Snapshot ---
+        const unsubscribeSnapshot = onSnapshot(
+          userRef, 
+          async (docSnap) => {
+            if (!docSnap.exists()) {
+              // User Nou -> Inițializare
+              try {
+                const newProfile: any = {
+                  uid: currentUser.uid,
+                  email: currentUser.email,
+                  subscriptionTier: 'trial',
+                  subscriptionStatus: 'active',
+                  createdAt: serverTimestamp(),
+                  credits: PLANS?.trial?.credits || 150, // Fallback de siguranță
+                  imageCount: 0 
+                };
+                await setDoc(userRef, newProfile);
+              } catch (err) {
+                console.error("Error creating user profile:", err);
+              }
             } else {
-               setDaysRemaining(30); 
+              // User Existent
+              const data = docSnap.data() as UserProfile;
+              const currentCredits = data.credits !== undefined ? data.credits : 0;
+              
+              setUserProfile(data);
+              setCredits(currentCredits);
+
+              if (data.subscriptionTier === 'trial' && data.createdAt) {
+                 // @ts-ignore
+                 const startDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
+                 const now = new Date();
+                 const diffTime = Math.abs(now.getTime() - startDate.getTime());
+                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                 const remaining = 5 - diffDays;
+                 setDaysRemaining(remaining > 0 ? remaining : 0);
+              } else {
+                 setDaysRemaining(30); 
+              }
             }
+            // Oprim loading-ul când avem datele
+            setLoading(false);
+          },
+          (error) => {
+            console.error("Firestore Snapshot Error:", error);
+            // CRITIC: Oprim loading-ul chiar dacă e eroare, ca să nu rămână ecranul alb
+            setLoading(false); 
           }
-          setLoading(false);
-        });
+        );
 
         return () => unsubscribeSnapshot();
       } else {
