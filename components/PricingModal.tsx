@@ -8,7 +8,7 @@ interface PricingModalProps {
   onClose: () => void;
 }
 
-export default function PricingModal({ isOpen, onClose }: PricingModalProps) {
+export function PricingModal({ isOpen, onClose }: PricingModalProps) {
   const { userProfile } = useAuth();
   const currentTier = userProfile?.subscriptionTier || 'trial';
 
