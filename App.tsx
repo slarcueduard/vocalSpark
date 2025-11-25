@@ -38,13 +38,45 @@ const SocialSparkApp: React.FC = () => {
   
   const [posts, setPosts] = useState<Post[]>([]);
   
-  // Sugestie Automată (Onboarding)
+// --- SUGESTIE AUTOMATĂ BAZATĂ PE BRAND & LIMBĂ (FIX) ---
   useEffect(() => {
-    if (!loading && brandProfile?.industry && !topic && posts.length === 0) {
+    // Rulează doar dacă:
+    // 1. Nu se încarcă userul (avem datele finale)
+    // 2. Avem un profil de brand (niche setată)
+    // 3. Căsuța de text este GOALĂ (nu vrem să suprascriem ce a scris userul)
+    
+    if (!loading && brandProfile?.industry && topic === '') {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
-        // Simplu placeholder, logica complexă de traducere e în backend/hook-ul anterior
-        setTopic(''); 
+        
+        let templates: string[] = [];
+
+        if (lang === 'Romanian') {
+            templates = [
+                `3 mituri despre ${niche} care trebuie demontate`,
+                `Cum să începi cu ${niche} în 2024`,
+                `În culisele unei afaceri de ${niche}`,
+                `Viitorul în ${niche}: La ce să ne așteptăm`,
+                `O greșeală comună în ${niche} și cum să o eviți`
+            ];
+        } else if (lang === 'Spanish') {
+            templates = [
+                `3 mitos sobre ${niche} que debes conocer`,
+                `Cómo empezar con ${niche} en 2024`,
+                `Detrás de escena en el mundo de ${niche}`
+            ];
+        } else {
+            // Default English
+            templates = [
+                `3 myths about ${niche} needed to be debunked`,
+                `How to start with ${niche} in 2024`,
+                `Behind the scenes of a ${niche} business`,
+                `The future of ${niche}: What to expect`
+            ];
+        }
+
+        const randomIdea = templates[Math.floor(Math.random() * templates.length)];
+        setTopic(randomIdea);
     }
   }, [loading, brandProfile]);
 
