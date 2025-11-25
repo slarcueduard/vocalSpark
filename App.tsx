@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
+import { generateSocialMediaPosts, generateImageForPost, adaptPostForPlatform, refinePostContent } from './services/geminiService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType } from './types';
 import { TONES, PLATFORMS } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
+import { Lock } from 'lucide-react'; // Iconița de lacăt pentru Paywall
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -15,7 +16,7 @@ import { PostCard } from './components/PostCard';
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-  const { user, brandProfile, saveBrandProfile, checkCredits } = useAuth();
+  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired } = useAuth();
   const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,7 @@ const SocialSparkApp: React.FC = () => {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // State pentru a ști pentru CE postare deschidem modalul (null = input principal)
+  // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
@@ -52,80 +53,40 @@ const SocialSparkApp: React.FC = () => {
           });
       } catch (e) { return null; }
   };
-// src/App.tsx
 
-// ... importuri (adăugăm Lock din lucide-react în Icons sau direct)
-import { Lock } from 'lucide-react'; 
-
-const SocialSparkApp: React.FC = () => {
-  // Adăugăm isTrialExpired din AuthContext
-  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired } = useAuth(); 
-  
-  // ... restul codului ...
-
-  return (
-    <MainLayout>
-        {/* --- BLOCAJ PENTRU TRIAL EXPIRAT --- */}
-        {isTrialExpired && (
-            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20">
-                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Lock size={32} className="text-red-500" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">Free Trial Expired</h2>
-                    <p className="text-gray-400 mb-6">
-                        You've enjoyed 5 days of premium creation. To keep generating viral content and images, please choose a plan.
-                    </p>
-                    <button 
-                        onClick={() => document.getElementById('upgrade-btn')?.click()} // Hack rapid să deschidă modalul existent
-                        className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-xl hover:scale-[1.02] transition"
-                    >
-                        Unlock Full Access
-                    </button>
-                </div>
-            </div>
-        )}
-
-        {/* ... RESTUL APLICAȚIEI ... */}
-        <div className="flex h-full gap-6">
-           {/* ... */}
-        </div>
-    </MainLayout>
-  );
-};
-  // --- LOGICA NOUĂ PENTRU IMAGINI ---
-  
-  // 1. Deschide modalul pentru un Post specific
+  // --- IMAGE MODAL LOGIC ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
-      setCurrentPromptForImage(content); // Pre-populăm promptul cu textul postării
+      setCurrentPromptForImage(content);
       setIsImageModalOpen(true);
   };
 
-  // 2. Deschide modalul pentru Inputul Principal
   const openImageModalGlobal = () => {
       setActivePostIdForImage(null);
       setCurrentPromptForImage(topic);
       setIsImageModalOpen(true);
   };
 
-  // 3. Când utilizatorul dă "Use Image" în modal
   const handleImageSelected = (url: string) => {
       if (activePostIdForImage) {
-          // Cazul A: Imagine pentru o postare specifică
           setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
       } else {
-          // Cazul B: Imagine pentru inputul principal (Global)
           setAttachedImage(url);
       }
       setIsImageModalOpen(false);
       setActivePostIdForImage(null);
   };
 
-  // --- GENERARE TEXT ---
+  // --- GENERATE TEXT ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Enter a topic."); return; }
-    if (!checkCredits(1)) { alert("Insufficient credits!"); return; }
+    
+    // Check Credits & Trial Status
+    if (!checkCredits(1)) { 
+        if (isTrialExpired) return; // UI handles the paywall
+        alert("Insufficient credits!"); 
+        return; 
+    }
 
     setIsLoading(true); setError(null);
     try {
@@ -140,20 +101,17 @@ const SocialSparkApp: React.FC = () => {
 
       const generatedPosts = await generateSocialMediaPosts(finalTopic, tone, isCampaignMode ? 3 : 1, 'English', '', (appMode === 'business' && brandProfile) ? brandProfile : undefined, imgData, imgMime);
       
-      // Creăm postările (fără imagine atașată pe ele încă, doar dacă era globală)
       const newPosts: Post[] = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
           adaptedContent: {}, 
-          imageUrl: attachedImage || null, // Dacă aveam imagine globală, o punem. Altfel null.
-          isGeneratingImage: false, // NU mai generăm automat
+          imageUrl: attachedImage || null, 
+          isGeneratingImage: false, 
           isLocked: false 
       }));
 
       setPosts(prev => [...newPosts, ...prev].slice(0, 6));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-
-      // AM SCOS GENERAREA AUTOMATĂ DE AICI (Issue Fixed)
 
     } catch (err) { setError('Failed to generate content.'); } 
     finally { setIsLoading(false); }
@@ -163,11 +121,13 @@ const SocialSparkApp: React.FC = () => {
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
   
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
+      if (!checkCredits(1)) return;
       const adapted = await adaptPostForPlatform(content, platform);
       setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p));
   };
   
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
+      if (!checkCredits(1)) return;
       setRefiningPostId(id);
       const refined = await refinePostContent(content, type);
       setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p));
@@ -179,7 +139,27 @@ const SocialSparkApp: React.FC = () => {
 
   return (
     <MainLayout>
-        <div className="flex h-full gap-6">
+        
+        {/* --- PAYWALL OVERLAY (Apare doar dacă trial-ul a expirat) --- */}
+        {isTrialExpired && (
+            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-xl overflow-hidden">
+                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20 mx-4">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock size={32} className="text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Free Trial Expired</h2>
+                    <p className="text-gray-400 mb-6 text-sm">
+                        You've enjoyed 5 days of premium creation. To keep generating viral content and visuals, please verify your account by choosing a plan.
+                    </p>
+                    {/* Notă: Acest buton se bazează pe faptul că userul poate da click pe "Upgrade Plan" din header-ul MainLayout care rămâne vizibil de obicei */}
+                    <div className="text-xs text-gray-500 bg-gray-900 p-3 rounded-lg">
+                        Click the <b>UPGRADE PLAN</b> button in the top right corner to continue.
+                    </div>
+                </div>
+            </div>
+        )}
+
+        <div className="flex h-full gap-6 relative">
             <div className="flex-1 min-w-0">
                 <div className="max-w-2xl mx-auto pb-20">
                     <header className="mb-8">
@@ -212,7 +192,7 @@ const SocialSparkApp: React.FC = () => {
                             />
                             
                             <button 
-                                onClick={openImageModalGlobal} // Deschide modalul global
+                                onClick={openImageModalGlobal}
                                 className={`absolute bottom-3 right-3 p-2 rounded-lg transition ${attachedImage ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
                                 title={attachedImage ? "Change Image" : "Attach AI Image"}
                             >
@@ -254,7 +234,7 @@ const SocialSparkApp: React.FC = () => {
                         
                         <button 
                             onClick={handleGenerate} 
-                            disabled={isLoading} 
+                            disabled={isLoading || isTrialExpired} 
                             className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition shadow-lg shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
@@ -272,7 +252,7 @@ const SocialSparkApp: React.FC = () => {
                                             key={post.id} 
                                             post={post} 
                                             isRefining={refiningPostId === post.id} 
-                                            onGenerateImage={(id, content) => openImageModalForPost(id, content)} // AICI AM SCHIMBAT: Deschidem modalul
+                                            onGenerateImage={(id, content) => openImageModalForPost(id, content)} 
                                             onAdaptPost={handleAdaptPost} 
                                             onRefinePost={handleRefinePost} 
                                             onDelete={handleDeletePost} 
@@ -305,7 +285,7 @@ const SocialSparkApp: React.FC = () => {
         {isImageModalOpen && (
             <ImageCreationModal 
                 onClose={() => setIsImageModalOpen(false)} 
-                onSelectImage={handleImageSelected} // Funcția nouă inteligentă
+                onSelectImage={handleImageSelected} 
                 initialPrompt={currentPromptForImage} 
             />
         )}
