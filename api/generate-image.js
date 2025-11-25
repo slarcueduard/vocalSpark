@@ -13,14 +13,19 @@ export default async function handler(req, res) {
   try {
     const { prompt, isPremium } = req.body;
     
-    // Cost: 15 credite pt DALL-E (Premium), 2 credite pt Pollinations (Standard)
-    const COST = isPremium ? 15 : 2; 
+    // --- LISTA DE PREȚURI ---
+    // Premium (DALL-E 3) = 20 Credite
+    // Standard (Pollinations) = 2 Credite
+    const COST = isPremium ? 20 : 2; 
 
+    // 1. Verificăm creditele
     const { userRef } = await verifyUserAndCredits(req, COST);
+    
     let imageUrl = "";
 
     if (isPremium) {
-        // OpenAI DALL-E 3
+        // --- PREMIUM: DALL-E 3 (OpenAI) ---
+        // Calitate maximă, prompt respectat cu strictețe. Durează 10-15 sec.
         const response = await openai.images.generate({
           model: "dall-e-3",
           prompt: prompt,
@@ -30,15 +35,18 @@ export default async function handler(req, res) {
         });
         imageUrl = response.data[0].url;
     } else {
-        // Pollinations (Gratis pt tine, rapid pt user)
+        // --- STANDARD: Pollinations (Flux) ---
+        // Generare instantanee (Client side feeling), calitate bună, gratis.
         const cleanPrompt = encodeURIComponent(prompt);
-        const seed = Math.floor(Math.random() * 10000);
-        imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
+        const seed = Math.floor(Math.random() * 100000);
+        // Parametrul 'nologo=true' și 'model=flux' sunt esențiale
+        imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1080&height=1080&seed=${seed}&model=flux&nologo=true`;
     }
 
+    // 2. Scădem creditele
     await deductCredits(userRef, COST);
 
-    return res.status(200).json({ imageUrl });
+    return res.status(200).json({ imageUrl, cost: COST });
 
   } catch (error) {
     console.error("Image Error:", error);
