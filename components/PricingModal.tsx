@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { X, Check, Info, Star, Zap, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PLANS, SubscriptionTier } from '../types';
@@ -14,8 +14,21 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
   if (!isOpen) return null;
 
+  // --- FUNCȚIA DE UPGRADE ---
+  const handleUpgrade = (tier: SubscriptionTier) => {
+    // Aici vom pune logica de Stripe mai târziu.
+    // Momentan, doar afișăm un mesaj ca să știm că butonul merge.
+    if (tier === 'agency') {
+      alert("Agency Plan selected! Stripe Checkout coming soon.");
+    } else if (tier === 'pro') {
+      alert("Pro Plan selected! Stripe Checkout coming soon.");
+    } else if (tier === 'creator') {
+      alert("Creator Plan selected! Stripe Checkout coming soon.");
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-5xl bg-[#0f1115] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}
@@ -36,29 +49,29 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         <div className="flex-1 overflow-y-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
-            {/* 1. CREATOR PLAN */}
             <PricingCard 
               planKey="creator"
               icon={<Zap className="text-blue-400" />}
               currentTier={currentTier}
               description="Perfect for individuals starting out."
+              onSelect={() => handleUpgrade('creator')}
             />
 
-            {/* 2. PRO PLAN (Highlighted) */}
             <PricingCard 
               planKey="pro"
               icon={<Star className="text-purple-400" />}
               currentTier={currentTier}
               isPopular={true}
               description="For growing influencers & brands."
+              onSelect={() => handleUpgrade('pro')}
             />
 
-            {/* 3. AGENCY PLAN */}
             <PricingCard 
               planKey="agency"
               icon={<Building2 className="text-orange-400" />}
               currentTier={currentTier}
               description="Volume & power for multiple clients."
+              onSelect={() => handleUpgrade('agency')}
             />
 
           </div>
@@ -75,7 +88,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
   );
 }
 
-// --- SUB-COMPONENTS ---
+// --- SUB-COMPONENT ---
 
 interface CardProps {
   planKey: SubscriptionTier;
@@ -83,13 +96,13 @@ interface CardProps {
   currentTier: string;
   isPopular?: boolean;
   description: string;
+  onSelect: () => void; // Am adăugat acțiunea
 }
 
-function PricingCard({ planKey, icon, currentTier, isPopular, description }: CardProps) {
+function PricingCard({ planKey, icon, currentTier, isPopular, description, onSelect }: CardProps) {
   const plan = PLANS[planKey];
   const isCurrent = currentTier === planKey;
 
-  // Funcție care explică feature-urile cheie
   const getFeatureTooltip = (feature: string) => {
     if (feature.includes('Premium')) return "Uses DALL-E 3 (OpenAI) for photorealistic, high-fidelity art.";
     if (feature.includes('Standard')) return "Uses Flux/Pollinations. Fast generation, good for social posts.";
@@ -109,7 +122,7 @@ function PricingCard({ planKey, icon, currentTier, isPopular, description }: Car
         </div>
       )}
 
-      {/* Header Card */}
+      {/* Header */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
           <div className="p-2 bg-gray-800 rounded-lg">{icon}</div>
@@ -126,7 +139,7 @@ function PricingCard({ planKey, icon, currentTier, isPopular, description }: Car
         <p className="text-gray-400 text-xs mt-1 h-8">{description}</p>
       </div>
 
-      {/* Credits Highlight */}
+      {/* Credits Bar */}
       <div className="mb-6 p-3 bg-black/30 rounded-lg border border-gray-700/50">
         <div className="flex justify-between items-center mb-1">
           <span className="text-gray-300 text-sm font-medium">Monthly Credits</span>
@@ -143,7 +156,7 @@ function PricingCard({ planKey, icon, currentTier, isPopular, description }: Car
         </p>
       </div>
 
-      {/* Features List */}
+      {/* Features */}
       <div className="flex-1 space-y-3 mb-6">
         {plan.features.map((feature, idx) => {
            const tooltip = getFeatureTooltip(feature);
@@ -151,8 +164,6 @@ function PricingCard({ planKey, icon, currentTier, isPopular, description }: Car
             <div key={idx} className="flex items-start gap-2 group relative">
               <Check size={14} className={`mt-0.5 ${isPopular ? 'text-purple-400' : 'text-blue-400'}`} />
               <span className="text-gray-300 text-sm">{feature}</span>
-              
-              {/* Tooltip Icon & Text */}
               {tooltip && (
                 <div className="relative group/tooltip ml-auto">
                    <Info size={12} className="text-gray-600 cursor-help hover:text-gray-400" />
@@ -168,6 +179,7 @@ function PricingCard({ planKey, icon, currentTier, isPopular, description }: Car
 
       {/* CTA Button */}
       <button
+        onClick={onSelect} // <--- AICI ERA LIPSA!
         disabled={isCurrent}
         className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all ${
           isCurrent 
