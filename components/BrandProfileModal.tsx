@@ -1,168 +1,96 @@
 import React, { useState } from 'react';
-// 1. Importăm iconițele
-import { XIcon, BriefcaseIcon, SparklesIcon, CheckCircleIcon } from './Icons';
-// 2. Importăm Loader CORECT din fișierul lui
-import { Loader } from './Loader';
-import { analyzeBrandVoice } from '../services/geminiService';
+import { X, Briefcase, Mic, Target, Globe } from 'lucide-react';
 import { BrandProfile } from '../types';
 
-interface BrandProfileModalProps {
+interface Props {
   currentProfile: BrandProfile | null;
   onSave: (profile: BrandProfile) => void;
   onClose: () => void;
 }
 
-const INDUSTRIES = [
-  'E-commerce', 'SaaS / Tech', 'Health & Wellness', 'Fashion', 
-  'Real Estate', 'Food & Beverage', 'Personal Brand', 'Other'
-];
+export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
+  const [formData, setFormData] = useState<BrandProfile>(currentProfile || {
+    industry: '',
+    description: '',
+    voiceDNA: '',
+    websiteUrl: '',
+    socialUrl: ''
+  });
 
-export const BrandProfileModal: React.FC<BrandProfileModalProps> = ({ currentProfile, onSave, onClose }) => {
-  const [industry, setIndustry] = useState(currentProfile?.industry || 'E-commerce');
-  const [customIndustry, setCustomIndustry] = useState(currentProfile?.customIndustry || '');
-  const [description, setDescription] = useState(currentProfile?.description || '');
-  const [samplePost, setSamplePost] = useState('');
-  const [voiceDNA, setVoiceDNA] = useState(currentProfile?.voiceDNA || '');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-
-  const handleAnalyze = async () => {
-    if (!samplePost.trim()) return;
-    setIsAnalyzing(true);
-    try {
-      const result = await analyzeBrandVoice(samplePost);
-      setVoiceDNA(result);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleSave = () => {
-    onSave({
-      industry,
-      customIndustry: industry === 'Other' ? customIndustry : undefined,
-      description,
-      voiceDNA,
-      websiteUrl: '',
-      socialUrl: ''
-    });
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(formData);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-gray-900 w-full max-w-2xl rounded-2xl border border-gray-700 overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+      <div className="w-full max-w-2xl bg-[#0f1115] border border-gray-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
-        {/* Header */}
-        <div className="p-5 border-b border-gray-800 flex justify-between items-center bg-gray-900">
-            <div className="flex items-center gap-3">
-                <div className="bg-brand-secondary/10 p-2 rounded-lg">
-                    <BriefcaseIcon className="w-6 h-6 text-brand-secondary" />
-                </div>
-                <div>
-                    <h2 className="font-bold text-white text-lg">Brand Voice Settings</h2>
-                    <p className="text-xs text-gray-400">Teach the AI how to sound like you.</p>
-                </div>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-white transition">
-                <XIcon className="w-6 h-6" />
-            </button>
+        <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#161b22]">
+          <div>
+            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+              <Briefcase className="text-blue-500" /> Brand Identity
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">Teach the AI about your business for personalized content.</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><X size={20} /></button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-            
-            {/* 1. Industry */}
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Industry</label>
-                    <select 
-                        value={industry}
-                        onChange={(e) => setIndustry(e.target.value)}
-                        className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-secondary outline-none"
-                    >
-                        {INDUSTRIES.map(i => <option key={i} value={i}>{i}</option>)}
-                    </select>
-                </div>
-                {industry === 'Other' && (
-                    <div>
-                        <label className="block text-xs font-bold text-gray-400 uppercase mb-2">Specific Industry</label>
-                        <input 
-                            type="text" 
-                            value={customIndustry}
-                            onChange={(e) => setCustomIndustry(e.target.value)}
-                            className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-secondary outline-none"
-                            placeholder="e.g. Crypto Gaming"
-                        />
-                    </div>
-                )}
-            </div>
+        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto space-y-6">
+          
+          {/* Industry */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+              <Globe size={16} /> Industry / Niche
+            </label>
+            <input 
+              type="text" required
+              className="w-full bg-[#1c1c2e] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none"
+              placeholder="e.g. Sustainable Fashion, Crypto Trading, Local Coffee Shop"
+              value={formData.industry}
+              onChange={e => setFormData({...formData, industry: e.target.value})}
+            />
+          </div>
 
-            {/* 2. Description */}
-            <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">What does your brand do?</label>
-                <textarea 
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-brand-secondary outline-none resize-none"
-                    placeholder="e.g. We sell premium coffee beans sourced ethically from Brazil. Our target audience is hipsters and remote workers."
-                />
-            </div>
+          {/* Voice DNA */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+              <Mic size={16} /> Voice DNA (Tone & Style)
+            </label>
+            <textarea 
+              required
+              className="w-full h-24 bg-[#1c1c2e] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none resize-none"
+              placeholder="How do you talk? (e.g. Professional but friendly, lots of emojis, short sentences, direct and bold...)"
+              value={formData.voiceDNA}
+              onChange={e => setFormData({...formData, voiceDNA: e.target.value})}
+            />
+          </div>
 
-            {/* 3. AI Voice Analyzer */}
-            <div className="bg-gray-800/50 border border-gray-700 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-3">
-                    <SparklesIcon className="w-4 h-4 text-brand-primary" />
-                    <h3 className="text-sm font-bold text-white">AI Voice Trainer</h3>
-                </div>
-                
-                {!voiceDNA ? (
-                    <div className="space-y-3">
-                        <p className="text-xs text-gray-400">Paste a recent social media post you wrote. The AI will analyze your style.</p>
-                        <textarea 
-                            value={samplePost}
-                            onChange={(e) => setSamplePost(e.target.value)}
-                            rows={3}
-                            className="w-full bg-black/30 border border-gray-600 rounded-lg p-3 text-xs focus:outline-none"
-                            placeholder="Paste sample text here..."
-                        />
-                        <button 
-                            onClick={handleAnalyze}
-                            disabled={isAnalyzing || !samplePost.trim()}
-                            className="w-full py-2 bg-gray-700 hover:bg-gray-600 text-white text-xs font-bold rounded-lg transition flex items-center justify-center gap-2"
-                        >
-                            {isAnalyzing ? <Loader size="sm"/> : 'Analyze My Style'}
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                            <label className="text-xs font-bold text-green-400 uppercase">Voice DNA Detected</label>
-                            <button onClick={() => setVoiceDNA('')} className="text-[10px] text-gray-500 underline hover:text-white">Reset</button>
-                        </div>
-                        <div className="bg-green-500/10 border border-green-500/20 p-3 rounded-lg text-xs text-gray-300 leading-relaxed">
-                            {voiceDNA}
-                        </div>
-                    </div>
-                )}
-            </div>
+          {/* Audience */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-2">
+              <Target size={16} /> Target Audience & Goal
+            </label>
+            <textarea 
+              required
+              className="w-full h-24 bg-[#1c1c2e] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none resize-none"
+              placeholder="Who are you talking to? (e.g. Busy moms aged 30-45 looking for quick recipes. Goal: Drive traffic to blog.)"
+              value={formData.description}
+              onChange={e => setFormData({...formData, description: e.target.value})}
+            />
+          </div>
 
-        </div>
+        </form>
 
-        {/* Footer Actions */}
-        <div className="p-5 border-t border-gray-800 bg-gray-900 flex justify-end gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white transition">Cancel</button>
-            <button 
-                onClick={handleSave}
-                className="px-6 py-2 bg-brand-secondary text-white text-sm font-bold rounded-xl hover:opacity-90 shadow-lg shadow-brand-secondary/20 flex items-center gap-2"
-            >
-                <CheckCircleIcon className="w-4 h-4" /> Save Profile
-            </button>
+        <div className="p-4 border-t border-gray-800 bg-[#161b22] flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="px-4 py-2 text-gray-400 hover:text-white">Cancel</button>
+          <button onClick={handleSubmit} className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold shadow-lg">
+            Save Profile
+          </button>
         </div>
 
       </div>
     </div>
   );
-};
+}
