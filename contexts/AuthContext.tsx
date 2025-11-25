@@ -12,17 +12,17 @@ import {
   onSnapshot 
 } from 'firebase/firestore';
 import { auth, googleProvider, db } from '../services/firebase';
-import { UserProfile } from '../types';
+import { UserProfile, PLANS } from '../types';
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
   daysRemaining: number;
-  credits: number; // Am adăugat creditele explicit
+  credits: number;
   signIn: () => Promise<void>;
   logout: () => Promise<void>;
-  checkCredits: (cost: number) => boolean; // Verificare credite
+  checkCredits: (cost: number) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -41,48 +41,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [credits, setCredits] = useState(0);
 
   useEffect(() => {
-    // Ascultăm starea de autentificare
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
       if (currentUser) {
         const userRef = doc(db, 'users', currentUser.uid);
 
-        // ASCULTARE ÎN TIMP REAL (Real-time Listener)
-        // Asta face ca UI-ul să se actualizeze singur când Backend-ul scade creditele!
         const unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
           if (!docSnap.exists()) {
-            // USER NOU: Îl inițializăm cu 10 credite (cum am stabilit în backend)
-            const newProfile = {
+            // NEW USER: Initialize with TRIAL Credits (150)
+            const newProfile: any = {
               uid: currentUser.uid,
               email: currentUser.email,
               subscriptionTier: 'trial',
               subscriptionStatus: 'active',
               createdAt: serverTimestamp(),
-              credits: 10, // Sincronizat cu backend-ul
+              credits: PLANS.trial.credits, // 150 Credits
               imageCount: 0 
             };
             await setDoc(userRef, newProfile);
-            // Snapshot-ul se va declanșa din nou automat după setDoc
           } else {
-            // USER EXISTENT: Actualizăm datele în aplicație
+            // EXISTING USER
             const data = docSnap.data() as UserProfile;
             
-            // Mapăm creditele (dacă nu există câmpul, punem 0)
-            // @ts-ignore - ignorăm eroarea de tip pt a fi flexibili
-            const currentCredits = data.credits !== undefined ? data.credits : (data.imageLimit - data.imageCount || 0);
+            // Sync local credits state
+            const currentCredits = data.credits !== undefined ? data.credits : 0;
             
             setUserProfile(data);
             setCredits(currentCredits);
 
-            // Calcul zile trial (păstrat pentru logică veche)
-            if (data.subscriptionTier === 'trial' && data.trialStartDate) {
+            // Calculate Trial Days Remaining
+            if (data.subscriptionTier === 'trial' && data.createdAt) {
                // @ts-ignore
-               const startDate = data.trialStartDate.toDate(); 
+               const startDate = data.createdAt.toDate(); 
                const now = new Date();
                const diffTime = Math.abs(now.getTime() - startDate.getTime());
                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-               const remaining = 5 - diffDays;
+               const remaining = 5 - diffDays; // 5 Days Trial
                setDaysRemaining(remaining > 0 ? remaining : 0);
             } else {
                setDaysRemaining(30); 
@@ -91,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setLoading(false);
         });
 
-        return () => unsubscribeSnapshot(); // Curățăm listener-ul când userul iese
+        return () => unsubscribeSnapshot();
       } else {
         setUserProfile(null);
         setCredits(0);
@@ -116,7 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUserProfile(null);
   };
 
-  // Funcție nouă: Verifică dacă userul are destule credite pt o acțiune
   const checkCredits = (cost: number) => {
     return credits >= cost;
   };
