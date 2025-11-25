@@ -17,7 +17,19 @@ export enum Tone {
   Casual = 'Casual',
   Urgent = 'Urgent'
 }
+// ... (celelalte interfețe rămân la fel)
 
+export interface BrandProfile {
+  industry: string;
+  customIndustry?: string;
+  description: string;
+  voiceDNA: string;
+  language: string; // <--- CÂMP NOU
+  websiteUrl?: string;
+  socialUrl?: string;
+}
+
+// ... (restul fișierului)
 // --- TYPES ---
 export type AppMode = 'creator' | 'business';
 
