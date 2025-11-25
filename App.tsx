@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { Post, Tone, Platform, ViralHook, RefinementType } from './types';
+import { Post, Tone, Platform, AppMode, ViralHook, RefinementType } from './types';
 import { TONES, PLATFORMS } from './constants';
 import { Loader } from './components/Loader';
-import { SparklesIcon, ImageIcon } from './components/Icons';
+import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
 import { Lock } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
@@ -17,14 +17,13 @@ const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial'
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired } = useAuth();
+  const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // State pentru Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
@@ -36,9 +35,10 @@ const SocialSparkApp: React.FC = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [viralHook, setViralHook] = useState<ViralHook | ''>('');
-  const [isCampaignMode, setIsCampaignMode] = useState(false); // Păstrat pentru viitor
   const [posts, setPosts] = useState<Post[]>([]);
   
+  useEffect(() => { if (brandProfile) setAppMode('business'); }, [brandProfile]);
+
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
           const response = await fetch(url);
@@ -78,7 +78,6 @@ const SocialSparkApp: React.FC = () => {
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Enter a topic."); return; }
     
-    // Check Credits & Trial Status
     if (!checkCredits(1)) { 
         if (isTrialExpired) return; 
         alert("Insufficient credits!"); 
@@ -101,7 +100,7 @@ const SocialSparkApp: React.FC = () => {
           tone, 
           1, 
           'English', 
-          brandProfile?.voiceDNA || '', // Trimitem doar stringul Voice DNA
+          brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
           imgData, 
           imgMime
@@ -144,7 +143,6 @@ const SocialSparkApp: React.FC = () => {
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
 
   return (
-    // AICI CONECTĂM BUTONUL DIN SIDEBAR CU MODALUL DIN APP
     <MainLayout onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}>
         
         {/* --- PAYWALL OVERLAY --- */}
