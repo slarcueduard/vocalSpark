@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { Post, Tone, Platform, AppMode, ViralHook, RefinementType } from './types';
-import { TONES, PLATFORMS } from './constants';
+import { Post, Tone, Platform, AppMode, PostObjective, RefinementType } from './types';
+import { TONES, PLATFORMS, OBJECTIVES } from './constants';
 import { Loader } from './components/Loader';
-import { SparklesIcon, ImageIcon, BriefcaseIcon, XIcon } from './components/Icons'; // Asigură-te că ai XIcon sau importă X din lucide-react
-import { Lock, X, Image as LucideImage } from 'lucide-react'; 
+import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
+import { Lock, X, HelpCircle, ChevronRight } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -13,75 +13,38 @@ import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
 
-const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
-
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
+  // Logică Imagine
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // --- STATE-URILE FORMULARULUI (Default-uri Inteligente) ---
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
+  const [objective, setObjective] = useState<PostObjective>('engagement'); // Default
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [viralHook, setViralHook] = useState<ViralHook | ''>('');
+  
   const [posts, setPosts] = useState<Post[]>([]);
   
-  // --- SUGESTIE AUTOMATĂ BAZATĂ PE BRAND ---
-  // --- SUGESTIE AUTOMATĂ BAZATĂ PE BRAND & LIMBĂ ---
+  // Sugestie Automată (Onboarding)
   useEffect(() => {
     if (!loading && brandProfile?.industry && !topic && posts.length === 0) {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
-        
-        let templates: string[] = [];
-
-        // Definim șabloane în funcție de limbă
-        if (lang === 'Romanian') {
-            templates = [
-                `3 mituri despre ${niche} care trebuie demontate`,
-                `Cum să începi cu ${niche} în 2024`,
-                `În culisele unei afaceri de ${niche}`,
-                `Viitorul în ${niche}: La ce să ne așteptăm`,
-                `O greșeală comună în ${niche} și cum să o eviți`,
-                `Top sfaturi pentru cei interesați de ${niche}`
-            ];
-        } else if (lang === 'Spanish') {
-            templates = [
-                `3 mitos sobre ${niche} que debes conocer`,
-                `Cómo empezar con ${niche} en 2024`,
-                `Detrás de escena en el mundo de ${niche}`,
-                `El futuro de ${niche}: Qué esperar`
-            ];
-        } else if (lang === 'French') {
-            templates = [
-                `3 mythes sur ${niche} à démystifier`,
-                `Comment débuter avec ${niche} en 2024`,
-                `Les coulisses de ${niche}`,
-                `L'avenir de ${niche}: À quoi s'attendre`
-            ];
-        } else {
-            // Default English
-            templates = [
-                `3 myths about ${niche} needed to be debunked`,
-                `How to start with ${niche} in 2024`,
-                `Behind the scenes of a ${niche} business`,
-                `The future of ${niche}: What to expect`,
-                `One common mistake in ${niche} and how to fix it`
-            ];
-        }
-
-        const randomIdea = templates[Math.floor(Math.random() * templates.length)];
-        setTopic(randomIdea);
+        // Simplu placeholder, logica complexă de traducere e în backend/hook-ul anterior
+        setTopic(''); 
     }
   }, [loading, brandProfile]);
 
@@ -97,6 +60,7 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
+  // --- IMAGE LOGIC ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -119,8 +83,9 @@ const SocialSparkApp: React.FC = () => {
       setActivePostIdForImage(null);
   };
 
+  // --- GENERATE ---
   const handleGenerate = async () => {
-    if (!topic.trim() && !attachedImage) { setError("Enter a topic."); return; }
+    if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
     
     if (!checkCredits(1)) { 
         if (isTrialExpired) return; 
@@ -130,32 +95,28 @@ const SocialSparkApp: React.FC = () => {
 
     setIsLoading(true); setError(null);
     try {
-      let finalTopic = topic;
-      if (viralHook) finalTopic = `${viralHook}: ${topic}`;
-      
       let imgData = undefined, imgMime = undefined;
       if (attachedImage) {
-          // Verificăm dacă e imagine uploadată (Base64) sau URL extern
           if (attachedImage.startsWith('data:')) {
               const parts = attachedImage.split(',');
               imgData = parts[1];
               imgMime = parts[0].split(':')[1].split(';')[0];
           } else {
-              // E URL (Standard Image), îl convertim
               const converted = await urlToBase64(attachedImage);
               if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
           }
       }
 
       const generatedPosts = await generateSocialMediaPosts(
-          finalTopic, 
+          topic, 
           tone, 
           1, 
-          'English', // Sau limba din profil
+          brandProfile?.language || 'English',
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
           imgData, 
-          imgMime
+          imgMime,
+          objective // Trimitem obiectivul nou
       );
       
       const newPosts: Post[] = generatedPosts.map(p => ({ 
@@ -174,15 +135,14 @@ const SocialSparkApp: React.FC = () => {
     finally { setIsLoading(false); }
   };
 
+  // ... (handleDeletePost, handleToggleLock, handleAdaptPost, handleRefinePost rămân la fel)
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-  
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
       if (!checkCredits(1)) return;
       const adapted = await adaptPostForPlatform(content, platform);
       setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p));
   };
-  
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
       if (!checkCredits(1)) return;
       setRefiningPostId(id);
@@ -197,112 +157,158 @@ const SocialSparkApp: React.FC = () => {
   return (
     <MainLayout onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}>
         
+        {/* Paywall Overlay */}
         {isTrialExpired && (
             <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-xl overflow-hidden pointer-events-auto">
-                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20 mx-4">
+                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl mx-4">
                     <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <Lock size={32} className="text-red-500" />
                     </div>
                     <h2 className="text-2xl font-bold text-white mb-2">Free Trial Expired</h2>
-                    <p className="text-gray-400 mb-6 text-sm">
-                        To keep generating viral content and visuals, please verify your account by choosing a plan.
-                    </p>
-                    <div className="text-xs text-gray-500 bg-gray-900 p-3 rounded-lg">
-                        Click the <b>UPGRADE PLAN</b> button in the top right corner.
-                    </div>
+                    <p className="text-gray-400 mb-6 text-sm">Upgrade to continue creating viral content.</p>
                 </div>
             </div>
         )}
 
         <div className="flex h-full gap-6 relative">
+            
+            {/* --- LEFT COLUMN: THE CREATION WIZARD --- */}
             <div className="flex-1 min-w-0">
                 <div className="max-w-2xl mx-auto pb-20">
                     <header className="mb-8">
-                        <h2 className="text-2xl font-bold text-white">Creator Studio</h2>
-                        <p className="text-gray-500 text-sm mt-1">Create content that converts.</p>
+                        <h2 className="text-3xl font-bold text-white tracking-tight">New Post</h2>
+                        <p className="text-gray-500 text-sm mt-1">From idea to viral content in seconds.</p>
                     </header>
                     
-                    <div className="space-y-6">
-                        <div className="relative">
-                            <label className="block text-sm font-medium mb-2 text-gray-300">What to post?</label>
-                            <textarea 
-                                value={topic} 
-                                onChange={(e) => setTopic(e.target.value)} 
-                                rows={4} 
-                                placeholder="e.g. Launching a new coffee shop in downtown..." 
-                                className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-12 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600" 
-                            />
-                            
-                            {/* MINIATURA IMAGINE ATAȘATĂ */}
-                            {attachedImage && (
-                                <div className="absolute bottom-4 left-4 group">
-                                    <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-blue-500 shadow-lg">
-                                        <img src={attachedImage} alt="Attached" className="w-full h-full object-cover" />
-                                        <button 
-                                            onClick={() => setAttachedImage(null)}
-                                            className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer"
-                                        >
-                                            <X size={14} className="text-white" />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* BUTON ATTACH */}
-                            <button 
-                                onClick={openImageModalGlobal}
-                                className={`absolute bottom-3 right-3 p-2 rounded-lg transition ${attachedImage ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-                                title={attachedImage ? "Change Image" : "Attach AI Image"}
-                            >
-                                <ImageIcon className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium mb-2 text-gray-300">Viral Strategy</label>
-                            <div className="grid grid-cols-3 gap-2">
-                                {HOOKS.map(hook => (
-                                    <button 
-                                        key={hook} 
-                                        onClick={() => setViralHook(hook === viralHook ? '' : hook)} 
-                                        className={`py-2 px-2 rounded-lg text-[10px] font-medium border transition-all ${viralHook === hook ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-700 text-gray-400 hover:border-gray-500'}`}
-                                    >
-                                        {hook}
-                                    </button>
-                                ))}
+                    <div className="space-y-8">
+                        
+                        {/* SECTION 1: TOPIC */}
+                        <section className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span>
+                                    What's on your mind?
+                                </label>
+                                {attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}
                             </div>
-                        </div>
+                            
+                            <div className="relative group">
+                                <textarea 
+                                    value={topic} 
+                                    onChange={(e) => setTopic(e.target.value)} 
+                                    rows={3} 
+                                    placeholder="E.g. 3 tips for crypto beginners, or upload a photo of your product..." 
+                                    className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" 
+                                />
+                                
+                                {/* Attachment Button */}
+                                <div className="absolute bottom-3 right-3 flex gap-2">
+                                    {attachedImage ? (
+                                        <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-blue-500 group/img">
+                                            <img src={attachedImage} alt="Preview" className="w-full h-full object-cover" />
+                                            <button onClick={() => setAttachedImage(null)} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+                                                <X size={14} className="text-white"/>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button 
+                                            onClick={openImageModalGlobal}
+                                            className="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-all border border-transparent hover:border-gray-600"
+                                            title="Add Visual context"
+                                        >
+                                            <ImageIcon size={20} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
 
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-2 text-gray-300">Tone</label>
-                                <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
+                        {/* SECTION 2: OBJECTIVE (The Big Benefit) */}
+                        <section className="space-y-3">
+                            <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span>
+                                What is your Goal?
+                            </label>
+                            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                                {OBJECTIVES.map((obj) => {
+                                    const Icon = obj.icon;
+                                    const isActive = objective === obj.id;
+                                    return (
+                                        <button 
+                                            key={obj.id} 
+                                            onClick={() => setObjective(obj.id)} 
+                                            className={`
+                                                relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 h-24
+                                                ${isActive 
+                                                    ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' 
+                                                    : 'bg-[#161b22] border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800'
+                                                }
+                                            `}
+                                        >
+                                            <Icon size={20} className={`mb-2 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} />
+                                            <span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">
+                                                {obj.label}
+                                            </span>
+                                            {/* Tooltip mic pentru explicație */}
+                                            <span className="text-[8px] leading-none text-center text-gray-500 opacity-80 hidden sm:block">
+                                                {obj.description.split(' ')[0]}...
+                                            </span>
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </section>
+
+                        {/* SECTION 3: FINE TUNING */}
+                        <section className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
+                                <select 
+                                    value={tone} 
+                                    onChange={(e) => setTone(e.target.value as Tone)} 
+                                    className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition"
+                                >
                                     {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-2 text-gray-300">Preview Platform</label>
-                                <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label>
+                                <select 
+                                    value={selectedPlatform} 
+                                    onChange={(e) => setSelectedPlatform(e.target.value as Platform)} 
+                                    className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition"
+                                >
                                     {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                                 </select>
                             </div>
-                        </div>
+                        </section>
                         
+                        {/* GENERATE BUTTON */}
                         <button 
                             onClick={handleGenerate} 
                             disabled={isLoading || isTrialExpired} 
-                            className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition shadow-lg shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
-                            {isLoading ? 'Creating Magic...' : 'Generate Content'}
+                            {isLoading ? 'Creating Magic...' : 'Craft my Post'}
                         </button>
 
-                        {error && <div className="text-red-400 text-sm text-center">{error}</div>}
+                        {error && (
+                            <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2">
+                                <BriefcaseIcon size={16} /> {error}
+                            </div>
+                        )}
 
+                        {/* RESULTS AREA */}
                         <div ref={resultsRef} className="scroll-mt-24">
                             {posts.length > 0 && (
-                                <div className="space-y-6 mt-8 pt-8 border-t border-gray-800 animate-in fade-in">
-                                    <h3 className="font-bold text-lg text-white">Your Results</h3>
+                                <div className="space-y-6 mt-10 pt-10 border-t border-gray-800 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="font-bold text-xl text-white">Generated Results</h3>
+                                        <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">
+                                            {posts.length} variations
+                                        </span>
+                                    </div>
                                     {posts.map(post => (
                                         <PostCard 
                                             key={post.id} 
@@ -322,7 +328,7 @@ const SocialSparkApp: React.FC = () => {
                 </div>
             </div>
             
-            {/* Right: Phone Preview */}
+            {/* Right: Phone Preview (Sticky) */}
             <div className="hidden xl:block w-[400px] shrink-0">
                 <div className="sticky top-6">
                     <PhonePreview 
@@ -335,10 +341,17 @@ const SocialSparkApp: React.FC = () => {
                         userName={user?.displayName || user?.email?.split('@')[0]} 
                         userImage={user?.photoURL} 
                     />
+                    <div className="mt-4 text-center">
+                        <p className="text-xs text-gray-500 flex items-center justify-center gap-1">
+                            <HelpCircle size={12} />
+                            Preview updates automatically as you type or generate.
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
 
+        {/* MODALE */}
         {isImageModalOpen && (
             <ImageCreationModal 
                 onClose={() => setIsImageModalOpen(false)} 
