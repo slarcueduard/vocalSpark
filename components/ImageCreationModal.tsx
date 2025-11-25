@@ -15,43 +15,42 @@ const IMAGE_STYLES = [
     id: 'velocity', 
     label: 'Velocity Dark', 
     description: 'Cyberpunk, Neon, Moody',
-    // Promptul secret pentru stilul vostru
     promptSuffix: ', dark moody cyberpunk aesthetic, neon blue and purple lighting, high contrast, John Wick style, cinematic atmosphere, sharp focus, 8k',
     isExclusive: true 
   },
   { 
-    id: 'cinematic', 
-    label: 'Cinematic', 
-    description: 'Movie look, Dramatic',
-    promptSuffix: ', cinematic lighting, dramatic shadows, shallow depth of field, anamorphic lens, color graded, hyperrealistic',
+    id: 'lifestyle', 
+    label: 'Lifestyle Social', 
+    description: 'Natural, Influencer, Bright',
+    promptSuffix: ', authentic lifestyle photography, shot on iPhone 15 Pro, natural sunlight, candid moment, instagram aesthetic, soft bokeh, high quality, trending',
+    isExclusive: false
+  },
+  { 
+    id: 'studio', 
+    label: 'Studio Pro', 
+    description: 'Clean, Product, Crisp',
+    promptSuffix: ', professional studio photography, neutral background, softbox lighting, 85mm lens, sharp details, 4k, commercial look, product photography',
+    isExclusive: false
+  },
+  { 
+    id: 'realism', 
+    label: 'Hyper Realism', 
+    description: 'Photojournalism, Raw',
+    promptSuffix: ', award winning photography, national geographic style, highly detailed texture, natural lighting, unedited look, raw file, 8k resolution',
     isExclusive: false
   },
   { 
     id: 'minimalist', 
-    label: 'Minimalist', 
-    description: 'Clean, Bright, Modern',
-    promptSuffix: ', minimalist style, clean background, bright soft lighting, apple aesthetic, modern design, high key',
+    label: 'Minimalist Tech', 
+    description: 'Clean, Apple style',
+    promptSuffix: ', minimalist aesthetic, apple design style, white background, soft shadows, clean lines, modern, futuristic but clean',
     isExclusive: false
   },
   { 
-    id: 'vibrant', 
-    label: 'Vibrant Pop', 
-    description: 'Punchy colors, Social',
-    promptSuffix: ', vibrant colors, high saturation, pop art style, energetic, instagram aesthetic, bright',
-    isExclusive: false
-  },
-  { 
-    id: 'vintage', 
-    label: 'Vintage 90s', 
-    description: 'Retro, Film Grain',
-    promptSuffix: ', vintage 90s film photography, kodak portra, film grain, warm tones, nostalgia, flash photography',
-    isExclusive: false
-  },
-  { 
-    id: '3d', 
-    label: '3D Render', 
-    description: 'Cute, Plastic, Tech',
-    promptSuffix: ', 3d render, blender style, isometric view, clay material, soft lighting, cute, tech startup vibe',
+    id: 'corporate', 
+    label: 'Corporate', 
+    description: 'Office, Professional',
+    promptSuffix: ', corporate modern office environment, professional atmosphere, confident, success, linkedin style, bright meeting room',
     isExclusive: false
   }
 ];
