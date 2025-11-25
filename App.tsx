@@ -52,7 +52,47 @@ const SocialSparkApp: React.FC = () => {
           });
       } catch (e) { return null; }
   };
+// src/App.tsx
 
+// ... importuri (adăugăm Lock din lucide-react în Icons sau direct)
+import { Lock } from 'lucide-react'; 
+
+const SocialSparkApp: React.FC = () => {
+  // Adăugăm isTrialExpired din AuthContext
+  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired } = useAuth(); 
+  
+  // ... restul codului ...
+
+  return (
+    <MainLayout>
+        {/* --- BLOCAJ PENTRU TRIAL EXPIRAT --- */}
+        {isTrialExpired && (
+            <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center">
+                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl shadow-red-900/20">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Lock size={32} className="text-red-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Free Trial Expired</h2>
+                    <p className="text-gray-400 mb-6">
+                        You've enjoyed 5 days of premium creation. To keep generating viral content and images, please choose a plan.
+                    </p>
+                    <button 
+                        onClick={() => document.getElementById('upgrade-btn')?.click()} // Hack rapid să deschidă modalul existent
+                        className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-xl hover:scale-[1.02] transition"
+                    >
+                        Unlock Full Access
+                    </button>
+                </div>
+            </div>
+        )}
+
+        {/* ... RESTUL APLICAȚIEI ... */}
+        <div className="flex h-full gap-6">
+           {/* ... */}
+        </div>
+    </MainLayout>
+  );
+};
   // --- LOGICA NOUĂ PENTRU IMAGINI ---
   
   // 1. Deschide modalul pentru un Post specific
