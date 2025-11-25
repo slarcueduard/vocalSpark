@@ -1,10 +1,8 @@
-// src/services/firebaseConfig.ts (sau .js)
-
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth"; // Importăm GoogleAuthProvider
 import { getFirestore } from "firebase/firestore";
 
-// AICI ESTE SECRETUL: Nu scrie cheile în clar! Folosește import.meta.env
+// Folosim variabilele din Vercel
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,6 +12,12 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// 1. Inițializăm aplicația
 const app = initializeApp(firebaseConfig);
+
+// 2. Exportăm Auth și Database
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+// 3. Exportăm Google Provider (ASTA LIPSEA!)
+export const googleProvider = new GoogleAuthProvider();
