@@ -16,7 +16,7 @@ import { PostCard } from './components/PostCard';
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired } = useAuth();
+   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading } = useAuth();
   const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,15 @@ const SocialSparkApp: React.FC = () => {
   const [viralHook, setViralHook] = useState<ViralHook | ''>('');
   const [posts, setPosts] = useState<Post[]>([]);
   
-  useEffect(() => { if (brandProfile) setAppMode('business'); }, [brandProfile]);
+  useEffect(() => {
+      if (!loading && user && !brandProfile) {
+          // Mic delay ca să nu fie prea agresiv
+          const timer = setTimeout(() => {
+              setIsBrandProfileModalOpen(true);
+          }, 1000);
+          return () => clearTimeout(timer);
+      }
+  }, [loading, user, brandProfile]);
 
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
