@@ -25,7 +25,7 @@ export function MainLayout({ children, onOpenBrandProfile }: MainLayoutProps) {
   const planName = userProfile?.subscriptionTier === 'trial' 
     ? 'Free Trial' 
     : userProfile?.subscriptionTier?.toUpperCase() + ' PLAN';
-
+const { userProfile, logout, credits, user, brandProfile } = useAuth(); // <--- ADAGUAT brandProfile
   const isPremium = userProfile?.subscriptionTier !== 'trial';
 
   return (
@@ -61,25 +61,27 @@ export function MainLayout({ children, onOpenBrandProfile }: MainLayoutProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 space-y-2">
-          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            Workspace
-          </div>
-          
-          <NavItem 
-            icon={<LayoutDashboard size={20} />} 
-            label="Creator Studio" 
-            active 
-          />
-          
-          {/* BUTON BRAND PROFILE (Nou) */}
-          <div onClick={onOpenBrandProfile}>
-            <NavItem 
-                icon={<Briefcase size={20} />} 
-                label="Brand Identity" 
-            />
-          </div>
-        </nav>
+       <nav className="flex-1 px-4 py-6 space-y-2">
+  <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+    Workspace
+  </div>
+  
+  <NavItem icon={<LayoutDashboard size={20} />} label="Creator Studio" active />
+  
+  {/* BUTON BRAND PROFILE + PREVIEW */}
+  <div onClick={onOpenBrandProfile}>
+    <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
+    
+    {/* AICI AFIȘĂM REZUMATUL DACĂ EXISTĂ */}
+    {brandProfile && (
+        <div className="ml-12 mt-1 p-2 bg-[#1c1c2e] rounded-lg border border-gray-800 text-[10px] text-gray-400 cursor-pointer hover:border-gray-600 transition">
+            <p><span className="text-blue-400 font-bold">Niche:</span> {brandProfile.industry}</p>
+            <p><span className="text-purple-400 font-bold">Lang:</span> {brandProfile.language}</p>
+            <p className="truncate mt-1 opacity-70">"{brandProfile.voiceDNA}"</p>
+        </div>
+    )}
+  </div>
+</nav>
 
         {/* User Profile (Bottom) */}
         <div className="p-4 border-t border-gray-800">
