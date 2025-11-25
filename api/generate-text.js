@@ -4,7 +4,7 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req, res) {
-  // Configurare CORS
+  // CORS Configuration
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -12,23 +12,37 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // 1. Verificăm creditele (Cost: 1 credit)
+    // 1. Verify Credits (Cost: 1 Credit for Text)
     const { userRef } = await verifyUserAndCredits(req, 1);
 
-    const { prompt } = req.body;
+    const { prompt, brandContext, platform } = req.body;
 
-    // 2. Apelăm OpenAI
+    // --- THE WOW FACTOR: SMART SYSTEM PROMPT ---
+    let systemPrompt = "You are an expert Social Media Manager. Generate engaging, viral content.";
+    
+    // If user has a Brand Profile (Creator/Pro/Agency), we inject it here
+    if (brandContext) {
+      systemPrompt += `\n\nCRITICAL INSTRUCTION: Adopt the following Brand Voice strictly:\n${brandContext}`;
+    }
+
+    // Platform optimization
+    if (platform) {
+      systemPrompt += `\n\nOptimize specifically for ${platform} (hashtags, formatting, length).`;
+    }
+
+    // 2. Call OpenAI
     const completion = await openai.chat.completions.create({
       messages: [
-        { role: "system", content: "You are an expert Social Media Manager. Generate engaging, viral content." },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt }
       ],
-      model: "gpt-4o-mini", // Rapid, ieftin și deștept
+      model: "gpt-4o-mini", // Fast, Cheap, Smart
+      temperature: 0.7,
     });
 
     const output = completion.choices[0].message.content;
 
-    // 3. Scădem creditele doar dacă a reușit
+    // 3. Deduct Credits
     await deductCredits(userRef, 1);
 
     return res.status(200).json({ output });
