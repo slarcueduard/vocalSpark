@@ -7,7 +7,8 @@ import {
   Menu, 
   X,
   Sparkles,
-  Briefcase
+  Briefcase,
+  Building2 // Am adăugat iconița lipsă
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
@@ -17,11 +18,10 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
-  const { userProfile, logout, credits } = useAuth(); // Citim 'credits' direct din context!
+  const { userProfile, logout, credits } = useAuth(); 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isPricingOpen, setIsPricingOpen] = useState(false); // Stare pentru modalul de prețuri
+  const [isPricingOpen, setIsPricingOpen] = useState(false); 
 
-  // Calculăm numele planului pentru afișare
   const planName = userProfile?.subscriptionTier === 'trial' 
     ? 'Free Trial' 
     : userProfile?.subscriptionTier?.toUpperCase() + ' PLAN';
@@ -31,13 +31,11 @@ export function MainLayout({ children }: MainLayoutProps) {
   return (
     <div className="min-h-screen bg-[#0f1115] text-white flex font-sans">
       
-      {/* --- PRICING MODAL (Ascuns implicit) --- */}
       <PricingModal 
         isOpen={isPricingOpen} 
         onClose={() => setIsPricingOpen(false)} 
       />
 
-      {/* Mobile Menu Button */}
       <button 
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-gray-800 rounded-md"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -45,14 +43,12 @@ export function MainLayout({ children }: MainLayoutProps) {
         {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 
-      {/* --- SIDEBAR --- */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40 w-72 bg-[#161b22] border-r border-gray-800 
         transform transition-transform duration-300 ease-in-out flex flex-col
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         
-        {/* Logo Area */}
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
             <Sparkles className="text-white" size={20} fill="currentColor" />
@@ -60,7 +56,6 @@ export function MainLayout({ children }: MainLayoutProps) {
           <span className="text-xl font-bold tracking-tight">Social Spark</span>
         </div>
 
-        {/* Navigation */}
         <nav className="flex-1 px-4 py-6 space-y-2">
           <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Workspace
@@ -70,7 +65,6 @@ export function MainLayout({ children }: MainLayoutProps) {
           <NavItem icon={<Briefcase size={20} />} label="Business Hub" comingSoon />
         </nav>
 
-        {/* User Profile & Plan Section (Bottom Sidebar) */}
         <div className="p-4 border-t border-gray-800">
           <div className="bg-[#0f1115] rounded-xl p-4 border border-gray-800">
             <div className="flex justify-between items-center mb-3">
@@ -82,10 +76,8 @@ export function MainLayout({ children }: MainLayoutProps) {
               </span>
             </div>
 
-            {/* User Info */}
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                 {/* Avatar simplu bazat pe prima literă */}
                  <span className="font-bold">{userProfile?.email?.[0].toUpperCase()}</span>
               </div>
               <div className="overflow-hidden">
@@ -102,23 +94,18 @@ export function MainLayout({ children }: MainLayoutProps) {
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT --- */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
-        {/* Header */}
         <header className="h-16 border-b border-gray-800 bg-[#0f1115]/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-30">
           
-          {/* Left: Version Badge */}
           <div className="flex items-center gap-3">
              <span className="px-2 py-1 rounded border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-mono">
                v1.3 PRO
              </span>
           </div>
 
-          {/* Right: Credits & Upgrade */}
           <div className="flex items-center gap-4">
             
-            {/* Credits Pill */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1c1c2e] border border-gray-700 rounded-full">
               <Zap size={14} className={credits > 0 ? "text-yellow-400 fill-yellow-400" : "text-gray-500"} />
               <span className="text-sm font-medium text-gray-200">
@@ -126,7 +113,6 @@ export function MainLayout({ children }: MainLayoutProps) {
               </span>
             </div>
 
-            {/* Upgrade Button - ACUM FUNCȚIONEAZĂ! */}
             <button 
               onClick={() => setIsPricingOpen(true)}
               className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20"
@@ -137,7 +123,6 @@ export function MainLayout({ children }: MainLayoutProps) {
           </div>
         </header>
 
-        {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             {children}
@@ -149,7 +134,6 @@ export function MainLayout({ children }: MainLayoutProps) {
   );
 }
 
-// Helper Component for Nav Items
 function NavItem({ icon, label, active, comingSoon }: { icon: any, label: string, active?: boolean, comingSoon?: boolean }) {
   return (
     <div className={`
