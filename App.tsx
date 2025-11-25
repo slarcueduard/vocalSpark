@@ -24,7 +24,26 @@ const SocialSparkApp: React.FC = () => {
   // State pentru Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
-  
+  // În interiorul componentei SocialSparkApp, după declararea state-urilor:
+
+  // --- AUTO-SUGESTIE BAZATĂ PE INDUSTRIE ---
+  useEffect(() => {
+    // Dacă userul nu a scris nimic și avem un profil de brand
+    if (!topic && brandProfile?.industry && !isLoading) {
+        const ideas = [
+            `Trending topic in ${brandProfile.industry} industry`,
+            `Behind the scenes of a ${brandProfile.industry} business`,
+            `Myth vs Fact about ${brandProfile.industry}`,
+            `Tips for ${brandProfile.industry} customers`
+        ];
+        // Alegem una random
+        const randomIdea = ideas[Math.floor(Math.random() * ideas.length)];
+        // O punem ca placeholder sau chiar ca valoare (opțional)
+        // Aici o punem doar dacă userul dă click pe un buton "Suggest Idea", 
+        // SAU o putem seta direct:
+        // setTopic(randomIdea); <--- Dacă vrei să scrie singur
+    }
+  }, [brandProfile]);
   // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
