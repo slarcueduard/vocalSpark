@@ -13,19 +13,22 @@ import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
 
+const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
+
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
   const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [useRealTime, setUseRealTime] = useState(false);
+  
   // Feature Flags
-  const [useRealTime, setUseRealTime] = useState(false); // <--- NOU
+  const [useRealTime, setUseRealTime] = useState(false);
 
   // Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
+  // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
@@ -38,6 +41,7 @@ const SocialSparkApp: React.FC = () => {
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
   const [objective, setObjective] = useState<PostObjective>('engagement');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [viralHook, setViralHook] = useState<ViralHook | ''>(''); // Păstrat pentru compatibilitate
   const [posts, setPosts] = useState<Post[]>([]);
   
   // Auto-Sugestie
@@ -45,8 +49,14 @@ const SocialSparkApp: React.FC = () => {
     if (!loading && brandProfile?.industry && topic === '') {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
-        let templates: string[] = [`3 tips for ${niche}`, `How to start in ${niche}`, `Secrets of ${niche}`];
-        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
+        
+        let templates: string[] = [];
+        if (lang === 'Romanian') {
+            templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
+        } else {
+            templates = [`3 tips for ${niche}`, `How to start in ${niche}`, `Secrets of ${niche}`];
+        }
+
         const randomIdea = templates[Math.floor(Math.random() * templates.length)];
         setTopic(randomIdea);
     }
@@ -62,6 +72,12 @@ const SocialSparkApp: React.FC = () => {
               reader.readAsDataURL(blob);
           });
       } catch (e) { return null; }
+  };
+
+  const openImageModalForPost = (postId: string, content: string) => {
+      setActivePostIdForImage(postId);
+      setCurrentPromptForImage(content);
+      setIsImageModalOpen(true);
   };
 
   const openImageModalGlobal = () => {
@@ -80,18 +96,16 @@ const SocialSparkApp: React.FC = () => {
       setActivePostIdForImage(null);
   };
 
-  const generatedPosts = await generateSocialMediaPosts(
-    topic, 
-    tone, 
-    1, 
-    brandProfile?.language || 'English',
-    brandProfile?.voiceDNA || '',
-    brandProfile || undefined, 
-    imgData, 
-    imgMime,
-    objective,
-    useRealTime // <--- AICI
-);
+  const handleGenerate = async () => {
+    if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
+    
+    // Check Cost (1 normal, 10 RealTime)
+    const cost = useRealTime ? 10 : 1;
+    if (!checkCredits(cost)) { 
+        if (isTrialExpired) return; 
+        alert(`Insufficient credits! This action requires ${cost} credits.`); 
+        return; 
+    }
 
     setIsLoading(true); setError(null);
     try {
@@ -107,6 +121,7 @@ const SocialSparkApp: React.FC = () => {
           }
       }
 
+      // Aici folosim await corect în interiorul funcției async
       const generatedPosts = await generateSocialMediaPosts(
           topic, 
           tone, 
@@ -117,7 +132,7 @@ const SocialSparkApp: React.FC = () => {
           imgData, 
           imgMime,
           objective,
-          useRealTime // <--- Parametru
+          useRealTime // Parametrul nou
       );
       
       const newPosts: Post[] = generatedPosts.map(p => ({ 
@@ -136,12 +151,22 @@ const SocialSparkApp: React.FC = () => {
     finally { setIsLoading(false); }
   };
 
-  // Helper functions...
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-  const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); };
-  const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); setRefiningPostId(null); };
-  const openImageModalForPost = (postId: string, content: string) => { setActivePostIdForImage(postId); setCurrentPromptForImage(content); setIsImageModalOpen(true); };
+  
+  const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
+      if (!checkCredits(1)) return;
+      const adapted = await adaptPostForPlatform(content, platform);
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p));
+  };
+  
+  const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
+      if (!checkCredits(1)) return;
+      setRefiningPostId(id);
+      const refined = await refinePostContent(content, type);
+      setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p));
+      setRefiningPostId(null);
+  };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -186,33 +211,6 @@ const SocialSparkApp: React.FC = () => {
                                     placeholder="E.g. 3 tips for crypto beginners..." 
                                     className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" 
                                 />
-                              // 3. În JSX, sub textarea, adaugă Toggle-ul:
-// (Îl punem sub div-ul cu textarea)
-<div className="flex justify-between items-center mt-2 px-1">
-    {(userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency') ? (
-        <label className="flex items-center gap-2 cursor-pointer bg-blue-900/10 px-3 py-1.5 rounded-lg border border-blue-500/20 hover:border-blue-500/50 transition group">
-            <div className="relative">
-                <input 
-                    type="checkbox" 
-                    checked={useRealTime} 
-                    onChange={e => setUseRealTime(e.target.checked)} 
-                    className="sr-only peer" 
-                />
-                <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
-            </div>
-            <span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}>
-                <Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span>
-            </span>
-        </label>
-    ) : (
-        <div className="flex items-center gap-2 opacity-50 cursor-not-allowed" title="Upgrade to PRO for Live News">
-            <div className="w-9 h-5 bg-gray-800 rounded-full border border-gray-700"></div>
-            <span className="text-xs text-gray-500 flex items-center gap-1">
-                <Globe size={12} /> Real-Time Data <span className="bg-purple-900/50 text-purple-300 text-[9px] px-1.5 rounded border border-purple-500/30">PRO</span>
-            </span>
-        </div>
-    )}
-</div>
                                 <div className="absolute bottom-3 right-3 flex gap-2">
                                     {attachedImage ? (
                                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-blue-500 group/img">
@@ -234,7 +232,7 @@ const SocialSparkApp: React.FC = () => {
                                             <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
                                         </div>
                                         <span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}>
-                                            <Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1">(10 Cr)</span>
+                                            <Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span>
                                         </span>
                                     </label>
                                 ) : (
