@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Check, Info, Star, Zap, Building2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Check, Info, Star, Zap, Building2, Loader } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PLANS, SubscriptionTier } from '../types';
 
@@ -8,20 +8,24 @@ interface PricingModalProps {
   onClose: () => void;
 }
 
-// ... importuri existente
-
 export function PricingModal({ isOpen, onClose }: PricingModalProps) {
-  const { user, userProfile } = useAuth(); // Avem nevoie de user pt token
+  const { user, userProfile } = useAuth();
   const currentTier = userProfile?.subscriptionTier || 'trial';
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null); // Loading state
+  
+  // Stare pentru loading la apăsarea butonului
+  const [loadingTier, setLoadingTier] = useState<SubscriptionTier | null>(null);
 
   if (!isOpen) return null;
 
-  // --- LOGICA NOUĂ DE PLATĂ ---
+  // --- FUNCȚIA DE CHECKOUT REALĂ ---
   const handleUpgrade = async (tier: SubscriptionTier) => {
-    setLoadingPlan(tier);
+    setLoadingTier(tier);
     try {
         const token = await user?.getIdToken();
+        if (!token) {
+            alert("Please log in first.");
+            return;
+        }
         
         const response = await fetch('/api/create-checkout', {
             method: 'POST',
@@ -35,25 +39,19 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         const data = await response.json();
         
         if (data.url) {
-            // Redirecționăm userul către Stripe
+            // Redirecționare către Stripe Checkout
             window.location.href = data.url;
         } else {
-            alert("Error creating checkout. Please try again.");
+            alert(`Error: ${data.error || "Could not create checkout session."}`);
         }
 
     } catch (error) {
         console.error(error);
-        alert("Connection error.");
+        alert("Connection error. Please try again.");
     } finally {
-        setLoadingPlan(null);
+        setLoadingTier(null);
     }
   };
-
-  // ... restul UI-ului ...
-  
-  // La <PricingCard ... /> asigură-te că afișezi un loader dacă loadingPlan === planKey
-  // Exemplu de modificare în PricingCard (opțional, dar recomandat):
-  // Button text: {isLoading ? "Loading..." : "Upgrade"}
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -74,7 +72,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         </div>
 
         {/* Plans Grid */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
             <PricingCard 
@@ -82,6 +80,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
               icon={<Zap className="text-blue-400" />}
               currentTier={currentTier}
               description="Perfect for individuals starting out."
+              isLoading={loadingTier === 'creator'}
               onSelect={() => handleUpgrade('creator')}
             />
 
@@ -91,6 +90,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
               currentTier={currentTier}
               isPopular={true}
               description="For growing influencers & brands."
+              isLoading={loadingTier === 'pro'}
               onSelect={() => handleUpgrade('pro')}
             />
 
@@ -99,6 +99,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
               icon={<Building2 className="text-orange-400" />}
               currentTier={currentTier}
               description="Volume & power for multiple clients."
+              isLoading={loadingTier === 'agency'}
               onSelect={() => handleUpgrade('agency')}
             />
 
@@ -124,10 +125,11 @@ interface CardProps {
   currentTier: string;
   isPopular?: boolean;
   description: string;
-  onSelect: () => void; // Am adăugat acțiunea
+  isLoading?: boolean;
+  onSelect: () => void;
 }
 
-function PricingCard({ planKey, icon, currentTier, isPopular, description, onSelect }: CardProps) {
+function PricingCard({ planKey, icon, currentTier, isPopular, description, isLoading, onSelect }: CardProps) {
   const plan = PLANS[planKey];
   const isCurrent = currentTier === planKey;
 
@@ -207,17 +209,23 @@ function PricingCard({ planKey, icon, currentTier, isPopular, description, onSel
 
       {/* CTA Button */}
       <button
-        onClick={onSelect} // <--- AICI ERA LIPSA!
-        disabled={isCurrent}
-        className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all ${
+        onClick={onSelect}
+        disabled={isCurrent || isLoading}
+        className={`w-full py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-2 ${
           isCurrent 
             ? 'bg-gray-800 text-gray-500 cursor-default'
             : isPopular 
               ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg shadow-purple-900/40 hover:scale-[1.02]' 
               : 'bg-white text-black hover:bg-gray-200'
-        }`}
+        } ${isLoading ? 'opacity-70 cursor-wait' : ''}`}
       >
-        {isCurrent ? 'Current Plan' : `Upgrade to ${plan.name}`}
+        {isLoading ? (
+            <>
+                <Loader size={14} className="animate-spin" /> processing...
+            </>
+        ) : (
+            isCurrent ? 'Current Plan' : `Upgrade to ${plan.name}`
+        )}
       </button>
     </div>
   );
