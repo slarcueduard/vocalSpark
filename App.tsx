@@ -12,6 +12,7 @@ import { AuthWrapper } from './components/AuthWrapper';
 import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
+import { LandingPage } from './components/LandingPage'; 
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading } = useAuth();
@@ -79,7 +80,41 @@ const SocialSparkApp: React.FC = () => {
         setTopic(randomIdea);
     }
   }, [loading, brandProfile]);
+// --- COMPONENTA PRINCIPALĂ APP ---
+const AppContent: React.FC = () => {
+    const { user, loading, signIn } = useAuth();
 
+    if (loading) {
+        // Un loading screen frumos centrat
+        return (
+            <div className="min-h-screen bg-[#0f1115] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-500 text-sm font-mono">Initializing Velocity Engine...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // DACĂ AVEM USER -> ARĂTĂM APLICAȚIA
+    if (user) {
+        return <SocialSparkApp />;
+    }
+
+    // DACĂ NU AVEM USER -> ARĂTĂM LANDING PAGE-UL PROFI
+    return <LandingPage onLogin={signIn} />;
+};
+
+const App: React.FC = () => (
+    <AuthProvider>
+        {/* AuthWrapper nu mai e strict necesar dacă gestionăm aici logica, 
+            dar îl putem păstra sau scoate. Aici l-am scos pt simplitate */}
+        <AppContent /> 
+    </AuthProvider>
+);
+
+export default App;
+  
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
           const response = await fetch(url);
