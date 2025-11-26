@@ -12,7 +12,7 @@ import { AuthWrapper } from './components/AuthWrapper';
 import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
-import { LandingPage } from './components/LandingPage'; 
+import { LandingPage } from './components/LandingPage';
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading } = useAuth();
