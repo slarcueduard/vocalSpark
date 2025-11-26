@@ -3,6 +3,25 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+// Primești un parametru nou 'brandColors' (trebuie trimis din frontend)
+const { prompt, isPremium, brandColors } = req.body; 
+
+// ...
+
+if (isPremium) {
+    let colorInstruction = "";
+    if (brandColors && brandColors.length > 0) {
+        colorInstruction = ` Incorporate these brand colors into the lighting, background, or accents: ${brandColors.join(', ')}.`;
+    }
+
+    // Adaugi colorInstruction în promptul de sistem
+    const enhancement = await openai.chat.completions.create({
+        messages: [
+            { role: "system", content: "Rewrite this prompt to be photorealistic..." + colorInstruction },
+            // ...
+        ]
+    });
+}
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
