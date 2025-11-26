@@ -4,9 +4,6 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req, res) {
-  // Setăm timeout-ul mai mare pentru această funcție specifică (Node.js helper)
-  // Deși vercel.json controlează limita hard, asta ajută la configurarea internă
-  
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -14,47 +11,68 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, isPremium } = req.body;
+    const { prompt, isPremium, brandColors } = req.body;
     const COST = isPremium ? 20 : 2; 
 
     const { userRef } = await verifyUserAndCredits(req, COST);
     
-    let imageUrl = "";
+    let finalImageUrl = "";
 
     if (isPremium) {
         // --- PREMIUM (DALL-E 3) ---
-        // OPTIMIZARE: Nu mai folosim GPT-4o pentru rescriere prompt ca să câștigăm timp
-        // Trimitem promptul direct sau cu o minimă modificare string
-        const finalPrompt = `Photorealistic, highly detailed: ${prompt}`;
+        let enhancedPrompt = prompt;
+        
+        // Injectăm culorile de brand dacă există
+        let colorInstruction = "";
+        if (brandColors && brandColors.length > 0) {
+            colorInstruction = ` Use a color palette inspired by: ${brandColors.join(', ')}.`;
+        }
+
+        try {
+             const enhancement = await openai.chat.completions.create({
+                messages: [
+                    { role: "system", content: "Rewrite this image prompt to be photorealistic, highly detailed, and artistic. Keep it concise." },
+                    { role: "user", content: prompt + colorInstruction }
+                ],
+                model: "gpt-4o-mini",
+            });
+            enhancedPrompt = enhancement.choices[0].message.content;
+        } catch (e) {}
 
         const response = await openai.images.generate({
           model: "dall-e-3",
-          prompt: finalPrompt,
+          prompt: enhancedPrompt,
           n: 1,
           size: "1024x1024",
           quality: "standard",
         });
         
-        // CRITIC: Returnăm URL-ul direct! Nu îl descărcăm aici.
-        // Descărcarea o facem în frontend prin proxy dacă e nevoie.
-        imageUrl = response.data[0].url;
+        // Proxy prin server pentru DALL-E (CORS Fix)
+        const tempUrl = response.data[0].url;
+        const imageResponse = await fetch(tempUrl);
+        const arrayBuffer = await imageResponse.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        finalImageUrl = `data:image/png;base64,${buffer.toString('base64')}`;
 
     } else {
         // --- STANDARD (Pollinations) ---
-        const safePrompt = prompt.replace(/[^a-zA-Z0-9 ,]/g, '');
-        const cleanPrompt = encodeURIComponent(safePrompt);
+        // FIX: Folosim modelul 'flux' simplu (cel mai rapid și stabil)
+        // Codăm promptul complet pentru a suporta spații și caractere speciale
+        const encodedPrompt = encodeURIComponent(prompt);
+        
+        // Adăugăm un seed aleatoriu pentru a avea rezultate diferite la același prompt
         const seed = Math.floor(Math.random() * 1000000);
-        imageUrl = `https://image.pollinations.ai/prompt/${cleanPrompt}?width=1024&height=1024&seed=${seed}&model=flux-realism&nologo=true`;
+        
+        // Construim URL-ul direct
+        finalImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux&nologo=true&seed=${seed}`;
     }
 
-    // Scădem creditele
     await deductCredits(userRef, COST);
 
-    return res.status(200).json({ imageUrl });
+    return res.status(200).json({ imageUrl: finalImageUrl });
 
   } catch (error) {
     console.error("Image Gen Error:", error);
-    // Mesaj mai clar pentru erori
-    return res.status(500).json({ error: error.message || "Image generation timed out or failed." });
+    return res.status(500).json({ error: error.message || "Failed to generate image" });
   }
 }
