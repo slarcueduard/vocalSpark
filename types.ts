@@ -20,13 +20,21 @@ export enum Tone {
 // ... (celelalte interfețe rămân la fel)
 
 export interface BrandProfile {
+  // Core
   industry: string;
-  customIndustry?: string;
-  description: string;
-  voiceDNA: string;
-  language: string; // <--- CÂMP NOU
-  websiteUrl?: string;
-  socialUrl?: string;
+  language: string;
+  description: string; // Target Audience
+  
+  // Voice & Text
+  voiceDNA: string; // Stilul general
+  examplePosts: string; // Textul brut dat de user pentru analiză
+  
+  // Strategy
+  fixedHashtags: string; // ex: #VelocityAI #Tech
+  
+  // Visuals
+  brandColors: string[]; // Array de hex codes ['#FF0000', '#000000']
+  logoUrl?: string | null; // Base64 sau URL
 }
 
 // ... (restul fișierului)
