@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { 
   X, Briefcase, Mic, Target, Globe, Save, 
-  Hash, Palette, Image as ImageIcon, Wand2, Upload, Trash 
+  Palette, Image as ImageIcon, Wand2, Upload, Lock 
 } from 'lucide-react';
 import { BrandProfile } from '../types';
-import { analyzeBrandStyleFromPosts } from '../services/geminiService';
+import { autoGenerateBrandProfile } from '../services/geminiService'; // Asigură-te că ai funcția asta în service!
+import { useAuth } from '../contexts/AuthContext';
 
 interface Props {
   currentProfile: BrandProfile | null;
@@ -15,14 +16,17 @@ interface Props {
 const LANGUAGES = ['English', 'Romanian', 'Spanish', 'French', 'German', 'Italian'];
 
 export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
+  const { userProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'identity' | 'visuals' | 'strategy'>('identity');
   const [isSaving, setIsSaving] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // ... în interiorul componentei ...
+  // State pentru Analiză
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisInput, setAnalysisInput] = useState(''); // Textul introdus pentru analiză
+
+  // Form State
   const [formData, setFormData] = useState<BrandProfile>(currentProfile ? {
     ...currentProfile,
-    // Aici e fix-ul: Dacă brandColors lipsește, punem default-ul
     brandColors: currentProfile.brandColors && currentProfile.brandColors.length > 0 
         ? currentProfile.brandColors 
         : ['#3B82F6', '#8B5CF6', '#FFFFFF'] 
@@ -31,32 +35,51 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
     description: '',
     voiceDNA: '',
     language: 'English',
-    examplePosts: '',
+    examplePosts: '', 
     fixedHashtags: '',
     brandColors: ['#3B82F6', '#8B5CF6', '#FFFFFF'],
     logoUrl: null
   });
 
   const logoInputRef = useRef<HTMLInputElement>(null);
+  
+  // Verificăm dacă e Premium (doar Premium primește analiza completă a profilului)
+  const isPremium = userProfile?.subscriptionTier !== 'trial' && userProfile?.subscriptionTier !== 'creator';
 
-  // --- LOGICĂ ANALIZĂ STIL ---
-  const handleAnalyzeStyle = async () => {
-    if (!formData.examplePosts.trim()) {
-        alert("Please paste some example posts first!");
+  // --- LOGICĂ UNIFICATĂ: MAGIC ANALYZER ---
+  const handleMagicAnalyze = async () => {
+    if (!analysisInput.trim()) {
+        alert("Please paste some content first!");
         return;
     }
+    
+    // Dacă nu e Premium, poate nu vrei să îl lași să folosească funcția full
+    // Sau poți să îl lași ca "Teaser" dar să completezi doar VoiceDNA.
+    // Aici presupunem că îl lăsăm pe toată lumea momentan, sau poți decomenta linia de mai jos:
+    // if (!isPremium) { alert("Upgrade to Pro to use Magic Cloning!"); return; }
+
     setIsAnalyzing(true);
     try {
-        const analysis = await analyzeBrandStyleFromPosts(formData.examplePosts);
-        setFormData(prev => ({ ...prev, voiceDNA: analysis }));
+        // Apelează funcția "smart" care returnează JSON complet
+        const extractedData = await autoGenerateBrandProfile(analysisInput);
+        
+        setFormData(prev => ({
+            ...prev,
+            industry: extractedData.industry,
+            language: extractedData.language,
+            voiceDNA: extractedData.voiceDNA,
+            description: extractedData.description, // Target Audience
+            fixedHashtags: extractedData.fixedHashtags
+        }));
+        
     } catch (e) {
         console.error(e);
+        alert("Analysis failed. Try shorter text.");
     } finally {
         setIsAnalyzing(false);
     }
   };
 
-  // --- LOGICĂ LOGO ---
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -68,7 +91,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
     }
   };
 
-  // --- SAVE ---
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -109,6 +131,33 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
           {/* --- TAB 1: IDENTITY --- */}
           {activeTab === 'identity' && (
             <div className="space-y-6">
+                
+                {/* MAGIC ANALYZER UNIFICAT */}
+                <div className="bg-gradient-to-r from-blue-900/10 to-purple-900/10 border border-blue-500/30 p-4 rounded-xl">
+                    <label className="text-xs font-bold text-blue-400 uppercase mb-2 flex items-center gap-2">
+                        <Wand2 size={14} /> Magic Brand Analyzer
+                    </label>
+                    <p className="text-[10px] text-gray-400 mb-3">
+                        Paste your own best posts <strong>OR</strong> copy content from an influencer you want to emulate. The AI will extract the Niche, Tone, Audience, and Hashtags automatically.
+                    </p>
+                    
+                    <textarea 
+                        className="w-full h-24 bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none resize-none text-sm mb-3"
+                        placeholder="Paste bio, captions, or website text here..."
+                        value={analysisInput}
+                        onChange={e => setAnalysisInput(e.target.value)}
+                    />
+                    
+                    <button 
+                        type="button"
+                        onClick={handleMagicAnalyze}
+                        disabled={isAnalyzing || !analysisInput}
+                        className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isAnalyzing ? 'Extracting DNA...' : '✨ Analyze & Auto-Fill Everything'}
+                    </button>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Language</label>
@@ -133,6 +182,16 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
                 </div>
 
                 <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Voice DNA (Tone & Style)</label>
+                    <textarea 
+                        className="w-full h-20 bg-[#1c1c2e] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none resize-none text-sm"
+                        placeholder="Auto-filled by Analyzer..."
+                        value={formData.voiceDNA}
+                        onChange={e => setFormData({...formData, voiceDNA: e.target.value})}
+                    />
+                </div>
+
+                <div>
                     <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Target Audience</label>
                     <textarea 
                         className="w-full h-20 bg-[#1c1c2e] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none resize-none text-sm"
@@ -141,47 +200,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
                         onChange={e => setFormData({...formData, description: e.target.value})}
                     />
                 </div>
-
-                <div className="bg-blue-900/10 border border-blue-800/30 p-4 rounded-xl">
-                    <label className="text-xs font-bold text-blue-400 uppercase mb-2 flex items-center gap-2">
-                        <Wand2 size={14} /> Magic Style Analyzer
-                    </label>
-                    <p className="text-[10px] text-gray-400 mb-3">Paste 2-3 of your best previous posts here. The AI will analyze them to learn your style.</p>
-                    
-                    <textarea 
-                        className="w-full h-24 bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none resize-none text-sm mb-3"
-                        placeholder="Paste your content here..."
-                        value={formData.examplePosts}
-                        onChange={e => setFormData({...formData, examplePosts: e.target.value})}
-                    />
-                    
-                    <button 
-                        type="button"
-                        onClick={handleAnalyzeStyle}
-                        disabled={isAnalyzing || !formData.examplePosts}
-                        className="w-full py-2 bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 text-xs font-bold rounded-lg transition disabled:opacity-50"
-                    >
-                        {isAnalyzing ? 'Analyzing DNA...' : '✨ Analyze & Extract Voice DNA'}
-                    </button>
-                </div>
-
-                <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Voice DNA (Tone & Style)</label>
-                    <textarea 
-                        className="w-full h-20 bg-[#1c1c2e] border border-gray-700 rounded-xl p-3 text-white focus:border-blue-500 outline-none resize-none text-sm"
-                        placeholder="This will be auto-filled by the Magic Analyzer, or type manually."
-                        value={formData.voiceDNA}
-                        onChange={e => setFormData({...formData, voiceDNA: e.target.value})}
-                    />
-                </div>
             </div>
           )}
 
           {/* --- TAB 2: VISUALS --- */}
           {activeTab === 'visuals' && (
             <div className="space-y-6">
-                
-                {/* Logo Upload */}
                 <div>
                     <label className="text-xs font-bold text-gray-500 uppercase mb-3 block">Brand Logo</label>
                     <div className="flex items-center gap-4">
@@ -214,7 +238,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
                     </div>
                 </div>
 
-                {/* Color Palette */}
                 <div>
                     <label className="text-xs font-bold text-gray-500 uppercase mb-3 block">Brand Colors</label>
                     <div className="flex gap-4">
@@ -236,7 +259,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
                             </div>
                         ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-3">AI images will prefer these colors in lighting and background.</p>
                 </div>
             </div>
           )}
@@ -253,14 +275,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
                         onChange={e => setFormData({...formData, fixedHashtags: e.target.value})}
                         placeholder="#MyBrand #MyNiche"
                     />
-                    <p className="text-[10px] text-gray-500 mt-1">These will be added to EVERY post.</p>
-                </div>
-
-                <div className="p-4 bg-green-900/10 border border-green-800/30 rounded-xl">
-                    <h4 className="text-sm font-bold text-green-400 mb-1">Pro Tip</h4>
-                    <p className="text-xs text-gray-400">
-                        AI will automatically generate 3-5 additional <strong>dynamic hashtags</strong> based on the specific topic of each post, alongside your fixed ones.
-                    </p>
+                    <p className="text-[10px] text-gray-500 mt-1">These will be added to EVERY post (plus dynamic ones).</p>
                 </div>
             </div>
           )}
