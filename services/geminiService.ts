@@ -68,43 +68,44 @@ export async function autoGenerateBrandProfile(rawContent: string): Promise<Bran
 }
 
 // --- 2. IMAGINI (REPARAT STANDARD) ---
+// --- 2. IMAGINI (Prin Backend) ---
 export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
     try {
-        const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
+        const imagePrompt = postText.length > 200 ? `Editorial photo representing: ${postText.substring(0, 200)}` : postText;
 
-        // 1. Cerem URL-ul de la backend
+        // 1. Cerem generarea (primim URL)
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
             isPremium: isPremium 
         });
         
-        const imageUrl = data.imageUrl;
+        let finalUrl = data.imageUrl;
 
-        // 2. LOGICA HIBRIDĂ:
-        // Dacă e Premium (DALL-E), URL-ul expiră și are CORS -> TREBUIE PROXY.
-        // Dacă e Standard (Pollinations), URL-ul e public -> NU FOLOSIM PROXY (E mai rapid).
-        
-        if (isPremium && imageUrl.startsWith('http')) {
+        // 2. LOGICA DE PROXY (MODIFICATĂ)
+        // Folosim proxy DOAR dacă e Premium (DALL-E), pentru că linkurile DALL-E expiră și au CORS.
+        // Imaginile Standard (Pollinations) merg direct, sunt rapide și nu expiră.
+        if (isPremium && finalUrl.startsWith('http')) {
             try {
-                // Folosim un endpoint simplu de proxy (dacă l-ai creat) sau încercăm direct
-                // Notă: Dacă api/generate-image returnează deja Base64 (ceea ce am setat anterior pt premium), acest IF nu se execută.
-                // Dar dacă backend-ul returnează URL DALL-E, aici îl convertim.
-                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
-                if (!proxyRes.ok) return imageUrl; // Fallback
+                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(finalUrl)}`);
+                if (!proxyRes.ok) throw new Error("Proxy failed");
+                
                 const blob = await proxyRes.blob();
-                return new Promise(r => {
+                return new Promise((resolve) => {
                     const reader = new FileReader();
-                    reader.onload = () => r(reader.result as string);
+                    reader.onloadend = () => resolve(reader.result as string);
                     reader.readAsDataURL(blob);
                 });
-            } catch (err) { return imageUrl; }
+            } catch (err) {
+                console.warn("Proxy fetch failed, using original URL", err);
+                return finalUrl;
+            }
         }
-
-        // Standard Image -> Returnăm direct URL-ul (Pollinations merge direct în <img>)
-        return imageUrl;
+        
+        // Pentru Standard, returnăm URL-ul direct (e mult mai rapid)
+        return finalUrl;
 
     } catch (e) {
-        console.error("Image Gen Failed:", e);
+        console.error("Image Generation Failed:", e);
         throw e; 
     }
 }
