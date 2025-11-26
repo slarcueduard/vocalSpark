@@ -234,3 +234,31 @@ export async function analyzeBrandVoice(sampleText: string): Promise<string> {
         return data.output;
     } catch(e) { return ""; }
 }
+// ... (celelalte funcții)
+
+// --- 4. BRAND ANALYSIS (Nou) ---
+export async function analyzeBrandStyleFromPosts(pastPosts: string): Promise<string> {
+    try {
+        const prompt = `
+        ACT AS: Expert Copywriter & Brand Strategist.
+        TASK: Analyze these sample social media posts provided by the user.
+        OUTPUT: A concise "Voice DNA" description (max 50 words).
+        
+        Analyze:
+        1. Tone (e.g., witty, formal, emoji-heavy)
+        2. Structure (e.g., short hooks, bullet points, long stories)
+        3. Vocabulary (e.g., slang, technical, simple)
+
+        USER POSTS:
+        "${pastPosts}"
+
+        RETURN ONLY THE DESCRIPTION.
+        `;
+
+        const data = await safeFetch('/api/generate-text', { prompt });
+        return data.output;
+    } catch (e) {
+        console.error("Analysis failed", e);
+        return "Professional, engaging, and direct."; // Fallback
+    }
+}
