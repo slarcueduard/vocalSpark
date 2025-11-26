@@ -193,7 +193,48 @@ export function fileToBase64(file: File): Promise<{mimeType: string, data: strin
     reader.readAsDataURL(file);
   });
 }
+// --- 5. CLONE INFLUENCER (Premium Feature) ---
+export async function autoGenerateBrandProfile(rawContent: string): Promise<BrandProfile> {
+    try {
+        const prompt = `
+        ACT AS: Expert Brand Strategist.
+        TASK: Analyze the following raw content form a social media influencer (bio, posts, captions).
+        GOAL: Reverse-engineer their brand strategy.
 
+        INPUT CONTENT:
+        "${rawContent.substring(0, 3000)}"
+
+        OUTPUT FORMAT: Return ONLY a raw JSON object (no markdown, no code blocks) with these exact keys:
+        {
+            "industry": "The specific niche (e.g. Crypto, Vegan Cooking)",
+            "language": "Detect the language (e.g. Romanian, English)",
+            "voiceDNA": "Describe the tone, style, sentence length, emoji usage (max 30 words)",
+            "description": "Describe the target audience and the main goal of the content",
+            "fixedHashtags": "Extract or suggest 3-5 main branding hashtags used"
+        }
+        `;
+
+        const data = await safeFetch('/api/generate-text', { prompt });
+        
+        // Curățăm output-ul în caz că AI-ul pune ```json
+        const cleanJson = data.output.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+
+        return {
+            industry: parsed.industry || '',
+            language: parsed.language || 'English',
+            voiceDNA: parsed.voiceDNA || '',
+            description: parsed.description || '',
+            fixedHashtags: parsed.fixedHashtags || '',
+            brandColors: ['#000000', '#FFFFFF', '#333333'], // Default colors
+            logoUrl: null
+        };
+
+    } catch (e) {
+        console.error("Cloning failed", e);
+        throw new Error("Could not analyze content. Please try again.");
+    }
+}
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {
         const data = await safeFetch('/api/generate-text', { 
