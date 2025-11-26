@@ -4,8 +4,8 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const HF_TOKEN = process.env.HUGGING_FACE_TOKEN;
 
-// Modelul rapid și gratuit (sau foarte ieftin) de pe Hugging Face
-const HF_MODEL_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
+// --- URL ACTUALIZAT (FIX PENTRU EROAREA 410) ---
+const HF_MODEL_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell";
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -28,7 +28,6 @@ export default async function handler(req, res) {
         // --- PREMIUM (DALL-E 3) ---
         console.log("Generating Premium Image (DALL-E 3)...");
         
-        // Injectăm culorile de brand
         let enhancedPrompt = prompt;
         if (brandColors && brandColors.length > 0) {
             enhancedPrompt += ` Use a color palette inspired by: ${brandColors.join(', ')}.`;
@@ -40,7 +39,7 @@ export default async function handler(req, res) {
           n: 1,
           size: "1024x1024",
           quality: "standard",
-          response_format: "b64_json" // Cerem direct Base64 de la OpenAI ca să fie mai rapid
+          response_format: "b64_json"
         });
         
         finalImageBase64 = `data:image/png;base64,${response.data[0].b64_json}`;
@@ -64,6 +63,7 @@ export default async function handler(req, res) {
 
         if (!response.ok) {
             const err = await response.text();
+            console.error("Hugging Face Error Response:", err);
             throw new Error(`Hugging Face Error: ${response.status} - ${err}`);
         }
 
@@ -76,12 +76,12 @@ export default async function handler(req, res) {
     // Scădem creditele doar dacă a reușit
     await deductCredits(userRef, COST);
 
-    // Returnăm imaginea (Base64 funcționează instant în browser, fără probleme CORS)
+    // Returnăm imaginea
     return res.status(200).json({ imageUrl: finalImageBase64 });
 
   } catch (error) {
     console.error("Image Gen Error:", error);
-    // Mesaj user-friendly
+    
     const message = error.message.includes("503") 
         ? "AI Model is warming up. Please try again in 10 seconds." 
         : error.message || "Failed to generate image";
