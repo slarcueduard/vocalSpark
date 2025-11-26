@@ -18,7 +18,7 @@ const SocialSparkApp: React.FC = () => {
   const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+  const [useRealTime, setUseRealTime] = useState(false);
   // Feature Flags
   const [useRealTime, setUseRealTime] = useState(false); // <--- NOU
 
@@ -80,16 +80,18 @@ const SocialSparkApp: React.FC = () => {
       setActivePostIdForImage(null);
   };
 
-  const handleGenerate = async () => {
-    if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
-    
-    // Check Cost (1 normal, 10 RealTime)
-    const cost = useRealTime ? 10 : 1;
-    if (!checkCredits(cost)) { 
-        if (isTrialExpired) return; 
-        alert(`Insufficient credits! This action requires ${cost} credits.`); 
-        return; 
-    }
+  const generatedPosts = await generateSocialMediaPosts(
+    topic, 
+    tone, 
+    1, 
+    brandProfile?.language || 'English',
+    brandProfile?.voiceDNA || '',
+    brandProfile || undefined, 
+    imgData, 
+    imgMime,
+    objective,
+    useRealTime // <--- AICI
+);
 
     setIsLoading(true); setError(null);
     try {
@@ -184,6 +186,33 @@ const SocialSparkApp: React.FC = () => {
                                     placeholder="E.g. 3 tips for crypto beginners..." 
                                     className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" 
                                 />
+                              // 3. În JSX, sub textarea, adaugă Toggle-ul:
+// (Îl punem sub div-ul cu textarea)
+<div className="flex justify-between items-center mt-2 px-1">
+    {(userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency') ? (
+        <label className="flex items-center gap-2 cursor-pointer bg-blue-900/10 px-3 py-1.5 rounded-lg border border-blue-500/20 hover:border-blue-500/50 transition group">
+            <div className="relative">
+                <input 
+                    type="checkbox" 
+                    checked={useRealTime} 
+                    onChange={e => setUseRealTime(e.target.checked)} 
+                    className="sr-only peer" 
+                />
+                <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+            </div>
+            <span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}>
+                <Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span>
+            </span>
+        </label>
+    ) : (
+        <div className="flex items-center gap-2 opacity-50 cursor-not-allowed" title="Upgrade to PRO for Live News">
+            <div className="w-9 h-5 bg-gray-800 rounded-full border border-gray-700"></div>
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+                <Globe size={12} /> Real-Time Data <span className="bg-purple-900/50 text-purple-300 text-[9px] px-1.5 rounded border border-purple-500/30">PRO</span>
+            </span>
+        </div>
+    )}
+</div>
                                 <div className="absolute bottom-3 right-3 flex gap-2">
                                     {attachedImage ? (
                                         <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-blue-500 group/img">
