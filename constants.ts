@@ -42,6 +42,8 @@ export const ARTISTIC_STYLES = [
   { value: 'Minimalist Line Art', label: 'Line Art' },
 ];
 
+
+
 export const INDUSTRIES = [
   'Real Estate',
   'Tech / SaaS',
@@ -53,6 +55,27 @@ export const INDUSTRIES = [
   'Education',
   'Other'
 ];
+
+// ... (codul existent)
+
+// --- VELOCITY VIBES (Harvey, Wick, Wolf, Moody) ---
+export const SUCCESS_MESSAGES = [
+  "Boom. Deal closed. 💼", // Harvey
+  "Clean. Efficient. Dangerous. 🔫", // John Wick
+  "Sell me this pen? I just wrote the ad for it. 💰", // Wolf
+  "That's how winning is done. 🍸", // Harvey
+  "Content so sharp it cuts. 🔪", 
+  "Money never sleeps, neither does this AI. 📈", // Wolf
+  "Executed perfectly. 🎯", // Wick
+  "Charming, isn't it? 😉", // Hank
+  "Now go make them an offer they can't refuse.",
+  "Lunch is for wimps. Post this instead.",
+  "A masterpiece. Now monetize it."
+];
+
+export const getRandomVibe = () => {
+  return SUCCESS_MESSAGES[Math.floor(Math.random() * SUCCESS_MESSAGES.length)];
+};
 
 export const OBJECTIVES: { id: PostObjective; label: string; description: string; icon: any }[] = [
   { 
