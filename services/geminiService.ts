@@ -61,7 +61,6 @@ function extractJsonArray(text: string): any[] {
                 console.error("Failed to parse extracted JSON string:", jsonStr);
             }
         }
-        // Fallback
         try {
              if (text.trim().startsWith('{')) {
                  return [JSON.parse(text)];
@@ -72,7 +71,7 @@ function extractJsonArray(text: string): any[] {
     }
 }
 
-// --- 1. ANALIZĂ BRAND (Nou) ---
+// --- 1. ANALIZĂ BRAND ---
 export async function analyzeBrandStyleFromPosts(pastPosts: string): Promise<string> {
     try {
         const prompt = `
@@ -127,7 +126,8 @@ export async function generateSocialMediaPosts(
     
     // Construim contextul complex din profilul brandului
     let contextString = '';
-    // ...
+    
+    // AICI ERA EROAREA: Parantezele sunt acum corecte
     if (brandProfile) {
         contextString = `
         BRAND VOICE DNA: ${brandProfile.voiceDNA}
@@ -138,8 +138,6 @@ export async function generateSocialMediaPosts(
         2. ADDITIONALLY, generate 3-5 NEW, relevant, trending hashtags based on the specific post topic.
         3. Place all hashtags at the very end of the post.
         `;
-    } 
-    
     } else if (brandVoice) {
         contextString = `BRAND VOICE: ${brandVoice}`;
     }
@@ -153,7 +151,7 @@ export async function generateSocialMediaPosts(
         traffic: "Create a curiosity gap. Direct them to the link."
     };
 
- let prompt = `
+    let prompt = `
     ROLE: Expert Social Media Manager.
     GOAL: ${objectiveInstructions[objective] || "Engagement"}
     TASK: Write ${postCount} post(s) about: "${topic}".
@@ -161,7 +159,7 @@ export async function generateSocialMediaPosts(
     
     CRITICAL: You MUST include both the fixed hashtags (if any) AND 3-5 new generated hashtags relevant to the content.
     
-    FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here... #Fixed #Generated"}]
+    FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here..."}]
     `;
 
     try {
