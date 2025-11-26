@@ -317,6 +317,5 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             </a>
         </div>
     </div>
-) : (
-// ...
-}
+) 
+};
