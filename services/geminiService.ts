@@ -68,30 +68,20 @@ export async function autoGenerateBrandProfile(rawContent: string): Promise<Bran
 }
 
 // --- 2. IMAGINI ---
+// --- 2. IMAGINI ---
 export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
     try {
-        const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
+        // Scurtăm promptul dacă e prea lung, ca să nu confuze modelele
+        const imagePrompt = postText.length > 300 ? `Editorial photo: ${postText.substring(0, 300)}` : postText;
 
+        // Backend-ul se ocupă acum de tot (DALL-E sau Flux) și returnează Base64
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
             isPremium: isPremium 
         });
         
-        const imageUrl = data.imageUrl;
+        return data.imageUrl; // Este un string "data:image/png;base64,..." care merge direct
 
-        if (isPremium && imageUrl.startsWith('http')) {
-            try {
-                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
-                if (!proxyRes.ok) return imageUrl;
-                const blob = await proxyRes.blob();
-                return new Promise(r => {
-                    const reader = new FileReader();
-                    reader.onload = () => r(reader.result as string);
-                    reader.readAsDataURL(blob);
-                });
-            } catch (err) { return imageUrl; }
-        }
-        return imageUrl;
     } catch (e) {
         console.error("Image Gen Failed:", e);
         throw e; 
