@@ -1,6 +1,6 @@
-import { Post, Tone, Platform, RefinementType, BrandProfile } from "../types";
+import { Post, Tone, Platform, RefinementType, BrandProfile, PostObjective } from "../types";
 import { auth } from "./firebase"; 
-import { PostObjective } from '../types'; // Asigură-te că imporți tipul nou
+
 // --- HELPER: Obține tokenul de securitate ---
 async function getAuthHeader() {
     const user = auth.currentUser;
@@ -61,7 +61,7 @@ function extractJsonArray(text: string): any[] {
                 console.error("Failed to parse extracted JSON string:", jsonStr);
             }
         }
-        // Fallback: Uneori AI-ul returnează doar un obiect, nu o listă
+        // Fallback
         try {
              if (text.trim().startsWith('{')) {
                  return [JSON.parse(text)];
@@ -72,13 +72,33 @@ function extractJsonArray(text: string): any[] {
     }
 }
 
-// --- 1. IMAGINI (Prin Backend) ---
+// --- 1. ANALIZĂ BRAND (Nou) ---
+export async function analyzeBrandStyleFromPosts(pastPosts: string): Promise<string> {
+    try {
+        const prompt = `
+        ACT AS: Expert Copywriter & Brand Strategist.
+        TASK: Analyze these sample social media posts provided by the user.
+        OUTPUT: A concise "Voice DNA" description (max 50 words) summarizing the Tone, Structure, and Vocabulary.
+        
+        USER POSTS:
+        "${pastPosts}"
+
+        RETURN ONLY THE DESCRIPTION.
+        `;
+
+        const data = await safeFetch('/api/generate-text', { prompt });
+        return data.output;
+    } catch (e) {
+        console.error("Analysis failed", e);
+        return "Professional, engaging, and direct.";
+    }
+}
+
+// --- 2. IMAGINI (Prin Backend) ---
 export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
     try {
-        // Construim un prompt mai bun pentru imagine
         const imagePrompt = postText.length > 200 ? `Editorial photo representing: ${postText.substring(0, 200)}` : postText;
 
-        // Apelăm backend-ul (care verifică creditele și alege modelul)
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
             isPremium: isPremium 
@@ -92,56 +112,7 @@ export async function generateImageForPost(postText: string, isPremium: boolean 
     }
 }
 
-export async function generateImageVariation(base64ImageData: string, mimeType: string, style: string): Promise<string> {
-    // Fallback rapid (Pollinations)
-    await new Promise(r => setTimeout(r, 1000)); 
-    const cleanStyle = encodeURIComponent(style + " artistic style, high quality");
-    const seed = Math.floor(Math.random() * 1000);
-    return `https://image.pollinations.ai/prompt/${cleanStyle}?width=1080&height=1080&seed=${seed}&model=flux`;
-}
-
-// --- 2. LOGO OVERLAY (Client-Side) ---
-export type LogoPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
-export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string, position: LogoPosition = 'top-left', removeBg: boolean = false): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const mainImg = new Image();
-        const logoImg = new Image();
-        mainImg.crossOrigin = "Anonymous"; logoImg.crossOrigin = "Anonymous";
-        
-        mainImg.onload = () => {
-          canvas.width = mainImg.width; canvas.height = mainImg.height;
-          ctx?.drawImage(mainImg, 0, 0);
-          
-          logoImg.onload = () => {
-            if (ctx) {
-              const logoWidth = canvas.width * 0.20;
-              const scaleFactor = logoWidth / logoImg.width;
-              const logoHeight = logoImg.height * scaleFactor;
-              const padding = canvas.width * 0.05;
-              let x = padding, y = padding;
-              
-              switch (position) {
-                  case 'top-left': x = padding; y = padding; break;
-                  case 'top-right': x = canvas.width - logoWidth - padding; y = padding; break;
-                  case 'bottom-left': x = padding; y = canvas.height - logoHeight - padding; break;
-                  case 'bottom-right': x = canvas.width - logoWidth - padding; y = canvas.height - logoHeight - padding; break;
-              }
-              
-              ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 15;
-              ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
-              resolve(canvas.toDataURL('image/png'));
-            }
-          };
-          logoImg.src = logoUrl;
-        };
-        mainImg.onerror = (e) => reject(e);
-        mainImg.src = mainImageUrl;
-    });
-}
-
-// --- 3. TEXT (Prin Backend) ---
+// --- 3. TEXT (Prin Backend - Generare Postări) ---
 export async function generateSocialMediaPosts(
   topic: string, 
   tone: Tone, 
@@ -151,56 +122,58 @@ export async function generateSocialMediaPosts(
   brandProfile?: BrandProfile, 
   imageBase64?: string, 
   imageMimeType?: string,
-  objective: PostObjective = 'engagement' // <--- PARAMETRU NOU
-): Promise<any[]> { // Poți pune tipul de retur complet dacă vrei
+  objective: PostObjective = 'engagement'
+): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
-    // Instrucțiuni specifice pentru backend (OpenAI)
-    const objectiveInstructions = {
-        engagement: "Focus on asking questions and sparking debate. Use a relatable hook.",
-        sales: "Use AIDA framework (Attention, Interest, Desire, Action). Focus on benefits and a strong CTA.",
-        education: "Use bullet points or steps. Provide clear value and actionable advice.",
-        viral: "Keep it short, punchy, and controversial or surprising. Maximize shareability.",
-        traffic: "Create a curiosity gap. Tease the value but make them click the link to get it."
-    };
-
-    // În src/services/geminiService.ts
-
-// ...
-export async function generateSocialMediaPosts(
-  // ... parametri
-) {
+    // Construim contextul complex din profilul brandului
     let contextString = '';
-    
     if (brandProfile) {
         contextString = `
         BRAND VOICE DNA: ${brandProfile.voiceDNA}
         TARGET AUDIENCE: ${brandProfile.description}
-        FIXED HASHTAGS to include: ${brandProfile.fixedHashtags} (Always add these at the end, plus 3 relevant ones).
+        FIXED HASHTAGS TO INCLUDE: ${brandProfile.fixedHashtags || ''}
         `;
     } else if (brandVoice) {
         contextString = `BRAND VOICE: ${brandVoice}`;
     }
 
-    const data = await safeFetch('/api/generate-text', { 
+    // Instrucțiuni specifice pentru obiectiv
+    const objectiveInstructions: Record<string, string> = {
+        engagement: "Focus on asking questions and sparking debate. Use a relatable hook.",
+        sales: "Use AIDA framework. Focus on benefits and a strong CTA.",
+        education: "Use bullet points or steps. Provide clear value.",
+        viral: "Keep it short, punchy, and controversial. Maximize shareability.",
+        traffic: "Create a curiosity gap. Direct them to the link."
+    };
+
+    let prompt = `
+    ROLE: Expert Social Media Manager.
+    GOAL: ${objectiveInstructions[objective] || "Engagement"}
+    TASK: Write ${postCount} post(s) about: "${topic}".
+    TONE: ${tone}.
+    
+    FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here..."}]
+    `;
+
+    try {
+        const data = await safeFetch('/api/generate-text', { 
             prompt, 
-            brandContext: contextString, // Trimitem noul context complex
+            brandContext: contextString, // Trimitem contextul complet
             language: brandProfile?.language || language || 'English',
             imageBase64, 
-            imageMimeType,
-            objective
-    });
-    // ...
-}
+            imageMimeType 
+        });
 
         const parsed = extractJsonArray(data.output);
+        
         if(Array.isArray(parsed)) {
             return parsed.map((p: any) => ({ content: p.content || p }));
         }
         return [];
 
     } catch (e: any) {
-        console.error("Text Gen Error:", e);
-        return [{ content: `⚠️ Error: ${e.message}` }];
+        console.error("Text Generation Logic Error:", e);
+        return [{ content: `⚠️ Could not generate posts. Error: ${e.message}. Please try again.` }];
     }
 }
 
@@ -242,32 +215,4 @@ export async function analyzeBrandVoice(sampleText: string): Promise<string> {
         const data = await safeFetch('/api/generate-text', { prompt: `Analyze the tone, style, and vocabulary of this text. Describe the "Brand Voice" in 3 concise sentences: "${sampleText}"` });
         return data.output;
     } catch(e) { return ""; }
-}
-// ... (celelalte funcții)
-
-// --- 4. BRAND ANALYSIS (Nou) ---
-export async function analyzeBrandStyleFromPosts(pastPosts: string): Promise<string> {
-    try {
-        const prompt = `
-        ACT AS: Expert Copywriter & Brand Strategist.
-        TASK: Analyze these sample social media posts provided by the user.
-        OUTPUT: A concise "Voice DNA" description (max 50 words).
-        
-        Analyze:
-        1. Tone (e.g., witty, formal, emoji-heavy)
-        2. Structure (e.g., short hooks, bullet points, long stories)
-        3. Vocabulary (e.g., slang, technical, simple)
-
-        USER POSTS:
-        "${pastPosts}"
-
-        RETURN ONLY THE DESCRIPTION.
-        `;
-
-        const data = await safeFetch('/api/generate-text', { prompt });
-        return data.output;
-    } catch (e) {
-        console.error("Analysis failed", e);
-        return "Professional, engaging, and direct."; // Fallback
-    }
 }
