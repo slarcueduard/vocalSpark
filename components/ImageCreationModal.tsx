@@ -274,49 +274,49 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         <div className="w-full md:w-1/2 bg-[#050505] flex flex-col items-center justify-center p-6 relative">
             <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10"><X size={20}/></button>
             
-            {previewImageSrc ? (
-                <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
-                    
-                    {/* Buton Ștergere Rapidă */}
-                    <button 
-                        onClick={() => {
-                            if (activeTab === 'generate') setResultImage(null);
-                            else setUploadedImage(null);
-                        }} 
-                        className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10"
-                        title="Delete Image"
-                    >
-                        <Trash size={16} /> 
-                    </button>
+ {/* ... cod anterior ... */}
 
-                    {/* Imaginea cu Filtru CSS aplicat vizual */}
-                    <img 
-                        src={previewImageSrc} 
-                        alt="Preview" 
-                        style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }}
-                        className="max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black transition-all duration-300" 
-                    />
-                    
-                    <div className="flex gap-3 w-full max-w-xs">
-                        <button 
-                            onClick={applyFilterAndUse} // Funcția nouă care salvează filtrul
-                            className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg"
-                        >
-                            Use Image
-                        </button>
-                        <a href={previewImageSrc} download="image.png" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700">
-                            <Download size={20}/>
-                        </a>
-                    </div>
-                </div>
-            ) : (
-                <div className="text-center text-gray-500">
-                    <Sparkles className={`w-12 h-12 mx-auto mb-4 ${isGenerating ? 'animate-spin text-blue-500' : 'text-gray-800'}`} />
-                    <p className="text-sm">{isGenerating ? "Applying Velocity Magic..." : "Your visual will appear here"}</p>
-                </div>
-            )}
+{previewImageSrc ? (
+    <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
+        
+        {/* Buton Ștergere Rapidă */}
+        <button 
+            onClick={() => {
+                if (activeTab === 'generate') setResultImage(null);
+                else setUploadedImage(null);
+            }} 
+            className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10"
+            title="Delete Image"
+        >
+            <Trash size={16} /> 
+        </button>
+
+        {/* IMAGINEA CU FIX PENTRU LOAD */}
+        <img 
+            key={previewImageSrc} // Cheie unică pentru a forța reîncărcarea când se schimbă URL-ul
+            src={previewImageSrc} 
+            alt="Preview" 
+            style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }}
+            className="max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black transition-all duration-300" 
+            onError={(e) => {
+                // Fallback vizual dacă imaginea nu se încarcă
+                e.currentTarget.style.display = 'none';
+                alert("Image failed to load from provider. Please try generating again.");
+            }}
+        />
+        
+        <div className="flex gap-3 w-full max-w-xs">
+            <button 
+                onClick={applyFilterAndUse} 
+                className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg"
+            >
+                Use Image
+            </button>
+            <a href={previewImageSrc} download="image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700">
+                <Download size={20}/>
+            </a>
         </div>
-      </div>
     </div>
-  );
+) : (
+// ...
 }
