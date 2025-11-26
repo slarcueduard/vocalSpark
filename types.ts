@@ -1,6 +1,5 @@
 // src/types.ts
 
-// --- ENUMS ---
 export enum Platform {
   Instagram = 'Instagram',
   Facebook = 'Facebook',
@@ -18,21 +17,10 @@ export enum Tone {
   Urgent = 'Urgent'
 }
 
-// --- TYPES ---
 export type AppMode = 'creator' | 'business';
-
 export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
-
 export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion' | 'formal';
-
-export type PostObjective = 
-  | 'engagement' 
-  | 'sales' 
-  | 'education' 
-  | 'viral' 
-  | 'traffic';
-
-// --- INTERFACES ---
+export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'traffic';
 
 export interface BrandProfile {
   industry: string;
@@ -68,7 +56,6 @@ export interface UserProfile {
   createdAt?: any;
 }
 
-// --- CONFIGURATION & PLANS ---
 export interface PlanConfig {
   id: SubscriptionTier;
   name: string;
@@ -86,7 +73,7 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     price: 0,
     credits: 150,
     label: '5 Days Free',
-    features: ['150 Credits', 'GPT-4o Intelligence', 'Standard Images', '1 Brand Voice']
+    features: ['150 Credits', 'Access to GPT-4o', 'Standard Images', '1 Brand Voice']
   },
   creator: {
     id: 'creator',
@@ -99,14 +86,14 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       'Standard AI Images (Fast)',
       'Platform Optimizer',
       '1 Brand Voice Profile',
-      'Access to GPT-4o Mini'
+      'Standard GPT-4o Mini'
     ]
   },
   pro: {
     id: 'pro',
     name: 'Pro',
     price: 11.99,
-    credits: 2000, // ROI OPTIMIZAT (Era 2500)
+    credits: 2000, // ROI OPTIMIZAT (Scăzut de la 2500)
     label: 'Growth',
     highlight: true,
     features: [
