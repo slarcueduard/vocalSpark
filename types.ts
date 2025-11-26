@@ -17,46 +17,20 @@ export enum Tone {
   Casual = 'Casual',
   Urgent = 'Urgent'
 }
-// ... (celelalte interfețe rămân la fel)
 
-export interface BrandProfile {
-  // Core
-  industry: string;
-  language: string;
-  description: string; // Target Audience
-  
-  // Voice & Text
-  voiceDNA: string; // Stilul general
-  examplePosts: string; // Textul brut dat de user pentru analiză
-  
-  // Strategy
-  fixedHashtags: string; // ex: #VelocityAI #Tech
-  
-  // Visuals
-  brandColors: string[]; // Array de hex codes ['#FF0000', '#000000']
-  logoUrl?: string | null; // Base64 sau URL
-}
-
-// ... (restul fișierului)
 // --- TYPES ---
 export type AppMode = 'creator' | 'business';
 
-// Updated Subscription Tiers (Trebuie să coincidă cu ce e în PricingModal)
 export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
 
-// ... (restul enum-urilor rămân la fel)
+export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion' | 'formal';
 
-// ȘTERGEM ViralHook și punem PostObjective
 export type PostObjective = 
   | 'engagement' 
   | 'sales' 
   | 'education' 
   | 'viral' 
   | 'traffic';
-
-// ... (Interfețele UserProfile, BrandProfile etc. rămân la fel)
-
-export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion';
 
 // --- INTERFACES ---
 
@@ -65,8 +39,13 @@ export interface BrandProfile {
   customIndustry?: string;
   description: string;
   voiceDNA: string; 
+  language: string;
   websiteUrl?: string;
   socialUrl?: string;
+  examplePosts?: string;
+  fixedHashtags?: string;
+  brandColors?: string[]; 
+  logoUrl?: string | null;
 }
 
 export interface Post {
@@ -89,14 +68,7 @@ export interface UserProfile {
   createdAt?: any;
 }
 
-export interface CalendarIdea {
-  day: number;
-  idea: string;
-  postType: string;
-  hashtags: string;
-}
-
-// --- CONFIGURATION & PLANS (Aceasta este partea care lipsea!) ---
+// --- CONFIGURATION & PLANS ---
 export interface PlanConfig {
   id: SubscriptionTier;
   name: string;
@@ -114,7 +86,7 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     price: 0,
     credits: 150,
     label: '5 Days Free',
-    features: ['150 Credits', 'Standard Images', 'Basic Text Gen', '1 Brand Voice']
+    features: ['150 Credits', 'GPT-4o Intelligence', 'Standard Images', '1 Brand Voice']
   },
   creator: {
     id: 'creator',
@@ -125,24 +97,24 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     features: [
       '600 Credits / mo',
       'Standard AI Images (Fast)',
-      'Platform Optimizer (IG, LI, X)',
+      'Platform Optimizer',
       '1 Brand Voice Profile',
-      'Viral Hook Templates'
+      'Access to GPT-4o Mini'
     ]
   },
   pro: {
     id: 'pro',
     name: 'Pro',
     price: 11.99,
-    credits: 2500,
+    credits: 2000, // ROI OPTIMIZAT (Era 2500)
     label: 'Growth',
     highlight: true,
     features: [
-      '2,500 Credits / mo',
+      '2,000 Credits / mo',
+      'Real-Time News (Perplexity)',
       'Premium DALL-E 3 Images',
       '3 Brand Voice Profiles',
-      'Carousel Wizard (Coming Soon)',
-      'Competitor Rewrite'
+      'GPT-4o Intelligence'
     ]
   },
   agency: {
@@ -153,10 +125,10 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     label: 'Scale',
     features: [
       '7,000 Credits / mo',
+      'Real-Time News (Perplexity)',
       'Bulk Content Generation',
       'Unlimited Brand Voices',
-      'Logo Injection on Images',
-      'Priority Support'
+      'Logo Injection'
     ]
   }
 };
