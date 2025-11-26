@@ -8,24 +8,52 @@ interface PricingModalProps {
   onClose: () => void;
 }
 
+// ... importuri existente
+
 export function PricingModal({ isOpen, onClose }: PricingModalProps) {
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth(); // Avem nevoie de user pt token
   const currentTier = userProfile?.subscriptionTier || 'trial';
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null); // Loading state
 
   if (!isOpen) return null;
 
-  // --- FUNCȚIA DE UPGRADE ---
-  const handleUpgrade = (tier: SubscriptionTier) => {
-    // Aici vom pune logica de Stripe mai târziu.
-    // Momentan, doar afișăm un mesaj ca să știm că butonul merge.
-    if (tier === 'agency') {
-      alert("Agency Plan selected! Stripe Checkout coming soon.");
-    } else if (tier === 'pro') {
-      alert("Pro Plan selected! Stripe Checkout coming soon.");
-    } else if (tier === 'creator') {
-      alert("Creator Plan selected! Stripe Checkout coming soon.");
+  // --- LOGICA NOUĂ DE PLATĂ ---
+  const handleUpgrade = async (tier: SubscriptionTier) => {
+    setLoadingPlan(tier);
+    try {
+        const token = await user?.getIdToken();
+        
+        const response = await fetch('/api/create-checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ planId: tier })
+        });
+
+        const data = await response.json();
+        
+        if (data.url) {
+            // Redirecționăm userul către Stripe
+            window.location.href = data.url;
+        } else {
+            alert("Error creating checkout. Please try again.");
+        }
+
+    } catch (error) {
+        console.error(error);
+        alert("Connection error.");
+    } finally {
+        setLoadingPlan(null);
     }
   };
+
+  // ... restul UI-ului ...
+  
+  // La <PricingCard ... /> asigură-te că afișezi un loader dacă loadingPlan === planKey
+  // Exemplu de modificare în PricingCard (opțional, dar recomandat):
+  // Button text: {isLoading ? "Loading..." : "Upgrade"}
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
