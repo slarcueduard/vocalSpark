@@ -21,31 +21,30 @@ export default async function handler(req, res) {
     const { prompt, brandContext, language, platform, objective, useRealTime } = req.body;
 
     // 1. CALCULĂM COSTUL
-    // Real-Time (Perplexity) = 10 Credite (ROI Protection)
+    // Real-Time (Perplexity) = 10 Credite
     // Text Standard = 1 Credit
     const COST = useRealTime ? 10 : 1;
 
-    // 2. Verificăm Userul și Creditele
+    // 2. Verificăm Userul
     const { userRef, userData } = await verifyUserAndCredits(req, COST);
     const tier = userData.subscriptionTier || 'trial';
 
     // 3. PROTECȚIE: Doar PRO și AGENCY au acces la Real-Time
     if (useRealTime && (tier === 'creator' || tier === 'trial')) {
-        // Trial teoretic ar putea avea acces ca demo, dar pentru siguranță îl lăsăm doar pe Pro/Agency momentan
-        // Dacă vrei și la trial, adaugă 'trial' în condiția de mai jos
         return res.status(403).json({ error: "Real-Time Search is a PRO feature. Please upgrade." });
     }
 
     // 4. SELECTĂM CLIENTUL ȘI MODELUL
     let client = openai;
-    let model = "gpt-4o-mini"; // Default fallback
+    let model = "gpt-4o-mini"; // Default budget model
     
     if (useRealTime) {
+        // PERPLEXITY (LIVE DATA)
         client = perplexity;
-        model = "sonar-reasoning-pro"; // Cel mai bun model live de la Perplexity
+        model = "sonar-reasoning-pro"; // Cel mai bun model live
     } else {
-        // Logică OpenAI:
-        // Trial, Pro, Agency -> GPT-4o (Best)
+        // OPENAI (CREATIVE)
+        // Trial, Pro, Agency -> GPT-4o (Best Quality)
         // Creator -> GPT-4o-mini (Budget)
         if (tier === 'trial' || tier === 'pro' || tier === 'agency') {
             model = "gpt-4o";
@@ -54,20 +53,19 @@ export default async function handler(req, res) {
         }
     }
 
-    console.log(`Generating for [${tier}]. RealTime: ${useRealTime}. Model: ${model}. Cost: ${COST}`);
+    console.log(`Generating [${tier}]. RealTime: ${useRealTime}. Model: ${model}. Cost: ${COST}`);
 
     // 5. CONSTRUIRE PROMPT
     const targetLanguage = language || 'English';
     
     let systemPrompt = `You are an expert Social Media Manager. 
-    CRITICAL INSTRUCTION: You MUST write the content STRICTLY in ${targetLanguage}. 
-    Do NOT use English unless it is a specific technical term.`;
+    CRITICAL INSTRUCTION: Write strictly in ${targetLanguage}.`;
 
     if (useRealTime) {
         systemPrompt += ` You have access to real-time internet data. Use specific numbers, prices, dates, and recent events from TODAY. Cite sources if relevant.`;
     } else {
         if (model === 'gpt-4o') {
-             systemPrompt += ` Use sophisticated vocabulary, varied sentence structures, and high emotional intelligence. Avoid generic AI phrases like "Unlock your potential". Be specific, actionable, and human-sounding.`;
+             systemPrompt += ` Use sophisticated vocabulary, varied sentence structures, and high emotional intelligence. Avoid generic AI phrases. Be specific, actionable, and human-sounding.`;
         } else {
              systemPrompt += ` Generate engaging content. Keep it simple and effective.`;
         }
