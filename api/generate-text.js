@@ -4,7 +4,6 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req, res) {
-  // CORS Configuration
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -12,55 +11,76 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    // 1. Verify Credits (Cost: 1 Credit for Text)
-    const { userRef } = await verifyUserAndCredits(req, 1);
+    // 1. Verificăm Userul și Creditele
+    const { userRef, userData } = await verifyUserAndCredits(req, 1);
 
-// ... (cod existent) ...
+    const { prompt, brandContext, language, platform, objective } = req.body;
 
-    const { prompt, brandContext, platform, language } = req.body;
+    // 2. LOGICA DE MODEL (STRATEGIA DE UPGRADE)
+    const tier = userData.subscriptionTier || 'trial';
     
-    // Parsăm brandContext dacă e obiect (ar trebui să fie trimis ca string serializat sau gestionat în frontend)
-    // Pentru simplificare, vom presupune că 'brandContext' primit din frontend este un STRING compus.
+    // Trial primește BEST quality ca să fie convins. Pro/Agency la fel.
+    // Creator primește varianta standard.
+    const useBestModel = tier === 'trial' || tier === 'pro' || tier === 'agency';
+    const aiModel = useBestModel ? "gpt-4o" : "gpt-4o-mini";
+
+    console.log(`Generare text pentru user [${tier}]. Folosim model: ${aiModel}`);
+
+    // 3. Construim Prompt-ul
+    const targetLanguage = language || 'English';
     
     let systemPrompt = `You are an expert Social Media Manager. 
-    CRITICAL INSTRUCTION: Write content strictly in ${language || 'English'}.`;
+    CRITICAL INSTRUCTION: You MUST write the content STRICTLY in ${targetLanguage}. 
+    Do NOT use English unless it is a specific technical term.`;
+
+    // Diferențiere de calitate în Prompt
+    if (useBestModel) {
+        systemPrompt += ` Use sophisticated vocabulary, varied sentence structures, and high emotional intelligence. Avoid generic AI phrases. Be specific, actionable, and human-sounding.`;
+    } else {
+        systemPrompt += ` Generate engaging content. Keep it simple.`;
+    }
+
+    if (platform) {
+      systemPrompt += `\nOptimize specifically for ${platform}.`;
+    }
 
     if (brandContext) {
-      systemPrompt += `\n\n${brandContext}`;
+      systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
     }
-    // ...
+    
+    if (objective) {
+       systemPrompt += `\nGOAL: ${objective.toUpperCase()}.`;
+    }
 
-    // 2. Call OpenAI
+    // 4. Apelăm OpenAI
     const completion = await openai.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: prompt }
       ],
-      model: "gpt-4o-mini", // Fast, Cheap, Smart
+      model: aiModel, 
       temperature: 0.7,
     });
 
     const output = completion.choices[0].message.content;
 
-    // 3. Deduct Credits
+    // 5. Notificare pentru Userii Basic (Optional, dar bun pentru marketing)
+    // Putem adăuga un flag în răspuns ca frontend-ul să știe să arate un "Upsell Tip"
+    const showUpgradeTip = !useBestModel;
+
+    // 6. Scădem creditul
     await deductCredits(userRef, 1);
 
-    return res.status(200).json({ output });
+    return res.status(200).json({ 
+        output, 
+        meta: {
+            model: aiModel,
+            showUpgradeTip
+        }
+    });
 
   } catch (error) {
     console.error("OpenAI Text Error:", error);
     return res.status(500).json({ error: error.message || "Failed to generate text" });
   }
-   const { prompt, brandContext, platform, language } = req.body; // <--- Primim language
-
-    let systemPrompt = "You are an expert Social Media Manager. Generate engaging, viral content.";
-    
-    // REGULA DE AUR: Limba
-    // Dacă primim limba din frontend, o forțăm. Dacă nu, default English.
-    const targetLanguage = language || 'English';
-    systemPrompt += `\n\nIMPORTANT: You MUST write the content strictly in ${targetLanguage}.`;
-
-    if (brandContext) {
-      systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
-    }
 }
