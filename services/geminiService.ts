@@ -99,31 +99,48 @@ export async function generateImageForPost(postText: string, isPremium: boolean 
 }
 
 // --- 3. TEXT (UPDATED WITH REAL-TIME) ---
+// ... (restul fișierului rămâne la fel, modificăm doar funcția de text)
+
+// --- 3. TEXT (Prin Backend - Generare Postări) ---
 export async function generateSocialMediaPosts(
-  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement',
+  topic: string, 
+  tone: Tone, 
+  postCount: number, 
+  language: string, 
+  brandVoice: string, 
+  brandProfile?: BrandProfile, 
+  imageBase64?: string, 
+  imageMimeType?: string,
+  objective: PostObjective = 'engagement',
   useRealTime: boolean = false // <--- Parametru NOU
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
     let contextString = '';
     if (brandProfile) {
-        contextString = `VOICE: ${brandProfile.voiceDNA}. AUDIENCE: ${brandProfile.description}. HASHTAGS: ${brandProfile.fixedHashtags}`;
+        contextString = `
+        BRAND VOICE DNA: ${brandProfile.voiceDNA}
+        TARGET AUDIENCE: ${brandProfile.description}
+        FIXED HASHTAGS: ${brandProfile.fixedHashtags || ''}
+        `;
+    } else if (brandVoice) {
+        contextString = `BRAND VOICE: ${brandVoice}`;
     }
 
-    const objectivesMap: Record<string, string> = {
-        engagement: "Goal: Comments & Debate.",
+    // Instrucțiuni obiective (scurtat pt claritate, poți păstra versiunea lungă dinainte)
+    const objectiveInstructions: Record<string, string> = {
+        engagement: "Goal: Questions & Debate.",
         sales: "Goal: Conversion (AIDA).",
-        education: "Goal: Teach/Value.",
-        viral: "Goal: Maximum Reach/Shock.",
+        education: "Goal: Value & Tips.",
+        viral: "Goal: Shock & Shareability.",
         traffic: "Goal: Clicks to Bio."
     };
 
-    const prompt = `
+    let prompt = `
     ROLE: Social Media Expert.
-    GOAL: ${objectivesMap[objective] || "Engagement"}
-    TOPIC: "${topic}"
+    GOAL: ${objectiveInstructions[objective] || "Engagement"}
+    TASK: Write ${postCount} post(s) about: "${topic}".
     TONE: ${tone}.
-    
-    FORMAT: Return ONLY a JSON Array: [{"content": "..."}]
+    FORMAT: Return ONLY a raw JSON Array: [{"content": "..."}]
     `;
 
     try {
@@ -134,11 +151,15 @@ export async function generateSocialMediaPosts(
             imageBase64, 
             imageMimeType,
             objective,
-            useRealTime // <--- Trimitem la backend
+            useRealTime // <--- TRIMITEM LA BACKEND
         });
+
         const parsed = extractJsonArray(data.output);
-        return Array.isArray(parsed) ? parsed.map((p: any) => ({ content: p.content || p })) : [];
+        if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
+        return [];
+
     } catch (e: any) {
+        console.error("Text Generation Logic Error:", e);
         return [{ content: `⚠️ Error: ${e.message}` }];
     }
 }
