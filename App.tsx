@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective } from './types';
-import { TONES, PLATFORMS, OBJECTIVES } from './constants';
+import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants'; // Am adăugat getRandomVibe
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
 import { Lock, X, HelpCircle, Globe } from 'lucide-react'; 
@@ -12,17 +12,15 @@ import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
-import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants'; 
-const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
-  const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Feature Flags
+  // Feature Flags & State
   const [useRealTime, setUseRealTime] = useState(false);
+  const [vibeMessage, setVibeMessage] = useState<string | null>(null); // Mesajul "Badass"
 
   // Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -34,24 +32,21 @@ const SocialSparkApp: React.FC = () => {
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-const SocialSparkApp: React.FC = () => {
-  // ... state-uri existente ...
-  const [vibeMessage, setVibeMessage] = useState<string | null>(null); // <--- STATE NOU
 
-  // Helper pentru a arăta mesajul și a-l ascunde după 3 secunde
-  const showVibe = () => {
-      setVibeMessage(getRandomVibe());
-      setTimeout(() => setVibeMessage(null), 4000);
-  };
   // Form State
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
   const [objective, setObjective] = useState<PostObjective>('engagement');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [viralHook, setViralHook] = useState<ViralHook | ''>(''); // Păstrat pentru compatibilitate
   const [posts, setPosts] = useState<Post[]>([]);
   
+  // Helper pentru Vibe
+  const showVibe = () => {
+      setVibeMessage(getRandomVibe());
+      setTimeout(() => setVibeMessage(null), 4000);
+  };
+
   // Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '') {
@@ -82,6 +77,7 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
+  // --- IMAGE MODAL LOGIC ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -104,41 +100,22 @@ const SocialSparkApp: React.FC = () => {
       setActivePostIdForImage(null);
   };
 
+  // --- GENERATE TEXT (Aici era problema cu async) ---
   const handleGenerate = async () => {
-      // ... cod generare ...
-      try {
-          // ... (codul de generare postări) ...
-          
-          setPosts(prev => [...newPosts, ...prev].slice(0, 6));
-          setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-
-          showVibe(); // <--- AICI DECLANȘĂM MESAJUL "BADASS"
-
-      } catch (err) { /*...*/ } 
-      finally { setIsLoading(false); }
-  };
-
-  return (
-    <MainLayout onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}>
-        
-        {/* --- VIBE TOAST NOTIFICATION (Nou) --- */}
-        {vibeMessage && (
-            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
-                <div className="bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.3)] flex items-center gap-3">
-                    <span className="text-xl">🥃</span> {/* Sau un icon cool */}
-                    <span className="font-bold text-sm tracking-wide">{vibeMessage}</span>
-                </div>
-            </div>
-        )}
-
-        {/* ... restul JSX-ului ... */}
-    </MainLayout>
-  );
-};
+    if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
+    
+    const cost = useRealTime ? 10 : 1;
+    if (!checkCredits(cost)) { 
+        if (isTrialExpired) return; 
+        alert(`Insufficient credits! This action requires ${cost} credits.`); 
+        return; 
+    }
 
     setIsLoading(true); setError(null);
     try {
       let imgData = undefined, imgMime = undefined;
+      
+      // Procesăm imaginea (Aici era eroarea "await inside async")
       if (attachedImage) {
           if (attachedImage.startsWith('data:')) {
               const parts = attachedImage.split(',');
@@ -150,7 +127,6 @@ const SocialSparkApp: React.FC = () => {
           }
       }
 
-      // Aici folosim await corect în interiorul funcției async
       const generatedPosts = await generateSocialMediaPosts(
           topic, 
           tone, 
@@ -161,7 +137,7 @@ const SocialSparkApp: React.FC = () => {
           imgData, 
           imgMime,
           objective,
-          useRealTime // Parametrul nou
+          useRealTime
       );
       
       const newPosts: Post[] = generatedPosts.map(p => ({ 
@@ -175,6 +151,9 @@ const SocialSparkApp: React.FC = () => {
 
       setPosts(prev => [...newPosts, ...prev].slice(0, 6));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      
+      // Afișăm mesajul cool
+      showVibe();
 
     } catch (err) { setError('Failed to generate content.'); } 
     finally { setIsLoading(false); }
@@ -182,20 +161,8 @@ const SocialSparkApp: React.FC = () => {
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-  
-  const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
-      if (!checkCredits(1)) return;
-      const adapted = await adaptPostForPlatform(content, platform);
-      setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p));
-  };
-  
-  const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
-      if (!checkCredits(1)) return;
-      setRefiningPostId(id);
-      const refined = await refinePostContent(content, type);
-      setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p));
-      setRefiningPostId(null);
-  };
+  const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); };
+  const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); setRefiningPostId(null); };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -204,6 +171,16 @@ const SocialSparkApp: React.FC = () => {
   return (
     <MainLayout onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}>
         
+        {/* VIBE TOAST (Mesajele șmechere) */}
+        {vibeMessage && (
+            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 pointer-events-none">
+                <div className="bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.3)] flex items-center gap-3">
+                    <span className="text-xl">✨</span>
+                    <span className="font-bold text-sm tracking-wide">{vibeMessage}</span>
+                </div>
+            </div>
+        )}
+
         {isTrialExpired && (
             <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center rounded-xl overflow-hidden pointer-events-auto">
                 <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl max-w-md text-center shadow-2xl mx-4">
