@@ -16,6 +16,8 @@
     "react-dom": "^18.2.0",
     "lucide-react": "^0.378.0",
     "clsx": "^2.1.1",
+    "stripe": "^14.0.0",
+    "micro": "^10.0.1",
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
