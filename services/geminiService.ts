@@ -94,16 +94,42 @@ export async function analyzeBrandStyleFromPosts(pastPosts: string): Promise<str
 }
 
 // --- 2. IMAGINI (Prin Backend) ---
+// ... (celelalte importuri rămân)
+
+// --- 2. IMAGINI ---
 export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
     try {
         const imagePrompt = postText.length > 200 ? `Editorial photo representing: ${postText.substring(0, 200)}` : postText;
 
+        // 1. Cerem generarea (primim URL)
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
             isPremium: isPremium 
         });
         
-        return data.imageUrl;
+        let finalUrl = data.imageUrl;
+
+        // 2. Dacă e Premium (DALL-E), URL-ul e extern și dă CORS.
+        // Îl trecem prin proxy-ul nostru pentru a-l face Base64/Safe.
+        if (isPremium && finalUrl.startsWith('http')) {
+            try {
+                // Apelăm proxy-ul nostru
+                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(finalUrl)}`);
+                const blob = await proxyRes.blob();
+                
+                // Convertim Blob la Base64 pentru a fi afișat și salvat ușor
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (err) {
+                console.warn("Proxy fetch failed, using original URL", err);
+                return finalUrl; // Fallback la URL original (poate merge direct)
+            }
+        }
+        
+        return finalUrl;
 
     } catch (e) {
         console.error("Image Generation Failed:", e);
