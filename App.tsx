@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { Post, Tone, Platform, AppMode, PostObjective, RefinementType } from './types';
+import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective } from './types';
 import { TONES, PLATFORMS, OBJECTIVES } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, ChevronRight } from 'lucide-react'; 
+import { Lock, X, HelpCircle } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { AuthWrapper } from './components/AuthWrapper';
 import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
@@ -16,6 +15,7 @@ import { LandingPage } from './components/LandingPage';
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading } = useAuth();
+  const [appMode, setAppMode] = useState<AppMode>('creator');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -23,29 +23,23 @@ const SocialSparkApp: React.FC = () => {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // Logică Imagine
+  // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // --- STATE-URILE FORMULARULUI (Default-uri Inteligente) ---
+  // Form State
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
-  const [objective, setObjective] = useState<PostObjective>('engagement'); // Default
+  const [objective, setObjective] = useState<PostObjective>('engagement');
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  
   const [posts, setPosts] = useState<Post[]>([]);
   
-// --- SUGESTIE AUTOMATĂ BAZATĂ PE BRAND & LIMBĂ (FIX) ---
+  // Auto-Sugestie
   useEffect(() => {
-    // Rulează doar dacă:
-    // 1. Nu se încarcă userul (avem datele finale)
-    // 2. Avem un profil de brand (niche setată)
-    // 3. Căsuța de text este GOALĂ (nu vrem să suprascriem ce a scris userul)
-    
     if (!loading && brandProfile?.industry && topic === '') {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
@@ -79,42 +73,8 @@ const SocialSparkApp: React.FC = () => {
         const randomIdea = templates[Math.floor(Math.random() * templates.length)];
         setTopic(randomIdea);
     }
-  }, [loading, brandProfile]);
-// --- COMPONENTA PRINCIPALĂ APP ---
-const AppContent: React.FC = () => {
-    const { user, loading, signIn } = useAuth();
+  }, [loading, brandProfile]); // Scos topic din deps pentru a evita loop
 
-    if (loading) {
-        // Un loading screen frumos centrat
-        return (
-            <div className="min-h-screen bg-[#0f1115] flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-gray-500 text-sm font-mono">Initializing Velocity Engine...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // DACĂ AVEM USER -> ARĂTĂM APLICAȚIA
-    if (user) {
-        return <SocialSparkApp />;
-    }
-
-    // DACĂ NU AVEM USER -> ARĂTĂM LANDING PAGE-UL PROFI
-    return <LandingPage onLogin={signIn} />;
-};
-
-const App: React.FC = () => (
-    <AuthProvider>
-        {/* AuthWrapper nu mai e strict necesar dacă gestionăm aici logica, 
-            dar îl putem păstra sau scoate. Aici l-am scos pt simplitate */}
-        <AppContent /> 
-    </AuthProvider>
-);
-
-export default App;
-  
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
           const response = await fetch(url);
@@ -127,7 +87,7 @@ export default App;
       } catch (e) { return null; }
   };
 
-  // --- IMAGE LOGIC ---
+  // --- IMAGE MODAL LOGIC ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -150,7 +110,7 @@ export default App;
       setActivePostIdForImage(null);
   };
 
-  // --- GENERATE ---
+  // --- GENERATE TEXT ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
     
@@ -183,7 +143,7 @@ export default App;
           brandProfile || undefined, 
           imgData, 
           imgMime,
-          objective // Trimitem obiectivul nou
+          objective
       );
       
       const newPosts: Post[] = generatedPosts.map(p => ({ 
@@ -202,14 +162,15 @@ export default App;
     finally { setIsLoading(false); }
   };
 
-  // ... (handleDeletePost, handleToggleLock, handleAdaptPost, handleRefinePost rămân la fel)
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
+  
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
       if (!checkCredits(1)) return;
       const adapted = await adaptPostForPlatform(content, platform);
       setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p));
   };
+  
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
       if (!checkCredits(1)) return;
       setRefiningPostId(id);
@@ -264,7 +225,7 @@ export default App;
                                     value={topic} 
                                     onChange={(e) => setTopic(e.target.value)} 
                                     rows={3} 
-                                    placeholder="E.g. 3 tips for crypto beginners, or upload a photo of your product..." 
+                                    placeholder="E.g. 3 tips for crypto beginners..." 
                                     className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" 
                                 />
                                 
@@ -290,7 +251,7 @@ export default App;
                             </div>
                         </section>
 
-                        {/* SECTION 2: OBJECTIVE (The Big Benefit) */}
+                        {/* SECTION 2: OBJECTIVE */}
                         <section className="space-y-3">
                             <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                 <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span>
@@ -316,7 +277,6 @@ export default App;
                                             <span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">
                                                 {obj.label}
                                             </span>
-                                            {/* Tooltip mic pentru explicație */}
                                             <span className="text-[8px] leading-none text-center text-gray-500 opacity-80 hidden sm:block">
                                                 {obj.description.split(' ')[0]}...
                                             </span>
@@ -438,11 +398,31 @@ export default App;
   );
 };
 
+// --- APP CONTENT WITH AUTH LOGIC ---
+const AppContent: React.FC = () => {
+    const { user, loading, signIn } = useAuth();
+
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-[#0f1115] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-500 text-sm font-mono">Initializing Velocity Engine...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (user) {
+        return <SocialSparkApp />;
+    }
+
+    return <LandingPage onLogin={signIn} />;
+};
+
 const App: React.FC = () => (
     <AuthProvider>
-        <AuthWrapper>
-            <SocialSparkApp />
-        </AuthWrapper>
+        <AppContent />
     </AuthProvider>
 );
 
