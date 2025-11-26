@@ -23,6 +23,30 @@ interface ImageCreationModalProps {
 }
 
 // --- 1. FILTRE GENERARE AI ---
+
+const IMAGE_STYLES = [
+  { 
+    id: 'none', // <--- NOUL DEFAULT
+    label: 'Natural / Raw', 
+    description: 'No filters. Just your prompt.',
+    promptSuffix: '', // Nu adăugăm nimic, lăsăm AI-ul liber
+    isExclusive: false 
+  },
+  { 
+    id: 'velocity', 
+    label: 'Velocity Dark', 
+    description: 'Cyberpunk, Neon, Moody',
+    promptSuffix: ', dark moody cyberpunk aesthetic, neon blue and purple lighting, high contrast, John Wick style, cinematic atmosphere, sharp focus, 8k',
+    isExclusive: true 
+  },
+  // ... restul filtrelor (lifestyle, studio, etc.)
+  { id: 'lifestyle', label: 'Lifestyle', description: 'Natural, Influencer', promptSuffix: ', authentic lifestyle photography, shot on iPhone 15 Pro, natural sunlight, candid moment', isExclusive: false },
+  { id: 'studio', label: 'Studio Pro', description: 'Clean, Product', promptSuffix: ', professional studio photography, neutral background, softbox lighting, 85mm lens, 4k', isExclusive: false },
+  { id: 'realism', label: 'Hyper Realism', description: 'Raw, Detailed', promptSuffix: ', award winning photography, highly detailed texture, natural lighting, unedited look, raw file', isExclusive: false },
+  { id: 'minimalist', label: 'Minimalist', description: 'Clean, Apple style', promptSuffix: ', minimalist aesthetic, apple design style, white background, soft shadows, clean lines', isExclusive: false },
+  { id: 'corporate', label: 'Corporate', description: 'Office, Professional', promptSuffix: ', corporate modern office environment, professional atmosphere, linkedin style', isExclusive: false }
+];
+
 const AI_STYLES = [
   { 
     id: 'velocity', 
@@ -53,10 +77,13 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const { checkCredits, credits } = useAuth();
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate');
   
+  const [prompt, setPrompt] = useState(initialPrompt);
+  const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
+  
   // State Generate
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
-  const [selectedAiStyle, setSelectedAiStyle] = useState<string>('velocity');
+  const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none'); 
   const [isGenerating, setIsGenerating] = useState(false);
   
   // State Upload & Edit
