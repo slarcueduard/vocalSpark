@@ -67,52 +67,41 @@ export async function autoGenerateBrandProfile(rawContent: string): Promise<Bran
     } catch (e) { throw new Error("Analysis failed."); }
 }
 
-// --- 2. IMAGINI (REPARAT STANDARD) ---
-// --- 2. IMAGINI (Prin Backend) ---
+// --- 2. IMAGINI ---
 export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
     try {
-        const imagePrompt = postText.length > 200 ? `Editorial photo representing: ${postText.substring(0, 200)}` : postText;
+        const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
 
-        // 1. Cerem generarea (primim URL)
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
             isPremium: isPremium 
         });
         
-        let finalUrl = data.imageUrl;
+        const imageUrl = data.imageUrl;
 
-        // 2. LOGICA DE PROXY (MODIFICATĂ)
-        // Folosim proxy DOAR dacă e Premium (DALL-E), pentru că linkurile DALL-E expiră și au CORS.
-        // Imaginile Standard (Pollinations) merg direct, sunt rapide și nu expiră.
-        if (isPremium && finalUrl.startsWith('http')) {
+        if (isPremium && imageUrl.startsWith('http')) {
             try {
-                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(finalUrl)}`);
-                if (!proxyRes.ok) throw new Error("Proxy failed");
-                
+                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
+                if (!proxyRes.ok) return imageUrl;
                 const blob = await proxyRes.blob();
-                return new Promise((resolve) => {
+                return new Promise(r => {
                     const reader = new FileReader();
-                    reader.onloadend = () => resolve(reader.result as string);
+                    reader.onload = () => r(reader.result as string);
                     reader.readAsDataURL(blob);
                 });
-            } catch (err) {
-                console.warn("Proxy fetch failed, using original URL", err);
-                return finalUrl;
-            }
+            } catch (err) { return imageUrl; }
         }
-        
-        // Pentru Standard, returnăm URL-ul direct (e mult mai rapid)
-        return finalUrl;
-
+        return imageUrl;
     } catch (e) {
-        console.error("Image Generation Failed:", e);
+        console.error("Image Gen Failed:", e);
         throw e; 
     }
 }
 
-// --- 3. TEXT ---
+// --- 3. TEXT (UPDATED WITH REAL-TIME) ---
 export async function generateSocialMediaPosts(
-  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement'
+  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement',
+  useRealTime: boolean = false // <--- Parametru NOU
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
     let contextString = '';
@@ -143,7 +132,9 @@ export async function generateSocialMediaPosts(
             brandContext: contextString, 
             language: brandProfile?.language || language || 'English',
             imageBase64, 
-            imageMimeType 
+            imageMimeType,
+            objective,
+            useRealTime // <--- Trimitem la backend
         });
         const parsed = extractJsonArray(data.output);
         return Array.isArray(parsed) ? parsed.map((p: any) => ({ content: p.content || p })) : [];
@@ -167,4 +158,11 @@ export async function refinePostContent(content: string, type: RefinementType): 
         const data = await safeFetch('/api/generate-text', { prompt: `Rewrite (${type}): "${content}"` });
         return data.output;
     } catch(e) { return content; }
+}
+
+export async function analyzeBrandVoice(sampleText: string): Promise<string> {
+    try {
+        const data = await safeFetch('/api/generate-text', { prompt: `Analyze tone: "${sampleText}"` });
+        return data.output;
+    } catch(e) { return ""; }
 }
