@@ -163,25 +163,34 @@ export async function generateSocialMediaPosts(
         traffic: "Create a curiosity gap. Tease the value but make them click the link to get it."
     };
 
-    let prompt = `
-    ROLE: Expert Social Media Manager.
-    GOAL: ${objectiveInstructions[objective]}
-    TOPIC: "${topic}"
-    TONE: ${tone}.
-    LANGUAGE: ${language}.
-    FORMAT: Return ONLY a raw JSON Array. Structure: [{"content": "Post text here..."}]
-    `;
-    
-    if (brandVoice) prompt += `\nBRAND VOICE: ${brandVoice}`;
+    // În src/services/geminiService.ts
 
-    try {
-        const data = await safeFetch('/api/generate-text', { 
+// ...
+export async function generateSocialMediaPosts(
+  // ... parametri
+) {
+    let contextString = '';
+    
+    if (brandProfile) {
+        contextString = `
+        BRAND VOICE DNA: ${brandProfile.voiceDNA}
+        TARGET AUDIENCE: ${brandProfile.description}
+        FIXED HASHTAGS to include: ${brandProfile.fixedHashtags} (Always add these at the end, plus 3 relevant ones).
+        `;
+    } else if (brandVoice) {
+        contextString = `BRAND VOICE: ${brandVoice}`;
+    }
+
+    const data = await safeFetch('/api/generate-text', { 
             prompt, 
-            brandContext: brandVoice, 
-            language,
+            brandContext: contextString, // Trimitem noul context complex
+            language: brandProfile?.language || language || 'English',
             imageBase64, 
-            imageMimeType 
-        });
+            imageMimeType,
+            objective
+    });
+    // ...
+}
 
         const parsed = extractJsonArray(data.output);
         if(Array.isArray(parsed)) {
