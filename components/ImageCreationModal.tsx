@@ -22,7 +22,7 @@ interface ImageCreationModalProps {
   initialPrompt?: string;
 }
 
-// --- 1. FILTRE GENERARE AI (Prompt Injection) ---
+// --- 1. FILTRE GENERARE AI ---
 const AI_STYLES = [
   { 
     id: 'velocity', 
@@ -38,7 +38,7 @@ const AI_STYLES = [
   { id: 'corporate', label: 'Corporate', description: 'Office, Professional', promptSuffix: ', corporate modern office environment, professional atmosphere, linkedin style', isExclusive: false }
 ];
 
-// --- 2. FILTRE FOTO UPLOAD (CSS Filters - Non AI) ---
+// --- 2. FILTRE FOTO UPLOAD ---
 const PHOTO_FILTERS = [
   { id: 'normal', label: 'Original', filter: 'none' },
   { id: 'studio', label: 'Studio Crisp', filter: 'contrast(1.1) brightness(1.05) saturate(1.1)' },
@@ -63,7 +63,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedPhotoFilter, setSelectedPhotoFilter] = useState<string>('normal');
   
-  // State Result Shared
+  // State Result
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -73,7 +73,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const currentCost = modelType === 'standard' ? COST_STANDARD : COST_PREMIUM;
   const canAfford = checkCredits(currentCost);
 
-  // --- LOGICA: Generare AI ---
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     if (!canAfford) { setError(`Not enough credits.`); return; }
@@ -94,7 +93,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     }
   };
 
-  // --- LOGICA: Upload ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -103,14 +101,12 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     const reader = new FileReader();
     reader.onloadend = () => {
         setUploadedImage(reader.result as string);
-        setResultImage(null); // Resetăm rezultatul AI dacă există
-        setSelectedPhotoFilter('normal'); // Resetăm filtrul
+        setResultImage(null);
+        setSelectedPhotoFilter('normal');
     };
     reader.readAsDataURL(file);
   };
 
-  // --- LOGICA: Aplicare Filtru Permanent ("Bake In") ---
-  // Această funcție desenează imaginea pe un Canvas invizibil cu filtrul aplicat și o salvează
   const applyFilterAndUse = async () => {
     if (activeTab === 'upload' && uploadedImage) {
         const filterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
@@ -137,13 +133,11 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             onClose();
         }
     } else if (resultImage) {
-        // Dacă e imagine AI, o trimitem direct
         onSelectImage(resultImage);
         onClose();
     }
   };
 
-  // Imaginea curentă de afișat în preview (AI sau Uploaded)
   const previewImageSrc = activeTab === 'generate' ? resultImage : uploadedImage;
   const activePhotoFilterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
 
@@ -153,8 +147,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         
         {/* LEFT: Controls */}
         <div className="w-full md:w-1/2 p-6 flex flex-col border-r border-gray-800 bg-[#161b22] overflow-y-auto custom-scrollbar">
-          
-          {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <button onClick={onClose} className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium">
                 <ArrowLeft size={16} /> Back
@@ -166,7 +158,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             )}
           </div>
 
-          {/* Tabs */}
           <div className="flex p-1 bg-gray-900 rounded-xl mb-6 border border-gray-800 sticky top-0 z-10">
               <button onClick={() => setActiveTab('generate')} className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition ${activeTab === 'generate' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
                   <Sparkles size={14} /> AI Generate
@@ -176,7 +167,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
               </button>
           </div>
 
-          {/* --- TAB: AI GENERATE --- */}
           {activeTab === 'generate' && (
             <>
                 <div className="mb-4">
@@ -225,7 +215,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             </>
           )}
 
-          {/* --- TAB: UPLOAD & EDIT --- */}
           {activeTab === 'upload' && (
             <>
                 {!uploadedImage ? (
@@ -247,7 +236,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                                 <Trash size={12} /> Remove
                             </button>
                         </div>
-                        
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
                             {PHOTO_FILTERS.map((filter) => (
                                 <button
@@ -259,9 +247,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                                 </button>
                             ))}
                         </div>
-                        <p className="text-[10px] text-gray-500 text-center">
-                            Select a filter to enhance your photo naturally.
-                        </p>
                     </div>
                 )}
             </>
@@ -274,48 +259,23 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         <div className="w-full md:w-1/2 bg-[#050505] flex flex-col items-center justify-center p-6 relative">
             <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10"><X size={20}/></button>
             
- {/* ... cod anterior ... */}
-
-{previewImageSrc ? (
-    <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
-        
-        {/* Buton Ștergere Rapidă */}
-        <button 
-            onClick={() => {
-                if (activeTab === 'generate') setResultImage(null);
-                else setUploadedImage(null);
-            }} 
-            className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10"
-            title="Delete Image"
-        >
-            <Trash size={16} /> 
-        </button>
-
-        {/* IMAGINEA CU FIX PENTRU LOAD */}
-        <img 
-            key={previewImageSrc} // Cheie unică pentru a forța reîncărcarea când se schimbă URL-ul
-            src={previewImageSrc} 
-            alt="Preview" 
-            style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }}
-            className="max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black transition-all duration-300" 
-            onError={(e) => {
-                // Fallback vizual dacă imaginea nu se încarcă
-                e.currentTarget.style.display = 'none';
-                alert("Image failed to load from provider. Please try generating again.");
-            }}
-        />
-        
-        <div className="flex gap-3 w-full max-w-xs">
-            <button 
-                onClick={applyFilterAndUse} 
-                className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg"
-            >
-                Use Image
-            </button>
-            <a href={previewImageSrc} download="image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700">
-                <Download size={20}/>
-            </a>
+            {previewImageSrc ? (
+                <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
+                    <button onClick={() => { if (activeTab === 'generate') setResultImage(null); else setUploadedImage(null); }} className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10" title="Delete Image"><Trash size={16} /></button>
+                    <img key={previewImageSrc} src={previewImageSrc} alt="Preview" style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }} className="max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black transition-all duration-300" onError={(e) => { e.currentTarget.style.display = 'none'; alert("Image failed to load from provider."); }} />
+                    <div className="flex gap-3 w-full max-w-xs">
+                        <button onClick={applyFilterAndUse} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg">Use Image</button>
+                        <a href={previewImageSrc} download="image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700"><Download size={20}/></a>
+                    </div>
+                </div>
+            ) : (
+                <div className="text-center text-gray-500">
+                    <Sparkles className={`w-12 h-12 mx-auto mb-4 ${isGenerating ? 'animate-spin text-blue-500' : 'text-gray-800'}`} />
+                    <p className="text-sm">{isGenerating ? "Applying Velocity Magic..." : "Your visual will appear here"}</p>
+                </div>
+            )}
         </div>
+      </div>
     </div>
-) 
-};
+  );
+}
