@@ -12,7 +12,7 @@ import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
-
+import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants'; 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
@@ -34,7 +34,15 @@ const SocialSparkApp: React.FC = () => {
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+const SocialSparkApp: React.FC = () => {
+  // ... state-uri existente ...
+  const [vibeMessage, setVibeMessage] = useState<string | null>(null); // <--- STATE NOU
 
+  // Helper pentru a arăta mesajul și a-l ascunde după 3 secunde
+  const showVibe = () => {
+      setVibeMessage(getRandomVibe());
+      setTimeout(() => setVibeMessage(null), 4000);
+  };
   // Form State
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
@@ -97,15 +105,36 @@ const SocialSparkApp: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
-    
-    // Check Cost (1 normal, 10 RealTime)
-    const cost = useRealTime ? 10 : 1;
-    if (!checkCredits(cost)) { 
-        if (isTrialExpired) return; 
-        alert(`Insufficient credits! This action requires ${cost} credits.`); 
-        return; 
-    }
+      // ... cod generare ...
+      try {
+          // ... (codul de generare postări) ...
+          
+          setPosts(prev => [...newPosts, ...prev].slice(0, 6));
+          setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+          showVibe(); // <--- AICI DECLANȘĂM MESAJUL "BADASS"
+
+      } catch (err) { /*...*/ } 
+      finally { setIsLoading(false); }
+  };
+
+  return (
+    <MainLayout onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}>
+        
+        {/* --- VIBE TOAST NOTIFICATION (Nou) --- */}
+        {vibeMessage && (
+            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
+                <div className="bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.3)] flex items-center gap-3">
+                    <span className="text-xl">🥃</span> {/* Sau un icon cool */}
+                    <span className="font-bold text-sm tracking-wide">{vibeMessage}</span>
+                </div>
+            </div>
+        )}
+
+        {/* ... restul JSX-ului ... */}
+    </MainLayout>
+  );
+};
 
     setIsLoading(true); setError(null);
     try {
