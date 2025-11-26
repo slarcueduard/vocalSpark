@@ -18,27 +18,17 @@ export default async function handler(req, res) {
 // ... (cod existent) ...
 
     const { prompt, brandContext, platform, language } = req.body;
-
-    // Default language
-    const targetLanguage = language || 'English';
-
-    let systemPrompt = `You are an expert Social Media Manager. 
-    CRITICAL INSTRUCTION: You MUST write the content STRICTLY in ${targetLanguage}. 
-    Do NOT use English unless it is a specific technical term that is commonly used in ${targetLanguage} (like 'branding' or 'crypto').
-    Translate the user's request context into ${targetLanguage} if necessary before generating the post.`;
     
-    systemPrompt += "\nGenerate engaging, viral content.";
-
-    // Platform optimization
-    if (platform) {
-      systemPrompt += `\nOptimize specifically for ${platform} (hashtags, formatting, length).`;
-    }
+    // Parsăm brandContext dacă e obiect (ar trebui să fie trimis ca string serializat sau gestionat în frontend)
+    // Pentru simplificare, vom presupune că 'brandContext' primit din frontend este un STRING compus.
+    
+    let systemPrompt = `You are an expert Social Media Manager. 
+    CRITICAL INSTRUCTION: Write content strictly in ${language || 'English'}.`;
 
     if (brandContext) {
-      systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
+      systemPrompt += `\n\n${brandContext}`;
     }
-
-    // ... (restul codului cu openai.chat.completions.create)
+    // ...
 
     // 2. Call OpenAI
     const completion = await openai.chat.completions.create({
