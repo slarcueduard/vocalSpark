@@ -19,15 +19,21 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Form State
-  const [formData, setFormData] = useState<BrandProfile>(currentProfile || {
+  // ... în interiorul componentei ...
+  const [formData, setFormData] = useState<BrandProfile>(currentProfile ? {
+    ...currentProfile,
+    // Aici e fix-ul: Dacă brandColors lipsește, punem default-ul
+    brandColors: currentProfile.brandColors && currentProfile.brandColors.length > 0 
+        ? currentProfile.brandColors 
+        : ['#3B82F6', '#8B5CF6', '#FFFFFF'] 
+  } : {
     industry: '',
     description: '',
     voiceDNA: '',
     language: 'English',
     examplePosts: '',
     fixedHashtags: '',
-    brandColors: ['#3B82F6', '#8B5CF6', '#FFFFFF'], // Default Blue/Purple/White
+    brandColors: ['#3B82F6', '#8B5CF6', '#FFFFFF'],
     logoUrl: null
   });
 
