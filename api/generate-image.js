@@ -2,6 +2,10 @@ import OpenAI from 'openai';
 import { verifyUserAndCredits, deductCredits } from './_utils.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const HF_TOKEN = process.env.HUGGING_FACE_TOKEN;
+
+// Modelul rapid și gratuit (sau foarte ieftin) de pe Hugging Face
+const HF_MODEL_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell";
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,32 +16,23 @@ export default async function handler(req, res) {
 
   try {
     const { prompt, isPremium, brandColors } = req.body;
+    
+    // Costuri: Premium 20 cr, Standard 2 cr
     const COST = isPremium ? 20 : 2; 
 
     const { userRef } = await verifyUserAndCredits(req, COST);
     
-    let finalImageUrl = "";
+    let finalImageBase64 = "";
 
     if (isPremium) {
         // --- PREMIUM (DALL-E 3) ---
-        let enhancedPrompt = prompt;
+        console.log("Generating Premium Image (DALL-E 3)...");
         
-        // Injectăm culorile de brand dacă există
-        let colorInstruction = "";
+        // Injectăm culorile de brand
+        let enhancedPrompt = prompt;
         if (brandColors && brandColors.length > 0) {
-            colorInstruction = ` Use a color palette inspired by: ${brandColors.join(', ')}.`;
+            enhancedPrompt += ` Use a color palette inspired by: ${brandColors.join(', ')}.`;
         }
-
-        try {
-             const enhancement = await openai.chat.completions.create({
-                messages: [
-                    { role: "system", content: "Rewrite this image prompt to be photorealistic, highly detailed, and artistic. Keep it concise." },
-                    { role: "user", content: prompt + colorInstruction }
-                ],
-                model: "gpt-4o-mini",
-            });
-            enhancedPrompt = enhancement.choices[0].message.content;
-        } catch (e) {}
 
         const response = await openai.images.generate({
           model: "dall-e-3",
@@ -45,34 +40,52 @@ export default async function handler(req, res) {
           n: 1,
           size: "1024x1024",
           quality: "standard",
+          response_format: "b64_json" // Cerem direct Base64 de la OpenAI ca să fie mai rapid
         });
         
-        // Proxy prin server pentru DALL-E (CORS Fix)
-        const tempUrl = response.data[0].url;
-        const imageResponse = await fetch(tempUrl);
-        const arrayBuffer = await imageResponse.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        finalImageUrl = `data:image/png;base64,${buffer.toString('base64')}`;
+        finalImageBase64 = `data:image/png;base64,${response.data[0].b64_json}`;
 
     } else {
-        // --- STANDARD (Pollinations) ---
-        // FIX: Folosim modelul 'flux' simplu (cel mai rapid și stabil)
-        // Codăm promptul complet pentru a suporta spații și caractere speciale
-        const encodedPrompt = encodeURIComponent(prompt);
+        // --- STANDARD (Hugging Face - FLUX.1 Schnell) ---
+        console.log("Generating Standard Image (Flux Schnell)...");
         
-        // Adăugăm un seed aleatoriu pentru a avea rezultate diferite la același prompt
-        const seed = Math.floor(Math.random() * 1000000);
-        
-        // Construim URL-ul direct
-        finalImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&model=flux&nologo=true&seed=${seed}`;
+        if (!HF_TOKEN) {
+            throw new Error("Hugging Face Token missing in Vercel Config.");
+        }
+
+        const response = await fetch(HF_MODEL_URL, {
+            headers: {
+                Authorization: `Bearer ${HF_TOKEN}`,
+                "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({ inputs: prompt }),
+        });
+
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`Hugging Face Error: ${response.status} - ${err}`);
+        }
+
+        // Hugging Face returnează imaginea ca Blob (binary)
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        finalImageBase64 = `data:image/jpeg;base64,${buffer.toString('base64')}`;
     }
 
+    // Scădem creditele doar dacă a reușit
     await deductCredits(userRef, COST);
 
-    return res.status(200).json({ imageUrl: finalImageUrl });
+    // Returnăm imaginea (Base64 funcționează instant în browser, fără probleme CORS)
+    return res.status(200).json({ imageUrl: finalImageBase64 });
 
   } catch (error) {
     console.error("Image Gen Error:", error);
-    return res.status(500).json({ error: error.message || "Failed to generate image" });
+    // Mesaj user-friendly
+    const message = error.message.includes("503") 
+        ? "AI Model is warming up. Please try again in 10 seconds." 
+        : error.message || "Failed to generate image";
+        
+    return res.status(500).json({ error: message });
   }
 }
