@@ -35,16 +35,46 @@ async function safeFetch(url: string, body: any) {
 }
 
 // --- HELPER: Extract JSON ---
+// --- HELPER: Extract JSON (Versiune Robustă pt Perplexity) ---
 function extractJsonArray(text: string): any[] {
-    try { return JSON.parse(text); } 
-    catch (e) {
+    try {
+        // 1. Încercare directă
+        return JSON.parse(text);
+    } catch (e) {
+        // 2. Căutare agresivă a array-ului [...]
         const start = text.indexOf('[');
         const end = text.lastIndexOf(']');
+        
         if (start !== -1 && end !== -1) {
-            try { return JSON.parse(text.substring(start, end + 1)); } catch (e2) {}
+            const potentialJson = text.substring(start, end + 1);
+            try {
+                return JSON.parse(potentialJson);
+            } catch (e2) {
+                // Continuăm dacă eșuează
+            }
         }
-        try { if (text.trim().startsWith('{')) return [JSON.parse(text)]; } catch (e3) {}
-        throw new Error("AI response format error.");
+
+        // 3. Fallback pentru Markdown Code Blocks (```json ... ```)
+        // Perplexity adoră să pună codul în markdown
+        const markdownMatch = text.match(/```json([\s\S]*?)```/);
+        if (markdownMatch && markdownMatch[1]) {
+            try {
+                return JSON.parse(markdownMatch[1]);
+            } catch (e3) {}
+        }
+
+        // 4. Fallback ultim: Poate a returnat un singur obiect {...}, nu array
+        const objStart = text.indexOf('{');
+        const objEnd = text.lastIndexOf('}');
+        if (objStart !== -1 && objEnd !== -1) {
+            try {
+                const singleObj = JSON.parse(text.substring(objStart, objEnd + 1));
+                return [singleObj]; // Îl transformăm în array
+            } catch (e4) {}
+        }
+        
+        console.error("Failed to parse AI response:", text);
+        throw new Error("AI response format error. The AI might have refused the request or returned invalid data.");
     }
 }
 
