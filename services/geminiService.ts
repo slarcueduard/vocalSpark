@@ -92,6 +92,9 @@ export async function generateImageForPost(postText: string, isPremium: boolean 
 // ... (restul fișierului rămâne la fel, modificăm doar funcția de text)
 
 // --- 3. TEXT (Prin Backend - Generare Postări) ---
+// ... (celelalte importuri)
+
+// --- 3. TEXT (Prin Backend - Generare Postări) ---
 export async function generateSocialMediaPosts(
   topic: string, 
   tone: Tone, 
@@ -102,46 +105,63 @@ export async function generateSocialMediaPosts(
   imageBase64?: string, 
   imageMimeType?: string,
   objective: PostObjective = 'engagement',
-  useRealTime: boolean = false // <--- Parametru NOU
+  useRealTime: boolean = false
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
+    // 1. CONSTRUIREA "MEMORIEI" DE BRAND (Context Complet)
     let contextString = '';
+    
     if (brandProfile) {
         contextString = `
-        BRAND VOICE DNA: ${brandProfile.voiceDNA}
-        TARGET AUDIENCE: ${brandProfile.description}
-        FIXED HASHTAGS: ${brandProfile.fixedHashtags || ''}
+        === BRAND IDENTITY PROFILE ===
+        You are writing for a specific brand. You must strictly adhere to the following identity:
+        
+        1. NICHE / INDUSTRY: ${brandProfile.industry}
+        
+        2. TARGET AUDIENCE: ${brandProfile.description}
+        
+        3. VOICE DNA (Tone & Personality): ${brandProfile.voiceDNA}
+        
+        4. MANDATORY HASHTAGS: ${brandProfile.fixedHashtags || 'None'} (Append these to the end of the post).
+        
+        ${brandProfile.examplePosts ? `5. STYLE REFERENCE (Mimic the sentence structure and formatting of these examples):
+        """
+        ${brandProfile.examplePosts.substring(0, 1500)}
+        """` : ''}
+        ==============================
         `;
     } else if (brandVoice) {
         contextString = `BRAND VOICE: ${brandVoice}`;
     }
 
-    // Instrucțiuni obiective (scurtat pt claritate, poți păstra versiunea lungă dinainte)
-    const objectiveInstructions: Record<string, string> = {
-        engagement: "Goal: Questions & Debate.",
-        sales: "Goal: Conversion (AIDA).",
-        education: "Goal: Value & Tips.",
-        viral: "Goal: Shock & Shareability.",
-        traffic: "Goal: Clicks to Bio."
+    // ... (restul rămâne la fel) ...
+
+    const objectivesMap: Record<string, string> = {
+        engagement: "Goal: Ask questions, spark debate, get comments.",
+        sales: "Goal: Conversion (AIDA framework). Focus on pain points and solution.",
+        education: "Goal: Teach/Value. Use bullet points and clear steps.",
+        viral: "Goal: Maximum Reach. Short, punchy, shocking or relatable.",
+        traffic: "Goal: Clicks. Create a curiosity gap pointing to the link in bio."
     };
 
     let prompt = `
-    ROLE: Social Media Expert.
-    GOAL: ${objectiveInstructions[objective] || "Engagement"}
+    ROLE: Expert Social Media Manager.
+    GOAL: ${objectivesMap[objective] || "Engagement"}
     TASK: Write ${postCount} post(s) about: "${topic}".
     TONE: ${tone}.
+    
     FORMAT: Return ONLY a raw JSON Array: [{"content": "..."}]
     `;
 
     try {
         const data = await safeFetch('/api/generate-text', { 
             prompt, 
-            brandContext: contextString, 
+            brandContext: contextString, // Trimitem Super-Contextul
             language: brandProfile?.language || language || 'English',
             imageBase64, 
             imageMimeType,
             objective,
-            useRealTime // <--- TRIMITEM LA BACKEND
+            useRealTime
         });
 
         const parsed = extractJsonArray(data.output);
