@@ -56,24 +56,25 @@ export default async function handler(req, res) {
     console.log(`Generating [${tier}]. RealTime: ${useRealTime}. Model: ${model}. Cost: ${COST}`);
 
     // 5. CONSTRUIRE PROMPT
+// ...
+    // 5. CONSTRUIRE PROMPT
     const targetLanguage = language || 'English';
     
     let systemPrompt = `You are an expert Social Media Manager. 
     CRITICAL INSTRUCTION: Write strictly in ${targetLanguage}.`;
 
-    if (useRealTime) {
-        systemPrompt += ` You have access to real-time internet data. Use specific numbers, prices, dates, and recent events from TODAY. Cite sources if relevant.`;
-    } else {
-        if (model === 'gpt-4o') {
-             systemPrompt += ` Use sophisticated vocabulary, varied sentence structures, and high emotional intelligence. Avoid generic AI phrases. Be specific, actionable, and human-sounding.`;
-        } else {
-             systemPrompt += ` Generate engaging content. Keep it simple and effective.`;
-        }
-    }
+    // ... (partea cu RealTime / Quality) ...
 
-    if (brandContext) systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
+    // AICI ESTE MODIFICAREA CHEIE:
+    if (brandContext) {
+      // Îi spunem explicit să ignore stilul default dacă are un profil de brand
+      systemPrompt += `\n\nIMPORTANT: Ignore generic writing styles. You MUST adopt the specific Brand Identity provided below:\n${brandContext}`;
+    }
+    
     if (objective) systemPrompt += `\nGOAL: ${objective.toUpperCase()}.`;
     if (platform) systemPrompt += `\nOptimize format for: ${platform}.`;
+    
+    // ...
 
     // 6. APELARE API
     const completion = await client.chat.completions.create({
