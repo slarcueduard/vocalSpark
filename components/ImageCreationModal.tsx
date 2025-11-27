@@ -1,19 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { 
-  X, 
-  Sparkles, 
-  Zap, 
-  Crown, 
-  Download, 
-  AlertCircle, 
-  ArrowLeft, 
-  Upload, 
-  Image as ImageIcon, 
-  Palette,
-  Trash,
-  SlidersHorizontal
+  X, Sparkles, Zap, Crown, Download, AlertCircle, ArrowLeft, Upload, 
+  Image as ImageIcon, Palette, Trash, SlidersHorizontal, ShieldCheck 
 } from 'lucide-react';
-import { generateImageForPost } from '../services/geminiService';
+import { generateImageForPost, overlayLogoOnImage } from '../services/geminiService'; // Importăm funcția de overlay
 import { useAuth } from '../contexts/AuthContext';
 
 interface ImageCreationModalProps {
@@ -22,7 +12,7 @@ interface ImageCreationModalProps {
   initialPrompt?: string;
 }
 
-// --- 1. FILTRE GENERARE AI ---
+// ... (Păstrează constantele AI_STYLES și PHOTO_FILTERS așa cum erau) ...
 const AI_STYLES = [
   { 
     id: 'none', 
@@ -45,7 +35,6 @@ const AI_STYLES = [
   { id: 'corporate', label: 'Corporate', description: 'Office, Professional', promptSuffix: ', corporate modern office environment, professional atmosphere, linkedin style', isExclusive: false }
 ];
 
-// --- 2. FILTRE FOTO UPLOAD ---
 const PHOTO_FILTERS = [
   { id: 'normal', label: 'Original', filter: 'none' },
   { id: 'studio', label: 'Studio Crisp', filter: 'contrast(1.1) brightness(1.05) saturate(1.1)' },
@@ -56,24 +45,24 @@ const PHOTO_FILTERS = [
   { id: 'soft', label: 'Soft Matte', filter: 'contrast(0.9) brightness(1.1) saturate(0.8)' },
 ];
 
+
 export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
-  const { checkCredits, credits } = useAuth();
+  const { checkCredits, credits, brandProfile } = useAuth(); // Luăm brandProfile
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate');
   
-  // State Generate
+  // State
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
-  
-  // Default 'none' pentru Natural
-  const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none'); 
-  
+  const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none');
   const [isGenerating, setIsGenerating] = useState(false);
   
-  // State Upload & Edit
+  // Feature: Apply Logo
+  const [applyLogo, setApplyLogo] = useState(false); // Default off
+
+  // Upload & Edit
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedPhotoFilter, setSelectedPhotoFilter] = useState<string>('normal');
   
-  // State Result
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,7 +72,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const currentCost = modelType === 'standard' ? COST_STANDARD : COST_PREMIUM;
   const canAfford = checkCredits(currentCost);
 
-  // --- LOGICA: Generare AI ---
+  // --- GENERARE AI ---
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     if (!canAfford) { setError(`Not enough credits.`); return; }
@@ -95,7 +84,19 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     try {
       const styleObj = AI_STYLES.find(s => s.id === selectedAiStyle);
       const finalPrompt = styleObj ? `${prompt}${styleObj.promptSuffix}` : prompt;
-      const imageUrl = await generateImageForPost(finalPrompt, modelType === 'premium');
+      
+      // 1. Generăm imaginea brută
+      let imageUrl = await generateImageForPost(finalPrompt, modelType === 'premium');
+
+      // 2. Aplicăm Logo dacă e bifat
+      if (applyLogo && brandProfile?.logoUrl) {
+          try {
+            imageUrl = await overlayLogoOnImage(imageUrl, brandProfile.logoUrl);
+          } catch (e) {
+            console.error("Logo overlay failed, using raw image", e);
+          }
+      }
+
       setResultImage(imageUrl);
     } catch (err: any) {
       setError(err.message || "Failed to generate image.");
@@ -104,7 +105,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     }
   };
 
-  // --- LOGICA: Upload ---
+  // --- UPLOAD ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -119,16 +120,10 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     reader.readAsDataURL(file);
   };
 
-  // --- LOGICA: Aplicare Filtru Permanent ---
+  // --- SALVARE FINALĂ (Cu Filtre + Logo pt Upload) ---
   const applyFilterAndUse = async () => {
+    // Cazul A: Imagine Uploadată (trebuie aplicat filtrul CSS + Logo manual)
     if (activeTab === 'upload' && uploadedImage) {
-        const filterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
-        if (filterStyle === 'none') {
-            onSelectImage(uploadedImage);
-            onClose();
-            return;
-        }
-
         const img = new Image();
         img.src = uploadedImage;
         img.crossOrigin = "anonymous";
@@ -138,14 +133,37 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         canvas.width = img.width;
         canvas.height = img.height;
         const ctx = canvas.getContext('2d');
+        
         if (ctx) {
+            // 1. Aplicăm Filtrul
+            const filterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
             ctx.filter = filterStyle;
             ctx.drawImage(img, 0, 0, img.width, img.height);
-            const filteredUrl = canvas.toDataURL('image/png');
-            onSelectImage(filteredUrl);
+            
+            // 2. Aplicăm Logo (dacă e bifat)
+            if (applyLogo && brandProfile?.logoUrl) {
+                const logoImg = new Image();
+                logoImg.src = brandProfile.logoUrl;
+                logoImg.crossOrigin = "anonymous";
+                await new Promise((r) => { logoImg.onload = r; });
+                
+                // Logică desenare logo
+                ctx.filter = 'none'; // Resetăm filtrul pt logo
+                const logoW = canvas.width * 0.15;
+                const scale = logoW / logoImg.width;
+                const logoH = logoImg.height * scale;
+                const pad = canvas.width * 0.05;
+                ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 10;
+                ctx.drawImage(logoImg, canvas.width - logoW - pad, canvas.height - logoH - pad, logoW, logoH);
+            }
+
+            const finalUrl = canvas.toDataURL('image/png');
+            onSelectImage(finalUrl);
             onClose();
         }
-    } else if (resultImage) {
+    } 
+    // Cazul B: Imagine AI (Logo e deja aplicat la generare dacă a fost bifat)
+    else if (resultImage) {
         onSelectImage(resultImage);
         onClose();
     }
@@ -179,6 +197,25 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                   <Upload size={14} /> Upload
               </button>
           </div>
+
+          {/* --- TOGGLE PENTRU LOGO (NOU) --- */}
+          {brandProfile?.logoUrl && (
+              <div className="mb-6 bg-gray-800/50 border border-gray-700 p-3 rounded-xl flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-white rounded-md p-1 flex items-center justify-center overflow-hidden">
+                          <img src={brandProfile.logoUrl} alt="Brand Logo" className="w-full h-full object-contain" />
+                      </div>
+                      <div>
+                          <p className="text-xs font-bold text-white">Apply Brand Logo</p>
+                          <p className="text-[10px] text-gray-400">Watermark bottom-right</p>
+                      </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={applyLogo} onChange={e => setApplyLogo(e.target.checked)} className="sr-only peer" />
+                      <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
+                  </label>
+              </div>
+          )}
 
           {activeTab === 'generate' && (
             <>
@@ -275,7 +312,26 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             {previewImageSrc ? (
                 <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
                     <button onClick={() => { if (activeTab === 'generate') setResultImage(null); else setUploadedImage(null); }} className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10" title="Delete Image"><Trash size={16} /></button>
-                    <img key={previewImageSrc} src={previewImageSrc} alt="Preview" style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }} className="max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black transition-all duration-300" onError={(e) => { e.currentTarget.style.display = 'none'; alert("Image failed to load from provider."); }} />
+                    
+                    {/* Imagine cu Filtru CSS + Logo Overlay vizual (dacă e selectat doar vizual aici) */}
+                    <div className="relative max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 overflow-hidden">
+                        <img 
+                            key={previewImageSrc} 
+                            src={previewImageSrc} 
+                            alt="Preview" 
+                            style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }}
+                            className="w-full h-full object-contain bg-black" 
+                        />
+                        {/* Arătăm logo-ul și pe preview dacă e bifat */}
+                        {applyLogo && brandProfile?.logoUrl && (
+                            <img 
+                                src={brandProfile.logoUrl} 
+                                alt="Logo" 
+                                className="absolute bottom-4 right-4 w-[15%] object-contain drop-shadow-lg opacity-90 pointer-events-none"
+                            />
+                        )}
+                    </div>
+
                     <div className="flex gap-3 w-full max-w-xs">
                         <button onClick={applyFilterAndUse} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg">Use Image</button>
                         <a href={previewImageSrc} download="image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700"><Download size={20}/></a>
