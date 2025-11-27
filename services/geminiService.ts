@@ -177,3 +177,58 @@ export async function analyzeBrandVoice(sampleText: string): Promise<string> {
         return data.output;
     } catch(e) { return ""; }
 }
+
+// ... (celelalte importuri și funcții rămân la fel)
+
+// --- HELPER: LOGO OVERLAY (Adaugă Logo pe Imagine) ---
+export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const mainImg = new Image();
+        const logoImg = new Image();
+        
+        // Setări CORS pentru a evita erorile de securitate la imagini externe
+        mainImg.crossOrigin = "Anonymous"; 
+        logoImg.crossOrigin = "Anonymous";
+        
+        mainImg.onload = () => {
+          // Setăm dimensiunea canvas-ului la fel ca imaginea generată
+          canvas.width = mainImg.width; 
+          canvas.height = mainImg.height;
+          
+          // 1. Desenăm imaginea principală
+          ctx?.drawImage(mainImg, 0, 0);
+          
+          logoImg.onload = () => {
+            if (ctx) {
+              // 2. Calculăm dimensiunea logo-ului (ex: 15% din lățimea imaginii)
+              const logoWidth = canvas.width * 0.15;
+              const scaleFactor = logoWidth / logoImg.width;
+              const logoHeight = logoImg.height * scaleFactor;
+              
+              // 3. Poziționare (Colțul Dreapta-Jos cu margine)
+              const padding = canvas.width * 0.05;
+              const x = canvas.width - logoWidth - padding;
+              const y = canvas.height - logoHeight - padding;
+              
+              // 4. Adăugăm o mică umbră pentru vizibilitate
+              ctx.shadowColor = "rgba(0,0,0,0.5)"; 
+              ctx.shadowBlur = 10;
+              
+              // 5. Desenăm logo-ul
+              ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
+              
+              // 6. Returnăm noua imagine ca Base64
+              resolve(canvas.toDataURL('image/png'));
+            }
+          };
+          logoImg.src = logoUrl;
+        };
+        
+        mainImg.onerror = (e) => reject(e);
+        logoImg.onerror = (e) => reject(e);
+        
+        mainImg.src = mainImageUrl;
+    });
+}
