@@ -24,7 +24,11 @@ export default async function handler(req, res) {
     // Real-Time (Perplexity) = 10 Credite
     // Text Standard = 1 Credit
     const COST = useRealTime ? 10 : 1;
-
+// ...
+    if (useRealTime) {
+        systemPrompt += ` You have access to real-time internet data. Use specific numbers, prices, dates, and recent events from TODAY. Cite sources if relevant. CRITICAL: Output ONLY valid JSON. No introduction text.`;
+    }
+    // ...
     // 2. Verificăm Userul
     const { userRef, userData } = await verifyUserAndCredits(req, COST);
     const tier = userData.subscriptionTier || 'trial';
