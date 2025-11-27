@@ -4,7 +4,7 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 // Client OpenAI Standard
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Client Perplexity (Folosește SDK-ul OpenAI dar cu alt URL)
+// Client Perplexity
 const perplexity = new OpenAI({
   apiKey: process.env.PERPLEXITY_API_KEY,
   baseURL: 'https://api.perplexity.ai'
@@ -21,35 +21,26 @@ export default async function handler(req, res) {
     const { prompt, brandContext, language, platform, objective, useRealTime } = req.body;
 
     // 1. CALCULĂM COSTUL
-    // Real-Time (Perplexity) = 10 Credite
-    // Text Standard = 1 Credit
     const COST = useRealTime ? 10 : 1;
-// ...
-    if (useRealTime) {
-        systemPrompt += ` You have access to real-time internet data. Use specific numbers, prices, dates, and recent events from TODAY. Cite sources if relevant. CRITICAL: Output ONLY valid JSON. No introduction text.`;
-    }
-    // ...
+
     // 2. Verificăm Userul
     const { userRef, userData } = await verifyUserAndCredits(req, COST);
     const tier = userData.subscriptionTier || 'trial';
 
-    // 3. PROTECȚIE: Doar PRO și AGENCY au acces la Real-Time
-    if (useRealTime && (tier === 'creator' || tier === 'trial')) {
+    // 3. PROTECȚIE
+    if (useRealTime && (tier === 'creator')) {
         return res.status(403).json({ error: "Real-Time Search is a PRO feature. Please upgrade." });
     }
 
     // 4. SELECTĂM CLIENTUL ȘI MODELUL
     let client = openai;
-    let model = "gpt-4o-mini"; // Default budget model
+    let model = "gpt-4o-mini"; 
     
     if (useRealTime) {
-        // PERPLEXITY (LIVE DATA)
         client = perplexity;
-        model = "sonar-reasoning-pro"; // Cel mai bun model live
+        model = "sonar-reasoning-pro";
     } else {
-        // OPENAI (CREATIVE)
-        // Trial, Pro, Agency -> GPT-4o (Best Quality)
-        // Creator -> GPT-4o-mini (Budget)
+        // Logică Model OpenAI
         if (tier === 'trial' || tier === 'pro' || tier === 'agency') {
             model = "gpt-4o";
         } else {
@@ -57,28 +48,31 @@ export default async function handler(req, res) {
         }
     }
 
-    console.log(`Generating [${tier}]. RealTime: ${useRealTime}. Model: ${model}. Cost: ${COST}`);
+    console.log(`Generating for [${tier}]. RealTime: ${useRealTime}. Model: ${model}. Cost: ${COST}`);
 
-    // 5. CONSTRUIRE PROMPT
-// ...
-    // 5. CONSTRUIRE PROMPT
+    // 5. CONSTRUIRE PROMPT (Aici era eroarea - ordinea contează!)
     const targetLanguage = language || 'English';
     
+    // Inițializăm variabila aici
     let systemPrompt = `You are an expert Social Media Manager. 
-    CRITICAL INSTRUCTION: Write strictly in ${targetLanguage}.`;
+    CRITICAL INSTRUCTION: You MUST write the content STRICTLY in ${targetLanguage}. 
+    Do NOT use English unless it is a specific technical term.`;
 
-    // ... (partea cu RealTime / Quality) ...
-
-    // AICI ESTE MODIFICAREA CHEIE:
-    if (brandContext) {
-      // Îi spunem explicit să ignore stilul default dacă are un profil de brand
-      systemPrompt += `\n\nIMPORTANT: Ignore generic writing styles. You MUST adopt the specific Brand Identity provided below:\n${brandContext}`;
+    // Adăugăm instrucțiuni în funcție de context
+    if (useRealTime) {
+        systemPrompt += ` You have access to real-time internet data. Use specific numbers, prices, dates, and recent events from TODAY. Cite sources if relevant.`;
+    } else {
+        if (model === 'gpt-4o') {
+             systemPrompt += ` Use sophisticated vocabulary, varied sentence structures, and high emotional intelligence. Avoid generic AI phrases like "Unlock your potential". Be specific, actionable, and human-sounding.`;
+        } else {
+             systemPrompt += ` Generate engaging content. Keep it simple and effective.`;
+        }
     }
-    
+
+    // Adăugăm contextul de brand
+    if (brandContext) systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
     if (objective) systemPrompt += `\nGOAL: ${objective.toUpperCase()}.`;
     if (platform) systemPrompt += `\nOptimize format for: ${platform}.`;
-    
-    // ...
 
     // 6. APELARE API
     const completion = await client.chat.completions.create({
@@ -95,7 +89,11 @@ export default async function handler(req, res) {
     // 7. SCĂDERE CREDITE
     await deductCredits(userRef, COST);
 
-    return res.status(200).json({ output });
+    // Returnăm și modelul folosit ca să știm (pt debug)
+    return res.status(200).json({ 
+        output, 
+        meta: { modelUsed: model }
+    });
 
   } catch (error) {
     console.error("Generation Error:", error);
