@@ -255,4 +255,84 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
 
-                            <section className="space-y-3"
+                            <section className="space-y-3">
+                                <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                    <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span>
+                                    What is your Goal?
+                                </label>
+                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                                    {OBJECTIVES.map((obj) => {
+                                        const Icon = obj.icon;
+                                        const isActive = objective === obj.id;
+                                        return (
+                                            <button key={obj.id} onClick={() => setObjective(obj.id)} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 h-24 ${isActive ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-[#161b22] border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800'}`}>
+                                                <Icon size={20} className={`mb-2 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} />
+                                                <span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">{obj.label}</span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </section>
+
+                            <section className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
+                                    <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition">
+                                        {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label>
+                                    <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition">
+                                        {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                    </select>
+                                </div>
+                            </section>
+                            
+                            <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
+                                {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
+                                {isLoading ? 'Creating Magic...' : 'Craft my Post'}
+                            </button>
+
+                            {error && <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2"><BriefcaseIcon size={16} /> {error}</div>}
+
+                            <div ref={resultsRef} className="scroll-mt-24">
+                                {posts.length > 0 && (
+                                    <div className="space-y-6 mt-10 pt-10 border-t border-gray-800 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-bold text-xl text-white">Generated Results</h3>
+                                            <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{posts.length} variations</span>
+                                        </div>
+                                        {posts.map(post => (
+                                            <PostCard key={post.id} post={post} isRefining={refiningPostId === post.id} onGenerateImage={(id, content) => openImageModalForPost(id, content)} onAdaptPost={handleAdaptPost} onRefinePost={handleRefinePost} onDelete={handleDeletePost} onToggleLock={handleToggleLock} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="hidden xl:block w-[400px] shrink-0">
+                    <div className="sticky top-6">
+                        <PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} />
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {isImageModalOpen && <ImageCreationModal onClose={() => setIsImageModalOpen(false)} onSelectImage={handleImageSelected} initialPrompt={currentPromptForImage} />}
+        {isBrandProfileModalOpen && <BrandProfileModal currentProfile={brandProfile} onSave={saveBrandProfile} onClose={() => setIsBrandProfileModalOpen(false)} />}
+    </MainLayout>
+  );
+};
+
+const AppContent: React.FC = () => {
+    const { user, loading, signIn } = useAuth();
+    if (loading) return <div className="min-h-screen bg-[#0f1115] flex items-center justify-center"><div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
+    if (user) return <SocialSparkApp />;
+    return <LandingPage onLogin={signIn} />;
+};
+
+const App: React.FC = () => (<AuthProvider><AppContent /></AuthProvider>);
+export default App;
