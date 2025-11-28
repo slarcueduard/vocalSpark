@@ -125,18 +125,32 @@ const SocialSparkApp: React.FC = () => {
           }
       }
 
+// ... (în interiorul handleGenerate) ...
+
+      // Generăm postările
       const generatedPosts = await generateSocialMediaPosts(
-          topic, 
-          tone, 
-          1, 
-          brandProfile?.language || 'English',
-          brandProfile?.voiceDNA || '',
-          brandProfile || undefined, 
-          imgData, 
-          imgMime,
-          objective,
-          useRealTime
+          // ... (parametrii existenți)
       );
+      
+      const newPosts: Post[] = generatedPosts.map(p => ({ 
+          // ... (maparea existentă)
+      }));
+
+      setPosts(prev => [...newPosts, ...prev].slice(0, 6));
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      
+      // --- AUTO-SAVE ---
+      // Dacă e user logat, salvăm.
+      if (user) {
+          newPosts.forEach(post => {
+              // Salvăm postarea în istoric
+              savePostToHistory(user.uid, post, topic);
+          });
+      }
+      
+      showVibe();
+
+// ...
       
       const newPosts: Post[] = generatedPosts.map(p => ({ 
           ...p, 
