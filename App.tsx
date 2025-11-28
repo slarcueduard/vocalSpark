@@ -147,10 +147,22 @@ const SocialSparkApp: React.FC = () => {
           isLocked: false 
       }));
 
+    // ... (după ce setPosts a fost apelat) ...
+
       setPosts(prev => [...newPosts, ...prev].slice(0, 6));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+
+      // --- AUTO-SAVE TO VAULT (Verifică să ai liniile astea) ---
+      if (user) {
+          newPosts.forEach(post => {
+              // Aici se apelează salvarea automată
+              savePostToHistory(user.uid, post, topic);
+          });
+      }
       
       showVibe();
+
+// ...
 
     } catch (err) { setError('Failed to generate content.'); } 
     finally { setIsLoading(false); }
