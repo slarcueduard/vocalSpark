@@ -98,20 +98,40 @@ export async function autoGenerateBrandProfile(rawContent: string): Promise<Bran
 }
 
 // --- 2. IMAGINI ---
-// --- 2. IMAGINI ---
-export async function generateImageForPost(postText: string, isPremium: boolean = false): Promise<string> {
-    try {
-        // Scurtăm promptul dacă e prea lung, ca să nu confuze modelele
-        const imagePrompt = postText.length > 300 ? `Editorial photo: ${postText.substring(0, 300)}` : postText;
+// ... 
 
-        // Backend-ul se ocupă acum de tot (DALL-E sau Flux) și returnează Base64
+// --- 2. IMAGINI ---
+// Am adăugat parametrii noi: topic și brandColors
+export async function generateImageForPost(
+    postText: string, 
+    isPremium: boolean = false, 
+    topicContext: string = '', 
+    brandColors: string[] = []
+): Promise<string> {
+    try {
         const data = await safeFetch('/api/generate-image', { 
-            prompt: imagePrompt,
-            isPremium: isPremium 
+            prompt: postText,
+            isPremium: isPremium,
+            topic: topicContext,     // <--- Trimitem Topicul
+            brandColors: brandColors // <--- Trimitem Culorile
         });
         
-        return data.imageUrl; // Este un string "data:image/png;base64,..." care merge direct
+        const imageUrl = data.imageUrl;
 
+        // Logică Proxy pt Premium (dacă backend-ul nu a returnat deja base64)
+        if (isPremium && imageUrl.startsWith('http')) {
+            try {
+                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
+                if (!proxyRes.ok) return imageUrl;
+                const blob = await proxyRes.blob();
+                return new Promise(r => {
+                    const reader = new FileReader();
+                    reader.onload = () => r(reader.result as string);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (err) { return imageUrl; }
+        }
+        return imageUrl;
     } catch (e) {
         console.error("Image Gen Failed:", e);
         throw e; 
