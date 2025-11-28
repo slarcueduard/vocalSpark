@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { savePostToHistory } from './services/postService'; // Import serviciu salvare
+import { savePostToHistory, updatePostInHistory } from './services/postService'; // Importuri actualizate
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
@@ -22,25 +22,19 @@ const SocialSparkApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Navigare View (Create vs History)
   const [currentView, setCurrentView] = useState<'create' | 'history'>('create');
-
-  // Feature Flags & State
   const [useRealTime, setUseRealTime] = useState(false);
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
 
-  // Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // Form State
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -48,7 +42,6 @@ const SocialSparkApp: React.FC = () => {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   
-  // Helper Vibe
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
@@ -56,7 +49,6 @@ const SocialSparkApp: React.FC = () => {
 
   // Auto-Sugestie
   useEffect(() => {
-    // Rulează doar dacă avem profil, topic gol și nu există postări generate încă
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0) {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
@@ -67,7 +59,6 @@ const SocialSparkApp: React.FC = () => {
         } else {
             templates = [`3 tips for ${niche}`, `How to start in ${niche}`, `Secrets of ${niche}`];
         }
-
         const randomIdea = templates[Math.floor(Math.random() * templates.length)];
         setTopic(randomIdea);
     }
@@ -85,7 +76,6 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
-  // --- IMAGE MODAL LOGIC ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -100,8 +90,12 @@ const SocialSparkApp: React.FC = () => {
 
   const handleImageSelected = (url: string) => {
       if (activePostIdForImage) {
+          // 1. Update Local
           setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
-          // Aici am putea face update și în istoric, dar lăsăm simplu pt MVP
+          
+          // 2. Update în Vault (Auto-Save la modificare)
+          // Deoarece ID-ul postării locale este acum ID-ul real din Firebase (vezi handleGenerate)
+          updatePostInHistory(activePostIdForImage, { imageUrl: url });
       } else {
           setAttachedImage(url);
       }
@@ -109,7 +103,6 @@ const SocialSparkApp: React.FC = () => {
       setActivePostIdForImage(null);
   };
 
-  // --- GENERATE TEXT ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
     
@@ -135,48 +128,75 @@ const SocialSparkApp: React.FC = () => {
       }
 
       const generatedPosts = await generateSocialMediaPosts(
-          topic, 
-          tone, 
-          1, 
+          topic, tone, 1, 
           brandProfile?.language || 'English',
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
-          imgData, 
-          imgMime,
-          objective,
-          useRealTime
+          imgData, imgMime, objective, useRealTime
       );
       
-      const newPosts: Post[] = generatedPosts.map(p => ({ 
-          ...p, 
-          id: crypto.randomUUID(), 
-          adaptedContent: {}, 
-          imageUrl: attachedImage || null, 
-          isGeneratingImage: false, 
-          isLocked: false 
-      }));
+      // --- AUTO-SAVE LOGIC (SYNC REAL) ---
+      // Generăm postările și le salvăm imediat în DB, apoi le punem în state cu ID-ul real din DB
+      // Asta permite ca update-urile ulterioare să funcționeze
+      
+      const savedPostsPromises = generatedPosts.map(async (p) => {
+          const tempPost: Post = { 
+            ...p, 
+            id: 'temp', // Temporar
+            adaptedContent: {}, 
+            imageUrl: attachedImage || null, 
+            isGeneratingImage: false, 
+            isLocked: false 
+          };
+          
+          if (user) {
+              // Salvăm și primim ID-ul real
+              const realId = await savePostToHistory(user.uid, tempPost, topic);
+              return { ...tempPost, id: realId || crypto.randomUUID() }; // Folosim ID real
+          } else {
+              return { ...tempPost, id: crypto.randomUUID() }; // Fallback guest
+          }
+      });
 
-      setPosts(prev => [...newPosts, ...prev].slice(0, 6));
+      const finalPosts = await Promise.all(savedPostsPromises);
+
+      setPosts(prev => [...finalPosts, ...prev].slice(0, 6));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       
-      // --- AUTO-SAVE ---
-      if (user) {
-          newPosts.forEach(post => {
-              savePostToHistory(user.uid, post, topic);
-          });
-      }
-
       showVibe();
 
     } catch (err) { setError('Failed to generate content.'); } 
     finally { setIsLoading(false); }
   };
 
-  // Helpers
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-  const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); };
-  const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); setRefiningPostId(null); };
+  
+  const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
+      if (!checkCredits(1)) return;
+      const adapted = await adaptPostForPlatform(content, platform);
+      
+      setPosts(prev => {
+          const newPosts = prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p);
+          // Sync with Vault
+          updatePostInHistory(id, { adaptedContent: { ...prev.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } });
+          return newPosts;
+      });
+  };
+  
+  const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
+      if (!checkCredits(1)) return;
+      setRefiningPostId(id);
+      const refined = await refinePostContent(content, type);
+      
+      setPosts(prev => {
+          const newPosts = prev.map(p => p.id === id ? { ...p, content: refined } : p);
+          // Sync with Vault
+          updatePostInHistory(id, { content: refined });
+          return newPosts;
+      });
+      setRefiningPostId(null);
+  };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -221,7 +241,6 @@ const SocialSparkApp: React.FC = () => {
                         </header>
                         
                         <div className="space-y-8">
-                            {/* SECTION 1: TOPIC */}
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
@@ -251,7 +270,6 @@ const SocialSparkApp: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* REAL TIME TOGGLE */}
                                 <div className="flex items-center justify-between mt-2 px-1">
                                     {isPremiumUser ? (
                                         <label className="flex items-center gap-2 cursor-pointer group">
@@ -332,7 +350,6 @@ const SocialSparkApp: React.FC = () => {
                     </div>
                 </div>
                 
-                {/* Right: Phone Preview */}
                 <div className="hidden xl:block w-[400px] shrink-0">
                     <div className="sticky top-6">
                         <PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} />
