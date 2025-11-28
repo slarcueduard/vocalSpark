@@ -7,7 +7,8 @@ import {
   X,
   Sparkles,
   Briefcase,
-  Building2 
+  Building2,
+  Archive // Iconița pentru Vault
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
@@ -15,12 +16,12 @@ import { PricingModal } from '../components/PricingModal';
 interface MainLayoutProps {
   children: React.ReactNode;
   onOpenBrandProfile: () => void;
+  currentView: 'create' | 'history'; // Prop nou pentru navigare
+  onViewChange: (view: 'create' | 'history') => void; // Funcția de schimbare
 }
 
-export function MainLayout({ children, onOpenBrandProfile }: MainLayoutProps) {
-  // --- FIX: O SINGURĂ DECLARAȚIE PENTRU TOT CE AVEM NEVOIE ---
+export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange }: MainLayoutProps) {
   const { userProfile, logout, credits, user, brandProfile } = useAuth(); 
-  
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false); 
 
@@ -67,13 +68,32 @@ export function MainLayout({ children, onOpenBrandProfile }: MainLayoutProps) {
             Workspace
           </div>
           
-          <NavItem icon={<LayoutDashboard size={20} />} label="Creator Studio" active />
+          {/* BUTON CREATOR STUDIO */}
+          <div onClick={() => onViewChange('create')}>
+            <NavItem 
+                icon={<LayoutDashboard size={20} />} 
+                label="Creator Studio" 
+                active={currentView === 'create'} 
+            />
+          </div>
+
+          {/* BUTON CONTENT VAULT (NOU) */}
+          <div onClick={() => onViewChange('history')}>
+            <NavItem 
+                icon={<Archive size={20} />} 
+                label="Content Vault" 
+                active={currentView === 'history'} 
+            />
+          </div>
           
-          {/* BRAND PROFILE BUTTON */}
+          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">
+            Strategy
+          </div>
+
+          {/* BUTON BRAND PROFILE */}
           <div onClick={onOpenBrandProfile} className="cursor-pointer">
             <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
             
-            {/* Mini Preview al Brandului */}
             {brandProfile && brandProfile.industry && (
                 <div className="ml-12 mt-1 p-2 bg-[#1c1c2e] rounded-lg border border-gray-800 text-[10px] text-gray-400 hover:border-gray-600 transition group">
                     <p><span className="text-blue-400 font-bold">Niche:</span> {brandProfile.industry}</p>
@@ -83,7 +103,7 @@ export function MainLayout({ children, onOpenBrandProfile }: MainLayoutProps) {
           </div>
         </nav>
 
-        {/* User Profile Bottom */}
+        {/* User Profile */}
         <div className="p-4 border-t border-gray-800">
           <div className="bg-[#0f1115] rounded-xl p-4 border border-gray-800">
             <div className="flex justify-between items-center mb-3">
@@ -113,13 +133,13 @@ export function MainLayout({ children, onOpenBrandProfile }: MainLayoutProps) {
         </div>
       </aside>
 
-      {/* --- MAIN AREA --- */}
+      {/* --- MAIN HEADER & CONTENT --- */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
         
         <header className="h-16 border-b border-gray-800 bg-[#0f1115]/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-30">
           <div className="flex items-center gap-3">
              <span className="px-2 py-1 rounded border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-mono">
-               v1.4 PRO
+               v1.5 PRO
              </span>
           </div>
 
