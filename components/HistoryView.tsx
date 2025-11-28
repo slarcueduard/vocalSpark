@@ -17,20 +17,26 @@ export function HistoryView() {
   }, [user]);
 
   const loadHistory = async () => {
+    if (!user) return;
     setLoading(true);
+    
     try {
-        const history = await fetchUserHistory(user!.uid);
+        const history = await fetchUserHistory(user.uid);
+        
+        // --- MAPARE DEFENSIVĂ (Aici reparăm datele corupte) ---
         const formattedPosts: Post[] = history.map((item: any) => ({
-            id: item.id,
-            content: item.content,
-            imageUrl: item.imageUrl,
-            adaptedContent: {}, 
+            id: item.id || Math.random().toString(), // Fallback ID
+            content: item.content || "", // Fallback Content
+            imageUrl: item.imageUrl || null,
+            // CRITIC: Asigurăm că adaptedContent este mereu obiect, nu undefined
+            adaptedContent: item.adaptedContent || {}, 
             isGeneratingImage: false,
-            isLocked: item.isLocked || false // Citim starea din DB
+            isLocked: !!item.isLocked // Convertim la boolean sigur
         }));
+
         setPosts(formattedPosts);
     } catch (e) {
-        console.error("Failed to load history");
+        console.error("Failed to load history:", e);
     } finally {
         setLoading(false);
     }
@@ -38,7 +44,7 @@ export function HistoryView() {
 
   // --- ACȚIUNI ---
   const handleDelete = async (id: string) => {
-      if (confirm("Delete this post permanently?")) {
+      if (window.confirm("Delete this post permanently?")) { // window.confirm e mai sigur
           await deletePostFromHistory(id);
           setPosts(prev => prev.filter(p => p.id !== id));
       }
@@ -47,32 +53,35 @@ export function HistoryView() {
   const handleToggleLock = async (id: string) => {
       const post = posts.find(p => p.id === id);
       if (post) {
+          const newStatus = !post.isLocked;
           // Update local optimistic
-          setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
+          setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: newStatus } : p));
           // Update DB
           await togglePostLock(id, post.isLocked || false);
       }
   };
 
   const handleUpdateContent = async (id: string, newContent: string) => {
-      // Update local
       setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
-      // Update DB
       await updatePostContent(id, newContent);
   };
 
   const filteredPosts = posts.filter(p => 
-      p.content.toLowerCase().includes(searchTerm.toLowerCase())
+      (p.content || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const lockedCount = posts.filter(p => p.isLocked).length;
 
-  if (loading) return <div className="flex justify-center h-64 items-center"><Loader /></div>;
+  if (loading) return (
+    <div className="flex items-center justify-center h-64 text-gray-500 gap-2">
+        <Loader /> Loading Vault...
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto pb-20 animate-in fade-in">
         
-        {/* HEADER CU EXPLICAȚII */}
+        {/* HEADER */}
         <div className="bg-[#161b22] p-6 rounded-2xl border border-gray-800 mb-8 shadow-lg">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                 <div>
@@ -83,7 +92,7 @@ export function HistoryView() {
                 {/* Stats */}
                 <div className="flex gap-3">
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700">
-                        <Database size={14}/> {posts.length} Total
+                        <Database size={14}/> {posts.length} / 10 Saved
                     </div>
                     <div className="flex items-center gap-2 text-xs font-bold text-yellow-500 bg-yellow-900/10 px-3 py-1.5 rounded-lg border border-yellow-700/30">
                         <ShieldCheck size={14}/> {lockedCount} Locked
@@ -95,7 +104,7 @@ export function HistoryView() {
             <div className="bg-blue-900/10 border border-blue-800/30 p-3 rounded-lg flex gap-3 items-start">
                 <Info className="text-blue-400 shrink-0 mt-0.5" size={16} />
                 <div className="text-xs text-gray-400">
-                    <p className="mb-1"><strong className="text-blue-300">How it works:</strong> Your generated posts are auto-saved here. The Vault holds the last <strong>{VAULT_LIMIT} recent posts</strong>.</p>
+                    <p className="mb-1"><strong className="text-blue-300">How it works:</strong> Your generated posts are auto-saved here. The Vault holds the last <strong>10 recent posts</strong>.</p>
                     <p>To prevent a post from being auto-deleted, click the <strong className="text-yellow-500">Lock Icon 🔒</strong>. Locked posts are safe forever.</p>
                 </div>
             </div>
@@ -121,15 +130,15 @@ export function HistoryView() {
                         key={post.id} 
                         post={post} 
                         isRefining={false}
-                        // Funcțiile de acțiune
+                        // În Vault, dezactivăm generarea de imagini noi pentru a simplifica,
+                        // dar păstrăm funcțiile de editare și blocare
                         onGenerateImage={() => {}} 
                         onAdaptPost={() => {}} 
                         onRefinePost={() => {}} 
                         
-                        // Acestea sunt critice pentru Vault:
                         onDelete={handleDelete} 
                         onToggleLock={handleToggleLock} 
-                        onManualEdit={handleUpdateContent} // Funcție nouă pt editare
+                        onManualEdit={handleUpdateContent}
                     />
                 ))}
             </div>
