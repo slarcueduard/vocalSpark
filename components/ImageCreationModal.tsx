@@ -73,37 +73,29 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const canAfford = checkCredits(currentCost);
 
   // --- GENERARE AI ---
-  const handleGenerate = async () => {
-    if (!prompt.trim()) return;
-    if (!canAfford) { setError(`Not enough credits.`); return; }
+ const handleGenerate = async () => {
+    // ... (verificări)
 
     setIsGenerating(true);
-    setError(null);
-    setResultImage(null);
+    // ...
 
     try {
-      const styleObj = AI_STYLES.find(s => s.id === selectedAiStyle);
-      const finalPrompt = styleObj ? `${prompt}${styleObj.promptSuffix}` : prompt;
+      // ... (logică prompt)
       
-      // 1. Generăm imaginea brută
-      let imageUrl = await generateImageForPost(finalPrompt, modelType === 'premium');
-
-      // 2. Aplicăm Logo dacă e bifat
-      if (applyLogo && brandProfile?.logoUrl) {
-          try {
-            imageUrl = await overlayLogoOnImage(imageUrl, brandProfile.logoUrl);
-          } catch (e) {
-            console.error("Logo overlay failed, using raw image", e);
-          }
-      }
-
+      // AICI TRIMITEM TOPICUL (initialPrompt) ȘI CULORILE (din context/profil)
+      // Va trebui să iei brandProfile din useAuth
+      const { brandProfile } = useAuth(); 
+      
+      const imageUrl = await generateImageForPost(
+          finalPrompt, 
+          modelType === 'premium',
+          initialPrompt, // Trimitem Topic-ul ca context secundar
+          brandProfile?.brandColors || [] // Trimitem culorile
+      );
+      
       setResultImage(imageUrl);
-    } catch (err: any) {
-      setError(err.message || "Failed to generate image.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
+    } 
+    // ...
 
   // --- UPLOAD ---
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
