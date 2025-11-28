@@ -12,59 +12,63 @@ import {
 import { db } from './firebase';
 import { Post } from '../types';
 
-const VAULT_LIMIT = 10; // Limita de postări salvate
+const VAULT_LIMIT = 10;
 
-// Salvează un post nou (cu ștergere automată a celor vechi)
 export const savePostToHistory = async (userId: string, post: Post, topic: string) => {
+  if (!userId || !post.content) {
+      console.error("Invalid data for saving post");
+      return;
+  }
+
   try {
     const postsRef = collection(db, 'posts');
 
-    // 1. Verificăm câte postări are userul
+    // 1. Check Limit
     const q = query(
       postsRef,
       where('userId', '==', userId),
-      orderBy('createdAt', 'asc') // Cele mai vechi primele
+      orderBy('createdAt', 'asc')
     );
     
     const snapshot = await getDocs(q);
 
-    // 2. Dacă a atins limita, ștergem cele mai vechi până facem loc
     if (snapshot.size >= VAULT_LIMIT) {
-      // Calculăm câte trebuie șterse (ex: avem 10, limita e 10 => ștergem 1 ca să punem 1)
       const numToDelete = snapshot.size - VAULT_LIMIT + 1;
-      
       for (let i = 0; i < numToDelete; i++) {
-        const docToDelete = snapshot.docs[i];
-        await deleteDoc(docToDelete.ref);
-        console.log("Auto-deleted old post from Vault:", docToDelete.id);
+        await deleteDoc(snapshot.docs[i].ref);
       }
     }
 
-    // 3. Salvăm noul post
+    // 2. Detect Platform
+    let platformName = 'Generic';
+    const keys = Object.keys(post.adaptedContent || {});
+    if (keys.length > 0) platformName = keys[0];
+
+    // 3. Save
     await addDoc(postsRef, {
       userId,
       content: post.content,
       imageUrl: post.imageUrl || null,
-      platform: Object.keys(post.adaptedContent)[0] || 'Generic',
-      topic: topic,
+      platform: platformName,
+      topic: topic || 'Untitled',
       createdAt: serverTimestamp(),
       isLocked: false
     });
     
-    console.log("Post saved to Vault automatically.");
+    console.log("✅ Post saved to Vault.");
 
   } catch (e) {
-    console.error("Error saving post:", e);
+    console.error("❌ Error saving post:", e);
   }
 };
 
-// Aduce istoricul
 export const fetchUserHistory = async (userId: string): Promise<any[]> => {
+  if (!userId) return [];
   try {
     const q = query(
       collection(db, 'posts'),
       where('userId', '==', userId),
-      orderBy('createdAt', 'desc') // Cele mai noi primele
+      orderBy('createdAt', 'desc')
     );
     
     const querySnapshot = await getDocs(q);
@@ -78,7 +82,6 @@ export const fetchUserHistory = async (userId: string): Promise<any[]> => {
   }
 };
 
-// Șterge manual (butonul de Delete din Vault)
 export const deletePostFromHistory = async (postId: string) => {
   try {
     await deleteDoc(doc(db, 'posts', postId));
