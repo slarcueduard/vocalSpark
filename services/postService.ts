@@ -16,8 +16,19 @@ import { Post } from '../types';
 const VAULT_LIMIT = 20;
 
 // 1. SAVE (Debug Version)
-export const savePostToHistory = async (userId: string, post: Post, topic: string): Promise<string | null> => {
-  console.log("🛠️ [DEBUG] Starting savePostToHistory...");
+export const savePostToHistory = async (
+    userId: string, 
+    post: Post, 
+    topic: string, 
+    vaultLimit: number = 20 // <--- Parametru nou cu default 20
+): Promise<string | null> => {
+  // ...
+  // Înlocuiește VAULT_LIMIT cu vaultLimit în interiorul funcției
+  // ...
+        if (snapshot.size >= vaultLimit) {
+          const numToDelete = snapshot.size - vaultLimit + 1;
+  // ...
+};
   
   if (!userId || !post.content) {
       console.error("❌ [DEBUG] Missing userId or content. Abort.");
