@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { deletePostFromHistory, togglePostLock, updatePostContent } from '../services/postService';
 import { PostCard } from './PostCard';
 import { Loader } from './Loader';
-import { Archive, Search, Database, Ghost, ShieldCheck } from 'lucide-react';
+import { Archive, Search, Database, Ghost, Info, ShieldCheck } from 'lucide-react';
 import { Post } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -16,7 +16,6 @@ export function HistoryView() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // State pentru Imagine în Vault
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activePrompt, setActivePrompt] = useState('');
@@ -24,12 +23,7 @@ export function HistoryView() {
   useEffect(() => {
     if (!user) return;
 
-    // --- QUERY SIMPLIFICAT (FĂRĂ orderBy) ---
-    // Asta rezolvă problema cu "Vault Empty" dacă lipsește indexul
-    const q = query(
-      collection(db, 'posts'),
-      where('userId', '==', user.uid)
-    );
+    const q = query(collection(db, 'posts'), where('userId', '==', user.uid));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
         const formattedPosts: Post[] = snapshot.docs.map((doc) => {
@@ -41,14 +35,17 @@ export function HistoryView() {
                 adaptedContent: data.adaptedContent || {}, 
                 isGeneratingImage: false,
                 isLocked: !!data.isLocked,
-                // Salvăm și data intern pentru sortare
                 createdAt: data.createdAt 
             };
         });
         
-        // --- SORTARE MANUALĂ ÎN BROWSER ---
-        // Punem cele mai noi primele
+        // --- SORTARE INTELIGENTĂ: LOCKED PRIMELE, APOI DATA ---
         formattedPosts.sort((a: any, b: any) => {
+             // 1. Prioritate Locked
+             if (a.isLocked && !b.isLocked) return -1;
+             if (!a.isLocked && b.isLocked) return 1;
+
+             // 2. Prioritate Dată (Cele noi sus)
              const timeA = a.createdAt?.seconds || 0;
              const timeB = b.createdAt?.seconds || 0;
              return timeB - timeA;
@@ -64,38 +61,30 @@ export function HistoryView() {
     return () => unsubscribe();
   }, [user]);
 
+  // ... (Restul funcțiilor handleDelete, handleToggleLock etc. rămân neschimbate)
   const handleDelete = async (id: string) => {
-      if (window.confirm("Delete from Vault?")) {
-          await deletePostFromHistory(id);
-      }
+      if (window.confirm("Delete from Vault?")) await deletePostFromHistory(id);
   };
-
   const handleToggleLock = async (id: string) => {
       const post = posts.find(p => p.id === id);
       if (post) await togglePostLock(id, post.isLocked || false);
   };
-
   const handleUpdateContent = async (id: string, newContent: string) => {
       await updatePostContent(id, newContent);
   };
-
   const openImageModal = (id: string, content: string) => {
       setActivePostId(id);
       setActivePrompt(content);
       setIsImageModalOpen(true);
   };
-
   const handleImageSelected = (url: string) => {
-      if (activePostId) {
-          updatePostInHistory(activePostId, { imageUrl: url });
-      }
+      if (activePostId) updatePostInHistory(activePostId, { imageUrl: url });
       setIsImageModalOpen(false);
   };
 
   const filteredPosts = posts.filter(p => 
       (p.content || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
-
   const lockedCount = posts.filter(p => p.isLocked).length;
 
   if (loading) return <div className="flex justify-center h-64 items-center text-gray-500 gap-2"><Loader /> Loading Vault...</div>;
@@ -103,7 +92,6 @@ export function HistoryView() {
   return (
     <div className="max-w-5xl mx-auto pb-20 animate-in fade-in">
         
-        {/* Header */}
         <div className="bg-[#161b22] p-6 rounded-2xl border border-gray-800 mb-8 shadow-lg">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                 <div>
@@ -117,17 +105,12 @@ export function HistoryView() {
                         <Database size={14}/> {posts.length} / 20 Saved
                     </div>
                     <div className="flex items-center gap-2 text-xs font-bold text-yellow-500 bg-yellow-900/10 px-3 py-1.5 rounded-lg border border-yellow-700/30">
-                        <ShieldCheck size={14}/> {lockedCount} Locked
+                        <ShieldCheck size={14}/> {lockedCount} Pinned
                     </div>
                 </div>
             </div>
-            {/* DEBUG INFO: Ca să verificăm ID-ul dacă tot nu merge */}
-            <div className="text-[10px] text-gray-600 font-mono">
-                Connected ID: {user?.uid}
-            </div>
         </div>
 
-        {/* Search */}
         <div className="relative mb-6">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
             <input 
@@ -139,7 +122,6 @@ export function HistoryView() {
             />
         </div>
 
-        {/* Grid */}
         {filteredPosts.length > 0 ? (
             <div className="grid grid-cols-1 gap-8">
                 {filteredPosts.map(post => (
@@ -160,11 +142,9 @@ export function HistoryView() {
             <div className="text-center py-24 border-2 border-dashed border-gray-800 rounded-2xl bg-[#161b22]/30">
                 <Ghost className="text-gray-600 mx-auto mb-4" size={48} />
                 <h3 className="text-xl font-bold text-gray-300 mb-2">Vault is Empty</h3>
-                <p className="text-sm text-gray-500">Generated posts will appear here automatically.</p>
             </div>
         )}
 
-        {/* Modal Imagini */}
         {isImageModalOpen && (
             <ImageCreationModal 
                 onClose={() => setIsImageModalOpen(false)}
