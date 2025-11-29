@@ -5,7 +5,7 @@ import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe } from 'lucide-react'; 
+import { Lock, Globe } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -23,18 +23,26 @@ const SocialSparkApp: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [currentView, setCurrentView] = useState<'create' | 'history'>('create');
+  
+  // Feature Flags & Modes
   const [useRealTime, setUseRealTime] = useState(false);
+  const [isCampaignMode, setIsCampaignMode] = useState(false);
+  const [campaignCount, setCampaignCount] = useState(3);
+
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
 
+  // Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
+  // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // Form State
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -100,7 +108,10 @@ const SocialSparkApp: React.FC = () => {
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
     
-    const cost = useRealTime ? 10 : 1;
+    // Calculăm costul (Campanie = 1 credit * nr postări, sau 10 dacă e RealTime)
+    const count = isCampaignMode ? campaignCount : 1;
+    const cost = useRealTime ? 10 : (1 * count);
+
     if (!checkCredits(cost)) { 
         if (isTrialExpired) return; 
         alert(`Insufficient credits! This action requires ${cost} credits.`); 
@@ -122,49 +133,39 @@ const SocialSparkApp: React.FC = () => {
       }
 
       const generatedPosts = await generateSocialMediaPosts(
-          topic, tone, 1, 
+          topic, tone, count, // Trimitem numărul corect
           brandProfile?.language || 'English',
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
-          imgData, imgMime, objective, useRealTime
+          imgData, imgMime, objective, useRealTime,
+          isCampaignMode // Trimitem modul campanie
       );
       
-      // Pregătim obiectele post pentru UI și Salvare
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
-          id: crypto.randomUUID(), // ID temporar pt UI
+          id: crypto.randomUUID(), 
           adaptedContent: {}, 
           imageUrl: attachedImage || null, 
           isGeneratingImage: false, 
           isLocked: false 
       }));
 
-      // 1. Update UI Rapid (Optimistic)
       setPosts(prev => [...newPostsData, ...prev].slice(0, 6));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       
       showVibe();
 
-      // 2. Salvare în Vault (cu Debugging)
       if (user) {
-          console.log("💾 Starting Auto-Save process...");
-          // Folosim un loop asincron pentru a procesa salvarea
+          console.log("💾 Starting Auto-Save...");
           for (const postData of newPostsData) {
               try {
                   const savedId = await savePostToHistory(user.uid, postData, topic);
                   if (savedId) {
-                      console.log("✅ Saved to Vault! Firestore ID:", savedId);
-                      // Opțional: Actualizăm ID-ul local cu cel din DB pentru ca editarea ulterioară să meargă pe același doc
                       setPosts(currentPosts => 
                           currentPosts.map(p => p.id === postData.id ? { ...p, id: savedId } : p)
                       );
-                  } else {
-                      console.error("⚠️ Save returned null ID");
                   }
-              } catch (saveErr) {
-                  console.error("❌ Save Failed:", saveErr);
-                  // alert("Debug: Save to Vault failed. Check console."); // Decomentează doar pentru debug
-              }
+              } catch (saveErr) { console.error("Save Failed:", saveErr); }
           }
       }
 
@@ -178,30 +179,8 @@ const SocialSparkApp: React.FC = () => {
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-  
-  const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
-      if (!checkCredits(1)) return;
-      const adapted = await adaptPostForPlatform(content, platform);
-      
-      setPosts(prev => {
-          const newPosts = prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p);
-          updatePostInHistory(id, { adaptedContent: { ...prev.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } });
-          return newPosts;
-      });
-  };
-  
-  const handleRefinePost = async (id: string, type: RefinementType, content: string) => {
-      if (!checkCredits(1)) return;
-      setRefiningPostId(id);
-      const refined = await refinePostContent(content, type);
-      
-      setPosts(prev => {
-          const newPosts = prev.map(p => p.id === id ? { ...p, content: refined } : p);
-          updatePostInHistory(id, { content: refined });
-          return newPosts;
-      });
-      setRefiningPostId(null);
-  };
+  const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); };
+  const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); setRefiningPostId(null); };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -240,9 +219,32 @@ const SocialSparkApp: React.FC = () => {
             <div className="flex h-full gap-6 relative">
                 <div className="flex-1 min-w-0">
                     <div className="max-w-2xl mx-auto pb-20">
-                        <header className="mb-8">
-                            <h2 className="text-3xl font-bold text-white tracking-tight">Creator Studio</h2>
-                            <p className="text-gray-500 text-sm mt-1">Create content that converts.</p>
+                        
+                        {/* HEADER & MODE SWITCHER */}
+                        <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white tracking-tight">
+                                    {isCampaignMode ? 'Campaign Mode 🚀' : 'Single Post ✨'}
+                                </h2>
+                                <p className="text-gray-500 text-sm mt-1">
+                                    {isCampaignMode ? 'Generate a full content calendar in one click.' : 'Craft one perfect viral post.'}
+                                </p>
+                            </div>
+
+                            <div className="flex bg-[#161b22] p-1 rounded-xl border border-gray-700">
+                                <button 
+                                    onClick={() => setIsCampaignMode(false)}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${!isCampaignMode ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Single Post
+                                </button>
+                                <button 
+                                    onClick={() => setIsCampaignMode(true)}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Campaign
+                                </button>
+                            </div>
                         </header>
                         
                         <div className="space-y-8">
@@ -275,6 +277,32 @@ const SocialSparkApp: React.FC = () => {
                                     </div>
                                 </div>
 
+                                {/* CAMPAIGN SETTINGS (Doar în mod campanie) */}
+                                {isCampaignMode && (
+                                    <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2">
+                                                <BriefcaseIcon size={14} /> Campaign Length
+                                            </label>
+                                            <span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">
+                                                {campaignCount} Posts
+                                            </span>
+                                        </div>
+                                        <input 
+                                            type="range" 
+                                            min="3" 
+                                            max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} 
+                                            value={campaignCount}
+                                            onChange={(e) => setCampaignCount(parseInt(e.target.value))}
+                                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                        />
+                                        <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                                            <span>Min: 3</span>
+                                            <span>Max: {userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)}</span>
+                                        </div>
+                                    </section>
+                                )}
+
                                 <div className="flex items-center justify-between mt-2 px-1">
                                     {isPremiumUser ? (
                                         <label className="flex items-center gap-2 cursor-pointer group">
@@ -297,6 +325,7 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
 
+                            {/* SECTION 2: OBJECTIVE */}
                             <section className="space-y-3">
                                 <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                     <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span>
@@ -316,6 +345,7 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
 
+                            {/* SECTION 3: FINE TUNING */}
                             <section className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
@@ -333,7 +363,7 @@ const SocialSparkApp: React.FC = () => {
                             
                             <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                 {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
-                                {isLoading ? 'Creating Magic...' : 'Craft my Post'}
+                                {isLoading ? (isCampaignMode ? 'Generating Campaign...' : 'Creating Magic...') : (isCampaignMode ? 'Launch Campaign' : 'Craft my Post')}
                             </button>
 
                             {error && <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2"><BriefcaseIcon size={16} /> {error}</div>}
