@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { 
   X, Sparkles, Zap, Crown, Download, AlertCircle, ArrowLeft, Upload, 
-  Image as ImageIcon, Palette, Trash, SlidersHorizontal
+  Image as ImageIcon, Palette, Trash, SlidersHorizontal, Loader
 } from 'lucide-react';
 import { generateImageForPost } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -46,20 +46,16 @@ const PHOTO_FILTERS = [
   { id: 'soft', label: 'Soft Matte', filter: 'contrast(0.9) brightness(1.1) saturate(0.8)' },
 ];
 
-// ...
 export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
   const { checkCredits, credits, brandProfile } = useAuth();
-  
-  // MODIFICARE AICI: Default este 'upload' acum
-  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload'); 
-  
-  // ... restul codului
+  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload'); // Default Upload
   
   // State Generate
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
   const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false); // State nou pentru procesare Canvas
   
   // Feature: Apply Logo
   const [applyLogo, setApplyLogo] = useState(false);
@@ -88,21 +84,17 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     setResultImage(null);
 
     try {
-      // 1. Pregătim Promptul cu Stil
       const styleObj = AI_STYLES.find(s => s.id === selectedAiStyle);
       const finalPrompt = styleObj ? `${prompt}${styleObj.promptSuffix}` : prompt;
       
-      // 2. Apelăm Backend-ul
-      // Trimitem și contextul (topic + brandColors) pentru a respecta prioritățile setate în backend
       const imageUrl = await generateImageForPost(
           finalPrompt, 
           modelType === 'premium',
-          initialPrompt, // Topic Context (Medium Priority)
-          brandProfile?.brandColors || [] // Brand Colors (Low Priority)
+          initialPrompt, 
+          brandProfile?.brandColors || []
       );
 
       setResultImage(imageUrl);
-
     } catch (err: any) {
       setError(err.message || "Failed to generate image.");
     } finally {
@@ -114,82 +106,106 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { setError("File too large (Max 5MB)"); return; }
+    if (file.size > 10 * 1024 * 1024) { setError("File too large (Max 10MB)"); return; }
 
     const reader = new FileReader();
     reader.onloadend = () => {
         setUploadedImage(reader.result as string);
         setResultImage(null);
         setSelectedPhotoFilter('normal');
+        setError(null);
     };
     reader.readAsDataURL(file);
   };
 
-  // --- SALVARE FINALĂ (Cu Filtre + Logo) ---
+  // --- SALVARE FINALĂ (OPTIMIZATĂ) ---
   const applyFilterAndUse = async () => {
     const targetImage = activeTab === 'upload' ? uploadedImage : resultImage;
-    
     if (!targetImage) return;
 
-    // Dacă nu avem niciun filtru și nici logo de aplicat, folosim imaginea direct
+    setIsProcessing(true);
+
+    // 1. BYPASS INTELIGENT: Dacă nu avem filtre și nici logo, trimitem direct (Evită erori CORS/Canvas)
     const needsProcessing = (activeTab === 'upload' && selectedPhotoFilter !== 'normal') || (applyLogo && brandProfile?.logoUrl);
 
     if (!needsProcessing) {
         onSelectImage(targetImage);
+        setIsProcessing(false);
         onClose();
         return;
     }
 
-    // Procesare pe Canvas
-    const img = new Image();
-    img.src = targetImage;
-    img.crossOrigin = "anonymous";
-    await new Promise((resolve) => { img.onload = resolve; });
+    try {
+        // 2. PROCESARE CANVAS (Cu Resize pt performanță)
+        const img = new Image();
+        img.src = targetImage;
+        img.crossOrigin = "anonymous"; // Important pt imagini externe
+        
+        await new Promise((resolve, reject) => { 
+            img.onload = resolve; 
+            img.onerror = () => reject(new Error("Failed to load image for processing"));
+        });
 
-    const canvas = document.createElement('canvas');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    const ctx = canvas.getContext('2d');
-    
-    if (ctx) {
-        // 1. Aplicăm Filtrul (Doar pt upload, cele AI au stilul deja)
-        if (activeTab === 'upload') {
-             const filterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
-             ctx.filter = filterStyle;
+        const canvas = document.createElement('canvas');
+        
+        // --- RESIZE LOGIC (Max 1080px lățime) ---
+        // Asta previne crash-ul de memorie la poze mari de pe telefon
+        const MAX_WIDTH = 1080;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH) {
+            height = Math.round(height * (MAX_WIDTH / width));
+            width = MAX_WIDTH;
         }
+
+        canvas.width = width;
+        canvas.height = height;
         
-        ctx.drawImage(img, 0, 0, img.width, img.height);
+        const ctx = canvas.getContext('2d');
         
-        // 2. Aplicăm Logo (dacă e bifat)
-        if (applyLogo && brandProfile?.logoUrl) {
-            const logoImg = new Image();
-            logoImg.src = brandProfile.logoUrl;
-            logoImg.crossOrigin = "anonymous";
-            try {
-                await new Promise((r, j) => { 
-                    logoImg.onload = r; 
-                    logoImg.onerror = j;
-                });
-                
-                ctx.filter = 'none'; // Resetăm filtrul pt logo
-                const logoW = canvas.width * 0.15; // 15% din lățime
-                const scale = logoW / logoImg.width;
-                const logoH = logoImg.height * scale;
-                const pad = canvas.width * 0.05;
-                
-                // Umbră pt vizibilitate
-                ctx.shadowColor = "rgba(0,0,0,0.5)"; 
-                ctx.shadowBlur = 10;
-                
-                ctx.drawImage(logoImg, canvas.width - logoW - pad, canvas.height - logoH - pad, logoW, logoH);
-            } catch (e) {
-                console.warn("Could not load logo for overlay");
+        if (ctx) {
+            // Aplicăm Filtrul
+            if (activeTab === 'upload') {
+                 const filterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
+                 ctx.filter = filterStyle;
             }
-        }
+            
+            // Desenăm imaginea redimensionată
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Aplicăm Logo
+            if (applyLogo && brandProfile?.logoUrl) {
+                const logoImg = new Image();
+                logoImg.src = brandProfile.logoUrl;
+                logoImg.crossOrigin = "anonymous";
+                try {
+                    await new Promise((r, j) => { logoImg.onload = r; logoImg.onerror = j; });
+                    
+                    ctx.filter = 'none';
+                    const logoW = width * 0.15;
+                    const scale = logoW / logoImg.width;
+                    const logoH = logoImg.height * scale;
+                    const pad = width * 0.05;
+                    
+                    ctx.shadowColor = "rgba(0,0,0,0.5)"; 
+                    ctx.shadowBlur = 10;
+                    ctx.drawImage(logoImg, width - logoW - pad, height - logoH - pad, logoW, logoH);
+                } catch (e) {
+                    console.warn("Could not load logo overlay");
+                }
+            }
 
-        const finalUrl = canvas.toDataURL('image/png');
-        onSelectImage(finalUrl);
-        onClose();
+            // Exportăm ca PNG
+            const finalUrl = canvas.toDataURL('image/png', 0.9); // 0.9 quality
+            onSelectImage(finalUrl);
+            onClose();
+        }
+    } catch (error) {
+        console.error("Processing failed:", error);
+        setError("Could not process image. Try using it without filters.");
+    } finally {
+        setIsProcessing(false);
     }
   };
 
@@ -198,10 +214,12 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-6xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[750px] shadow-2xl">
+      <div className="w-full max-w-6xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] shadow-2xl">
         
         {/* LEFT: Controls */}
         <div className="w-full md:w-1/2 p-6 flex flex-col border-r border-gray-800 bg-[#161b22] overflow-y-auto custom-scrollbar">
+          
+          {/* Header */}
           <div className="flex justify-between items-center mb-6">
             <button onClick={onClose} className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium">
                 <ArrowLeft size={16} /> Back
@@ -213,16 +231,17 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             )}
           </div>
 
+          {/* Tabs */}
           <div className="flex p-1 bg-gray-900 rounded-xl mb-6 border border-gray-800 sticky top-0 z-10">
+               <button onClick={() => setActiveTab('upload')} className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition ${activeTab === 'upload' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
+                  <Upload size={14} /> Upload
+              </button>
               <button onClick={() => setActiveTab('generate')} className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition ${activeTab === 'generate' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
                   <Sparkles size={14} /> AI Generate
               </button>
-              <button onClick={() => setActiveTab('upload')} className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 transition ${activeTab === 'upload' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-                  <Upload size={14} /> Upload
-              </button>
           </div>
 
-          {/* --- TOGGLE PENTRU LOGO --- */}
+          {/* --- TOGGLE LOGO --- */}
           {brandProfile?.logoUrl && (
               <div className="mb-6 bg-gray-800/50 border border-gray-700 p-3 rounded-xl flex justify-between items-center">
                   <div className="flex items-center gap-3">
@@ -241,6 +260,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
               </div>
           )}
 
+          {/* --- TAB: GENERATE --- */}
           {activeTab === 'generate' && (
             <>
                 <div className="mb-4">
@@ -289,6 +309,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             </>
           )}
 
+          {/* --- TAB: UPLOAD --- */}
           {activeTab === 'upload' && (
             <>
                 {!uploadedImage ? (
@@ -298,7 +319,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                             <ImageIcon size={32} className="text-gray-400" />
                         </div>
                         <p className="text-white font-medium mb-1">Click to upload</p>
-                        <p className="text-xs text-gray-500">JPG, PNG up to 5MB</p>
+                        <p className="text-xs text-gray-500">JPG, PNG up to 10MB</p>
                     </div>
                 ) : (
                     <div className="animate-in fade-in">
@@ -321,6 +342,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                                 </button>
                             ))}
                         </div>
+                        <p className="text-[10px] text-gray-500 text-center">Filter will be applied when you click "Use Image".</p>
                     </div>
                 )}
             </>
@@ -335,29 +357,33 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             
             {previewImageSrc ? (
                 <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
-                    <button onClick={() => { if (activeTab === 'generate') setResultImage(null); else setUploadedImage(null); }} className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10" title="Delete Image"><Trash size={16} /></button>
+                    {/* Buton ștergere vizibil doar dacă e imagine uploadată și e selectată */}
                     
-                    {/* Imagine cu Filtru CSS + Logo Overlay vizual */}
-                    <div className="relative max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 overflow-hidden">
+                    <img 
+                        key={previewImageSrc}
+                        src={previewImageSrc} 
+                        alt="Preview" 
+                        style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }}
+                        className="max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 object-contain bg-black transition-all duration-300" 
+                    />
+                    
+                    {/* Logo Preview (doar vizual) */}
+                    {applyLogo && brandProfile?.logoUrl && (
                         <img 
-                            key={previewImageSrc} 
-                            src={previewImageSrc} 
-                            alt="Preview" 
-                            style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }}
-                            className="w-full h-full object-contain bg-black" 
-                            onError={(e) => { e.currentTarget.style.display = 'none'; setError("Image load failed."); }}
+                            src={brandProfile.logoUrl} 
+                            alt="Logo Preview" 
+                            className="absolute bottom-20 right-4 w-[15%] object-contain drop-shadow-lg opacity-90 pointer-events-none"
                         />
-                        {applyLogo && brandProfile?.logoUrl && (
-                            <img 
-                                src={brandProfile.logoUrl} 
-                                alt="Logo" 
-                                className="absolute bottom-4 right-4 w-[15%] object-contain drop-shadow-lg opacity-90 pointer-events-none"
-                            />
-                        )}
-                    </div>
+                    )}
 
                     <div className="flex gap-3 w-full max-w-xs">
-                        <button onClick={applyFilterAndUse} className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg">Use Image</button>
+                        <button 
+                            onClick={applyFilterAndUse} 
+                            disabled={isProcessing}
+                            className="flex-1 bg-green-600 hover:bg-green-500 text-white py-3 rounded-lg text-sm font-bold shadow-lg flex items-center justify-center gap-2"
+                        >
+                            {isProcessing ? <Loader className="animate-spin" size={16}/> : "Use Image"}
+                        </button>
                         <a href={previewImageSrc} download="image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700"><Download size={20}/></a>
                     </div>
                 </div>
