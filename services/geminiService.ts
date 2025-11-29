@@ -146,18 +146,9 @@ export async function generateImageForPost(
 
 // --- 3. TEXT (Prin Backend - Generare Postări) ---
 export async function generateSocialMediaPosts(
-  topic: string, 
-  tone: Tone, 
-  postCount: number, 
-  language: string, 
-  brandVoice: string, 
-  brandProfile?: BrandProfile, 
-  imageBase64?: string, 
-  imageMimeType?: string,
-  objective: PostObjective = 'engagement',
-  useRealTime: boolean = false
+  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false,
+  isCampaign: boolean = false // <--- PARAMETRU NOU
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
-    
     // 1. CONSTRUIREA "MEMORIEI" DE BRAND (Context Complet)
     let contextString = '';
     
@@ -203,23 +194,26 @@ export async function generateSocialMediaPosts(
     FORMAT: Return ONLY a raw JSON Array: [{"content": "..."}]
     `;
 
-    try {
+     try {
         const data = await safeFetch('/api/generate-text', { 
             prompt, 
-            brandContext: contextString, // Trimitem Super-Contextul
+            brandContext: contextString, 
             language: brandProfile?.language || language || 'English',
             imageBase64, 
             imageMimeType,
             objective,
-            useRealTime
+            useRealTime,
+            isCampaign, // <--- Trimitem
+            postCount   // <--- Trimitem numărul cerut
         });
 
         const parsed = extractJsonArray(data.output);
+      const parsed = extractJsonArray(data.output);
         if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
         return [];
 
     } catch (e: any) {
-        console.error("Text Generation Logic Error:", e);
+        console.error("Text Gen Error:", e);
         return [{ content: `⚠️ Error: ${e.message}` }];
     }
 }
