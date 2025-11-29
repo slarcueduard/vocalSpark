@@ -15,8 +15,10 @@ import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView'; // Asigură-te că ai creat acest fișier anterior
+import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
+
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
@@ -43,7 +45,55 @@ const SocialSparkApp: React.FC = () => {
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+const SocialSparkApp: React.FC = () => {
+  const [notification, setNotification] = useState<string | null>(null);
 
+  // 1. CHECK NOTIFICATIONS LA LOGIN
+  useEffect(() => {
+      const checkReminders = async () => {
+          if (user) {
+              const duePosts = await checkDuePosts(user.uid);
+              if (duePosts.length > 0) {
+                  setNotification(`🔔 You have ${duePosts.length} post(s) scheduled for today! Check your Vault.`);
+                  setTimeout(() => setNotification(null), 8000); // Dispare după 8s
+              }
+          }
+      };
+      checkReminders();
+  }, [user]);
+
+  // ...
+
+  // 2. ÎN RETURN, TRIMITEM FUNCȚIILE NOI
+  // La componenta <PostCard /> (în lista posts):
+  <PostCard 
+      // ... props existente ...
+      onSchedule={async (id, date) => {
+          await schedulePost(id, date);
+          // Update local (opțional, doar ca să vezi iconița instant)
+          setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
+      }}
+      onMarkPublished={async (id) => {
+          await markPostAsPublished(id);
+          setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
+      }}
+  />
+
+  // La fel facem și în HistoryView.tsx (trebuie să adaugi props și acolo în PostCard)
+
+  // 3. AFIȘARE NOTIFICARE (UI)
+  // Sub vibeMessage:
+  {notification && (
+      <div className="fixed top-20 right-6 z-50 animate-in fade-in slide-in-from-right-10">
+          <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl border border-blue-400 flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('history')}>
+              <div className="bg-white/20 p-2 rounded-full"><BriefcaseIcon size={20}/></div>
+              <div>
+                  <p className="font-bold text-sm">Reminder</p>
+                  <p className="text-xs opacity-90">{notification}</p>
+              </div>
+          </div>
+      </div>
+  )}
   // --- FORM STATE ---
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
