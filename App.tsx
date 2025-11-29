@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { savePostToHistory, updatePostInHistory } from './services/postService'; // Importuri actualizate
+import { savePostToHistory, updatePostInHistory } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
@@ -47,12 +47,10 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0) {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
-        
         let templates: string[] = [];
         if (lang === 'Romanian') {
             templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
@@ -90,11 +88,7 @@ const SocialSparkApp: React.FC = () => {
 
   const handleImageSelected = (url: string) => {
       if (activePostIdForImage) {
-          // 1. Update Local
           setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
-          
-          // 2. Update în Vault (Auto-Save la modificare)
-          // Deoarece ID-ul postării locale este acum ID-ul real din Firebase (vezi handleGenerate)
           updatePostInHistory(activePostIdForImage, { imageUrl: url });
       } else {
           setAttachedImage(url);
@@ -135,38 +129,51 @@ const SocialSparkApp: React.FC = () => {
           imgData, imgMime, objective, useRealTime
       );
       
-      // --- AUTO-SAVE LOGIC (SYNC REAL) ---
-      // Generăm postările și le salvăm imediat în DB, apoi le punem în state cu ID-ul real din DB
-      // Asta permite ca update-urile ulterioare să funcționeze
-      
-      const savedPostsPromises = generatedPosts.map(async (p) => {
-          const tempPost: Post = { 
-            ...p, 
-            id: 'temp', // Temporar
-            adaptedContent: {}, 
-            imageUrl: attachedImage || null, 
-            isGeneratingImage: false, 
-            isLocked: false 
-          };
-          
-          if (user) {
-              // Salvăm și primim ID-ul real
-              const realId = await savePostToHistory(user.uid, tempPost, topic);
-              return { ...tempPost, id: realId || crypto.randomUUID() }; // Folosim ID real
-          } else {
-              return { ...tempPost, id: crypto.randomUUID() }; // Fallback guest
-          }
-      });
+      // Pregătim obiectele post pentru UI și Salvare
+      const newPostsData = generatedPosts.map(p => ({ 
+          ...p, 
+          id: crypto.randomUUID(), // ID temporar pt UI
+          adaptedContent: {}, 
+          imageUrl: attachedImage || null, 
+          isGeneratingImage: false, 
+          isLocked: false 
+      }));
 
-      const finalPosts = await Promise.all(savedPostsPromises);
-
-      setPosts(prev => [...finalPosts, ...prev].slice(0, 6));
+      // 1. Update UI Rapid (Optimistic)
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 6));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       
       showVibe();
 
-    } catch (err) { setError('Failed to generate content.'); } 
-    finally { setIsLoading(false); }
+      // 2. Salvare în Vault (cu Debugging)
+      if (user) {
+          console.log("💾 Starting Auto-Save process...");
+          // Folosim un loop asincron pentru a procesa salvarea
+          for (const postData of newPostsData) {
+              try {
+                  const savedId = await savePostToHistory(user.uid, postData, topic);
+                  if (savedId) {
+                      console.log("✅ Saved to Vault! Firestore ID:", savedId);
+                      // Opțional: Actualizăm ID-ul local cu cel din DB pentru ca editarea ulterioară să meargă pe același doc
+                      setPosts(currentPosts => 
+                          currentPosts.map(p => p.id === postData.id ? { ...p, id: savedId } : p)
+                      );
+                  } else {
+                      console.error("⚠️ Save returned null ID");
+                  }
+              } catch (saveErr) {
+                  console.error("❌ Save Failed:", saveErr);
+                  // alert("Debug: Save to Vault failed. Check console."); // Decomentează doar pentru debug
+              }
+          }
+      }
+
+    } catch (err) { 
+        console.error(err);
+        setError('Failed to generate content.'); 
+    } finally { 
+        setIsLoading(false); 
+    }
   };
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
@@ -178,7 +185,6 @@ const SocialSparkApp: React.FC = () => {
       
       setPosts(prev => {
           const newPosts = prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p);
-          // Sync with Vault
           updatePostInHistory(id, { adaptedContent: { ...prev.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } });
           return newPosts;
       });
@@ -191,7 +197,6 @@ const SocialSparkApp: React.FC = () => {
       
       setPosts(prev => {
           const newPosts = prev.map(p => p.id === id ? { ...p, content: refined } : p);
-          // Sync with Vault
           updatePostInHistory(id, { content: refined });
           return newPosts;
       });
@@ -341,7 +346,10 @@ const SocialSparkApp: React.FC = () => {
                                             <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{posts.length} variations</span>
                                         </div>
                                         {posts.map(post => (
-                                            <PostCard key={post.id} post={post} isRefining={refiningPostId === post.id} onGenerateImage={(id, content) => openImageModalForPost(id, content)} onAdaptPost={handleAdaptPost} onRefinePost={handleRefinePost} onDelete={handleDeletePost} onToggleLock={handleToggleLock} />
+                                            <PostCard key={post.id} post={post} isRefining={refiningPostId === post.id} onGenerateImage={(id, content) => openImageModalForPost(id, content)} onAdaptPost={handleAdaptPost} onRefinePost={handleRefinePost} onDelete={handleDeletePost} onToggleLock={handleToggleLock} onManualEdit={(id, newContent) => {
+                                                setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
+                                                updatePostInHistory(id, { content: newContent });
+                                            }}/>
                                         ))}
                                     </div>
                                 )}
