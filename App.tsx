@@ -5,7 +5,7 @@ import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, Globe } from 'lucide-react'; 
+import { Lock, X, HelpCircle, Globe } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -14,7 +14,7 @@ import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
-import { CalendarView } from './components/CalendarView';
+import { CalendarView } from './components/CalendarView'; // Asigură-te că ai creat acest fișier anterior
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
@@ -22,28 +22,29 @@ const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
-  const [currentView, setCurrentView] = useState<'create' | 'history'>('create');
   
-  // Feature Flags & Modes
+  // --- NAVIGARE ---
+  const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
+
+  // --- FEATURE FLAGS ---
   const [useRealTime, setUseRealTime] = useState(false);
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   const [campaignCount, setCampaignCount] = useState(3);
-
+  
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
 
-  // Modale
+  // --- MODALE ---
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // Imagine Logic
+  // --- IMAGE LOGIC ---
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // Form State
+  // --- FORM STATE ---
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -56,16 +57,19 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
+  // Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0) {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
+        
         let templates: string[] = [];
         if (lang === 'Romanian') {
             templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
         } else {
             templates = [`3 tips for ${niche}`, `How to start in ${niche}`, `Secrets of ${niche}`];
         }
+
         const randomIdea = templates[Math.floor(Math.random() * templates.length)];
         setTopic(randomIdea);
     }
@@ -109,7 +113,6 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
     
-    // Calculăm costul (Campanie = 1 credit * nr postări, sau 10 dacă e RealTime)
     const count = isCampaignMode ? campaignCount : 1;
     const cost = useRealTime ? 10 : (1 * count);
 
@@ -134,12 +137,12 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
       }
 
       const generatedPosts = await generateSocialMediaPosts(
-          topic, tone, count, // Trimitem numărul corect
+          topic, tone, count,
           brandProfile?.language || 'English',
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
           imgData, imgMime, objective, useRealTime,
-          isCampaignMode // Trimitem modul campanie
+          isCampaignMode 
       );
       
       const newPostsData = generatedPosts.map(p => ({ 
@@ -157,7 +160,6 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
       showVibe();
 
       if (user) {
-          console.log("💾 Starting Auto-Save...");
           for (const postData of newPostsData) {
               try {
                   const savedId = await savePostToHistory(user.uid, postData, topic);
@@ -180,8 +182,8 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-  const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); };
-  const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); setRefiningPostId(null); };
+  const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
+  const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); updatePostInHistory(id, { content: refined }); setRefiningPostId(null); };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -192,11 +194,8 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
         onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}
         currentView={currentView}
         onViewChange={setCurrentView}
-          <HistoryView />
-) : currentView === 'calendar' ? (
-    <CalendarView />
-) : (
-    >
+    > 
+    {/* AICI AM ÎNCHIS CORECT MAINLAYOUT TAG-UL! */}
         
         {vibeMessage && (
             <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 pointer-events-none">
@@ -218,8 +217,11 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
             </div>
         )}
 
+        {/* RENDERING CONDIȚIONAL PE BAZA TAB-ULUI SELECTAT */}
         {currentView === 'history' ? (
             <HistoryView />
+        ) : currentView === 'calendar' ? (
+            <CalendarView />
         ) : (
             <div className="flex h-full gap-6 relative">
                 <div className="flex-1 min-w-0">
@@ -229,7 +231,7 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
                         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-3xl font-bold text-white tracking-tight">
-                                    {isCampaignMode ? 'Campaign Mode 🚀' : 'Single Post ✨'}
+                                    {isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}
                                 </h2>
                                 <p className="text-gray-500 text-sm mt-1">
                                     {isCampaignMode ? 'Generate a full content calendar in one click.' : 'Craft one perfect viral post.'}
@@ -282,7 +284,7 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
                                     </div>
                                 </div>
 
-                                {/* CAMPAIGN SETTINGS (Doar în mod campanie) */}
+                                {/* CAMPAIGN SETTINGS */}
                                 {isCampaignMode && (
                                     <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
                                         <div className="flex justify-between items-center mb-2">
@@ -308,6 +310,7 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
                                     </section>
                                 )}
 
+                                {/* REAL TIME TOGGLE */}
                                 <div className="flex items-center justify-between mt-2 px-1">
                                     {isPremiumUser ? (
                                         <label className="flex items-center gap-2 cursor-pointer group">
@@ -330,7 +333,6 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
                                 </div>
                             </section>
 
-                            {/* SECTION 2: OBJECTIVE */}
                             <section className="space-y-3">
                                 <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                     <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span>
@@ -350,7 +352,6 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
                                 </div>
                             </section>
 
-                            {/* SECTION 3: FINE TUNING */}
                             <section className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
@@ -368,7 +369,7 @@ const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'
                             
                             <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                 {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
-                                {isLoading ? (isCampaignMode ? 'Generating Campaign...' : 'Creating Magic...') : (isCampaignMode ? 'Launch Campaign' : 'Craft my Post')}
+                                {isLoading ? (isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (isCampaignMode ? 'Generate Campaign' : 'Craft my Post')}
                             </button>
 
                             {error && <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2"><BriefcaseIcon size={16} /> {error}</div>}
