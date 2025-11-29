@@ -3,126 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { deletePostFromHistory, togglePostLock, updatePostContent } from '../services/postService';
 import { PostCard } from './PostCard';
 import { Loader } from './Loader';
-import { Archive, Search, Database, Ghost, Info, ShieldCheck } from 'lucide-react';
+import { Archive, Search, Database, Ghost, ShieldCheck } from 'lucide-react';
 import { Post } from '../types';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
-import { db } from '../services/firebase';
-
-export function HistoryView() {
-  const { user } = useAuth();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-
-  useEffect(() => {
-    if (!user) return;
-
-    // --- REAL TIME LISTENER ---
-    const q = query(
-      collection(db, 'posts'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-        const formattedPosts: Post[] = snapshot.docs.map((doc) => {
-            const data = doc.data();
-            return {
-                id: doc.id,
-                content: data.content || "",
-                imageUrl: data.imageUrl || null,
-                adaptedContent: data.adaptedContent || {}, 
-                isGeneratingImage: false,
-                isLocked: !!data.isLocked
-            };
-        });
-        setPosts(formattedPosts);
-        setLoading(false);
-    }, (error) => {
-        console.error("Vault Error:", error);
-        setLoading(false);
-    });
-
-    return () => unsubscribe(); // Cleanup
-  }, [user]);
-
-  // --- ACȚIUNI ---
-  const handleDelete = async (id: string) => {
-      if (window.confirm("Delete from Vault?")) {
-          await deletePostFromHistory(id);
-          // Nu mai e nevoie de setPosts manual, onSnapshot face update singur
-      }
-  };
-
-  const handleToggleLock = async (id: string) => {
-      const post = posts.find(p => p.id === id);
-      if (post) await togglePostLock(id, post.isLocked || false);
-  };
-
-  const handleUpdateContent = async (id: string, newContent: string) => {
-      await updatePostContent(id, newContent);
-  };
-
-  const filteredPosts = posts.filter(p => 
-      (p.content || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const lockedCount = posts.filter(p => p.isLocked).length;
-
-  if (loading) return <div className="flex justify-center h-64 items-center text-gray-500"><Loader /> Loading Vault...</div>;
-
-  return (
-    <div className="max-w-5xl mx-auto pb-20 animate-in fade-in">
-        
-        {/* Header */}
-        <div className="bg-[#161b22] p-6 rounded-2xl border border-gray-800 mb-8 shadow-lg">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                <div>
-                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Archive className="text-blue-500" /> Content Vault
-                    </h2>
-                </div>
-                <div className="flex gap-3">
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700">
-                        <Database size={14}/> {posts.length} / 20 Saved
-                    </div>
-                    <div className="flex items-center gap-2 text-xs font-bold text-yellow-500 bg-yellow-900/10 px-3 py-1.5 rounded-lg border border-yellow-700/30">
-                        <ShieldCheck size={14}/> {lockedCount} Locked
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {/* Search */}
-        <div className="relative mb-6">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-            <input 
-                type="text" 
-                placeholder="Search saved content..." 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-[#0f1115] border border-gray-700 rounded-xl pl-10 pr-4 py-3 text-sm text-white focus:border-blue-500 outline-none"
-            />
-        </div>
-
-        {/* Grid */}
-        {filteredPosts.length > 0 ? (
-            <div className="grid grid-cols-1 gap-8">
-                {filteredPosts.map(post => (
-                    <PostCard 
-                        key={post.id} 
-                        post={post} 
-                        isRefining={false}
-                        onGenerateImage={() => {}} 
-                        onAdaptPost={() => {}} 
-                        onRefinePost={() => {}} import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { deletePostFromHistory, togglePostLock, updatePostContent } from '../services/postService';
-import { PostCard } from './PostCard';
-import { Loader } from './Loader';
-import { Archive, Search, Database, Ghost, Info, ShieldCheck } from 'lucide-react';
-import { Post } from '../types';
-import { collection, query, where, onSnapshot } from 'firebase/firestore'; // Am scos orderBy pt debug
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 export function HistoryView() {
@@ -140,23 +23,19 @@ export function HistoryView() {
     console.log("🔄 HistoryView: Starting Listener for User:", user.uid);
     setLoading(true);
 
-    // --- SIMPLIFIED QUERY (DEBUG) ---
-    // Am scos 'orderBy' ca să nu depindem de Index acum.
-    // Luăm doar postările userului curent.
+    // --- QUERY SIMPLIFICAT (DEBUG) ---
+    // Am scos 'orderBy' temporar pentru a evita problemele de indexare.
+    // Sortarea o facem local în JavaScript.
     const q = query(
       collection(db, 'posts'),
       where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log("📦 HistoryView: Snapshot received!");
-        console.log("📄 Documents found:", snapshot.size);
+        console.log("📦 HistoryView: Snapshot received! Docs found:", snapshot.size);
 
         const formattedPosts: Post[] = snapshot.docs.map((doc) => {
             const data = doc.data();
-            // Logăm primul document ca să vedem structura
-            if (snapshot.docs.indexOf(doc) === 0) console.log("🔍 First Doc Data:", data);
-            
             return {
                 id: doc.id,
                 content: data.content || "",
@@ -167,18 +46,20 @@ export function HistoryView() {
             };
         });
         
-        // Sortăm manual în Javascript (ca să evităm eroarea de index Firebase)
+        // Sortare manuală (Cele mai noi primele)
         // @ts-ignore
         formattedPosts.sort((a, b) => {
+             // Verificăm dacă există createdAt, altfel punem 0
+             const dateA = a['createdAt']?.seconds || 0;
+             const dateB = b['createdAt']?.seconds || 0;
              // @ts-ignore
-             return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
+             return dateB - dateA;
         });
 
         setPosts(formattedPosts);
         setLoading(false);
     }, (error) => {
         console.error("❌ HistoryView Error:", error);
-        alert(`Vault Error: ${error.message}`); // Alertă ca să o vezi sigur
         setLoading(false);
     });
 
@@ -228,8 +109,8 @@ export function HistoryView() {
                     </div>
                 </div>
             </div>
-            <div className="text-xs text-gray-500 font-mono">
-                User ID: {user?.uid} (Debug Info)
+            <div className="text-[10px] text-gray-600 font-mono">
+                Debug User ID: {user?.uid}
             </div>
         </div>
 
@@ -267,24 +148,8 @@ export function HistoryView() {
                 <Ghost className="text-gray-600 mx-auto mb-4" size={48} />
                 <h3 className="text-xl font-bold text-gray-300 mb-2">Vault is Empty</h3>
                 <p className="text-sm text-gray-500">
-                    Found 0 posts for user ID ending in ...{user?.uid.slice(-4)}
+                    {posts.length === 0 ? "No posts found yet." : "No posts match your search."}
                 </p>
-            </div>
-        )}
-    </div>
-  );
-}
-                        onDelete={handleDelete} 
-                        onToggleLock={handleToggleLock} 
-                        onManualEdit={handleUpdateContent}
-                    />
-                ))}
-            </div>
-        ) : (
-            <div className="text-center py-24 border-2 border-dashed border-gray-800 rounded-2xl bg-[#161b22]/30">
-                <Ghost className="text-gray-600 mx-auto mb-4" size={48} />
-                <h3 className="text-xl font-bold text-gray-300 mb-2">Vault is Empty</h3>
-                <p className="text-sm text-gray-500">Generated posts will appear here automatically.</p>
             </div>
         )}
     </div>
