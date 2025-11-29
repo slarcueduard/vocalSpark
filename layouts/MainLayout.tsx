@@ -9,7 +9,7 @@ import {
   Briefcase, 
   Building2, 
   Archive, 
-  Calendar as CalendarIcon // Aici e corecția
+  Calendar as CalendarIcon 
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
@@ -28,7 +28,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
 
   const planName = userProfile?.subscriptionTier === 'trial' 
     ? 'Free Trial' 
-    : userProfile?.subscriptionTier?.toUpperCase() + ' PLAN';
+    : (userProfile?.subscriptionTier || '').toUpperCase() + ' PLAN';
 
   const isPremium = userProfile?.subscriptionTier !== 'trial';
 
@@ -87,7 +87,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             />
           </div>
 
-          {/* BUTON CALENDAR (NOU) */}
+          {/* BUTON CALENDAR */}
           <div onClick={() => onViewChange('calendar')}>
             <NavItem 
                 icon={<CalendarIcon size={20} />} 
@@ -141,4 +141,60 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             </div>
           </div>
         </div>
-      <
+      </aside>
+
+      {/* --- MAIN HEADER & CONTENT --- */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        <header className="h-16 border-b border-gray-800 bg-[#0f1115]/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+             <span className="px-2 py-1 rounded border border-blue-500/30 bg-blue-500/10 text-blue-400 text-xs font-mono">
+               v1.5 PRO
+             </span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#1c1c2e] border border-gray-700 rounded-full">
+              <Zap size={14} className={credits > 0 ? "text-yellow-400 fill-yellow-400" : "text-gray-500"} />
+              <span className="text-sm font-medium text-gray-200">
+                Credits: <span className="text-white font-bold">{credits}</span>
+              </span>
+            </div>
+
+            <button 
+              onClick={() => setIsPricingOpen(true)}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20"
+            >
+              <Building2 size={14} />
+              UPGRADE PLAN
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {children}
+          </div>
+        </div>
+
+      </main>
+    </div>
+  );
+}
+
+function NavItem({ icon, label, active }: { icon: any, label: string, active?: boolean }) {
+  return (
+    <div className={`
+      flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-all duration-200
+      ${active 
+        ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' 
+        : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white'
+      }
+    `}>
+      <div className="flex items-center gap-3">
+        {icon}
+        <span className="font-medium text-sm">{label}</span>
+      </div>
+    </div>
+  );
+}
