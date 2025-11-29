@@ -19,6 +19,33 @@ export function CalendarView({ onNavigateToVault }: CalendarViewProps) {
   const isAgency = userProfile?.subscriptionTier === 'agency';
 
   useEffect(() => {
+
+      // ...
+// În interiorul useEffect, în mapare:
+const loadedPosts = snap.docs.map(doc => {
+    const d = doc.data();
+    return { 
+        ...d, 
+        id: doc.id, 
+        // Folosim scheduledDate dacă există, altfel createdAt
+        createdAt: d.scheduledDate?.toDate ? d.scheduledDate.toDate() : (d.createdAt?.toDate ? d.createdAt.toDate() : new Date())
+    } as any;
+});
+// ...
+
+// În getPostsForDay:
+const getPostsForDay = (day: number) => {
+  return posts.filter(p => {
+      // Folosim createdAt (care acum e mapat la scheduledDate dacă există)
+      // @ts-ignore
+      const d = p.createdAt;
+      // Pentru calendar, vrem doar ziua, luna, anul
+      return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
+  });
+};
+
+// ...
+      
     if (!user) return;
     const q = query(collection(db, 'posts'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snap) => {
