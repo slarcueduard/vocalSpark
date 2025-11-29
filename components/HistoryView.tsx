@@ -1,13 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { deletePostFromHistory, togglePostLock, updatePostContent } from '../services/postService';
 import { PostCard } from './PostCard';
 import { Loader } from './Loader';
-import { Archive, Search, Database, Ghost, Info, ShieldCheck } from 'lucide-react';
+import { Archive, Search, Database, Ghost, ShieldCheck } from 'lucide-react';
 import { Post } from '../types';
-import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
-// Importăm și modalul de imagini dacă vrem să generăm din istoric (Opțional, vezi nota de mai jos)
 import { ImageCreationModal } from './ImageCreationModal';
 import { updatePostInHistory } from '../services/postService';
 
@@ -25,10 +24,11 @@ export function HistoryView() {
   useEffect(() => {
     if (!user) return;
 
+    // --- QUERY SIMPLIFICAT (FĂRĂ orderBy) ---
+    // Asta rezolvă problema cu "Vault Empty" dacă lipsește indexul
     const q = query(
       collection(db, 'posts'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -40,9 +40,20 @@ export function HistoryView() {
                 imageUrl: data.imageUrl || null,
                 adaptedContent: data.adaptedContent || {}, 
                 isGeneratingImage: false,
-                isLocked: !!data.isLocked
+                isLocked: !!data.isLocked,
+                // Salvăm și data intern pentru sortare
+                createdAt: data.createdAt 
             };
         });
+        
+        // --- SORTARE MANUALĂ ÎN BROWSER ---
+        // Punem cele mai noi primele
+        formattedPosts.sort((a: any, b: any) => {
+             const timeA = a.createdAt?.seconds || 0;
+             const timeB = b.createdAt?.seconds || 0;
+             return timeB - timeA;
+        });
+
         setPosts(formattedPosts);
         setLoading(false);
     }, (error) => {
@@ -68,7 +79,6 @@ export function HistoryView() {
       await updatePostContent(id, newContent);
   };
 
-  // --- LOGICĂ GENERARE IMAGINE ÎN ISTORIC ---
   const openImageModal = (id: string, content: string) => {
       setActivePostId(id);
       setActivePrompt(content);
@@ -77,7 +87,6 @@ export function HistoryView() {
 
   const handleImageSelected = (url: string) => {
       if (activePostId) {
-          // Salvăm imaginea direct în bază
           updatePostInHistory(activePostId, { imageUrl: url });
       }
       setIsImageModalOpen(false);
@@ -112,6 +121,10 @@ export function HistoryView() {
                     </div>
                 </div>
             </div>
+            {/* DEBUG INFO: Ca să verificăm ID-ul dacă tot nu merge */}
+            <div className="text-[10px] text-gray-600 font-mono">
+                Connected ID: {user?.uid}
+            </div>
         </div>
 
         {/* Search */}
@@ -134,15 +147,9 @@ export function HistoryView() {
                         key={post.id} 
                         post={post} 
                         isRefining={false}
-                        
-                        // ACUM PUTEM GENERA IMAGINI ȘI AICI
                         onGenerateImage={openImageModal} 
-                        
-                        // Adapt și Refine momentan doar updatează textul local, 
-                        // ideal ar fi să fie legate și ele la updatePostContent
                         onAdaptPost={() => {}} 
                         onRefinePost={() => {}} 
-                        
                         onDelete={handleDelete} 
                         onToggleLock={handleToggleLock} 
                         onManualEdit={handleUpdateContent}
@@ -157,7 +164,7 @@ export function HistoryView() {
             </div>
         )}
 
-        {/* Modalul de Imagini (pentru Vault) */}
+        {/* Modal Imagini */}
         {isImageModalOpen && (
             <ImageCreationModal 
                 onClose={() => setIsImageModalOpen(false)}
