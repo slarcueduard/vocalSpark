@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { savePostToHistory, updatePostInHistory } from './services/postService';
+import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe } from 'lucide-react'; 
+import { Lock, X, HelpCircle, Globe, Bell } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -14,87 +14,37 @@ import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
-import { CalendarView } from './components/CalendarView'; // Asigură-te că ai creat acest fișier anterior
-import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
+import { CalendarView } from './components/CalendarView';
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
-
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // --- NAVIGARE ---
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
-
-  // --- FEATURE FLAGS ---
+  
+  // Feature Flags
   const [useRealTime, setUseRealTime] = useState(false);
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   const [campaignCount, setCampaignCount] = useState(3);
   
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
+  const [notification, setNotification] = useState<string | null>(null);
 
-  // --- MODALE ---
+  // Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // --- IMAGE LOGIC ---
+  // Imagine Logic
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-const SocialSparkApp: React.FC = () => {
-  const [notification, setNotification] = useState<string | null>(null);
 
-  // 1. CHECK NOTIFICATIONS LA LOGIN
-  useEffect(() => {
-      const checkReminders = async () => {
-          if (user) {
-              const duePosts = await checkDuePosts(user.uid);
-              if (duePosts.length > 0) {
-                  setNotification(`🔔 You have ${duePosts.length} post(s) scheduled for today! Check your Vault.`);
-                  setTimeout(() => setNotification(null), 8000); // Dispare după 8s
-              }
-          }
-      };
-      checkReminders();
-  }, [user]);
-
-  // ...
-
-  // 2. ÎN RETURN, TRIMITEM FUNCȚIILE NOI
-  // La componenta <PostCard /> (în lista posts):
-  <PostCard 
-      // ... props existente ...
-      onSchedule={async (id, date) => {
-          await schedulePost(id, date);
-          // Update local (opțional, doar ca să vezi iconița instant)
-          setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
-      }}
-      onMarkPublished={async (id) => {
-          await markPostAsPublished(id);
-          setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
-      }}
-  />
-
-  // La fel facem și în HistoryView.tsx (trebuie să adaugi props și acolo în PostCard)
-
-  // 3. AFIȘARE NOTIFICARE (UI)
-  // Sub vibeMessage:
-  {notification && (
-      <div className="fixed top-20 right-6 z-50 animate-in fade-in slide-in-from-right-10">
-          <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl border border-blue-400 flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('history')}>
-              <div className="bg-white/20 p-2 rounded-full"><BriefcaseIcon size={20}/></div>
-              <div>
-                  <p className="font-bold text-sm">Reminder</p>
-                  <p className="text-xs opacity-90">{notification}</p>
-              </div>
-          </div>
-      </div>
-  )}
-  // --- FORM STATE ---
+  // Form State
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -107,19 +57,31 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // Auto-Sugestie
+  // 1. Check Notifications la Login
+  useEffect(() => {
+      const checkReminders = async () => {
+          if (user) {
+              const duePosts = await checkDuePosts(user.uid);
+              if (duePosts.length > 0) {
+                  setNotification(`🔔 You have ${duePosts.length} post(s) scheduled for today! Check your Vault.`);
+                  setTimeout(() => setNotification(null), 10000);
+              }
+          }
+      };
+      checkReminders();
+  }, [user]);
+
+  // 2. Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0) {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
-        
         let templates: string[] = [];
         if (lang === 'Romanian') {
             templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
         } else {
             templates = [`3 tips for ${niche}`, `How to start in ${niche}`, `Secrets of ${niche}`];
         }
-
         const randomIdea = templates[Math.floor(Math.random() * templates.length)];
         setTopic(randomIdea);
     }
@@ -187,12 +149,12 @@ const SocialSparkApp: React.FC = () => {
       }
 
       const generatedPosts = await generateSocialMediaPosts(
-          topic, tone, count,
+          topic, tone, count, 
           brandProfile?.language || 'English',
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
           imgData, imgMime, objective, useRealTime,
-          isCampaignMode 
+          isCampaignMode
       );
       
       const newPostsData = generatedPosts.map(p => ({ 
@@ -244,14 +206,25 @@ const SocialSparkApp: React.FC = () => {
         onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}
         currentView={currentView}
         onViewChange={setCurrentView}
-    > 
-    {/* AICI AM ÎNCHIS CORECT MAINLAYOUT TAG-UL! */}
+    >
         
         {vibeMessage && (
             <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 pointer-events-none">
                 <div className="bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.3)] flex items-center gap-3">
                     <span className="text-xl">✨</span>
                     <span className="font-bold text-sm tracking-wide">{vibeMessage}</span>
+                </div>
+            </div>
+        )}
+
+        {notification && (
+            <div className="fixed top-20 right-6 z-50 animate-in fade-in slide-in-from-right-10 cursor-pointer" onClick={() => setCurrentView('history')}>
+                <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl border border-blue-400 flex items-center gap-3">
+                    <div className="bg-white/20 p-2 rounded-full"><Bell size={20}/></div>
+                    <div>
+                        <p className="font-bold text-sm">Reminder</p>
+                        <p className="text-xs opacity-90">{notification}</p>
+                    </div>
                 </div>
             </div>
         )}
@@ -267,17 +240,15 @@ const SocialSparkApp: React.FC = () => {
             </div>
         )}
 
-        {/* RENDERING CONDIȚIONAL PE BAZA TAB-ULUI SELECTAT */}
         {currentView === 'history' ? (
             <HistoryView />
         ) : currentView === 'calendar' ? (
-            <CalendarView />
+            <CalendarView onNavigateToVault={() => setCurrentView('history')} />
         ) : (
             <div className="flex h-full gap-6 relative">
                 <div className="flex-1 min-w-0">
                     <div className="max-w-2xl mx-auto pb-20">
                         
-                        {/* HEADER & MODE SWITCHER */}
                         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-3xl font-bold text-white tracking-tight">
@@ -334,7 +305,6 @@ const SocialSparkApp: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* CAMPAIGN SETTINGS */}
                                 {isCampaignMode && (
                                     <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
                                         <div className="flex justify-between items-center mb-2">
@@ -360,7 +330,6 @@ const SocialSparkApp: React.FC = () => {
                                     </section>
                                 )}
 
-                                {/* REAL TIME TOGGLE */}
                                 <div className="flex items-center justify-between mt-2 px-1">
                                     {isPremiumUser ? (
                                         <label className="flex items-center gap-2 cursor-pointer group">
@@ -432,10 +401,28 @@ const SocialSparkApp: React.FC = () => {
                                             <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{posts.length} variations</span>
                                         </div>
                                         {posts.map(post => (
-                                            <PostCard key={post.id} post={post} isRefining={refiningPostId === post.id} onGenerateImage={(id, content) => openImageModalForPost(id, content)} onAdaptPost={handleAdaptPost} onRefinePost={handleRefinePost} onDelete={handleDeletePost} onToggleLock={handleToggleLock} onManualEdit={(id, newContent) => {
-                                                setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
-                                                updatePostInHistory(id, { content: newContent });
-                                            }}/>
+                                            <PostCard 
+                                                key={post.id} 
+                                                post={post} 
+                                                isRefining={refiningPostId === post.id} 
+                                                onGenerateImage={(id, content) => openImageModalForPost(id, content)} 
+                                                onAdaptPost={handleAdaptPost} 
+                                                onRefinePost={handleRefinePost} 
+                                                onDelete={handleDeletePost} 
+                                                onToggleLock={handleToggleLock} 
+                                                onManualEdit={(id, newContent) => {
+                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
+                                                    updatePostInHistory(id, { content: newContent });
+                                                }}
+                                                onSchedule={async (id, date) => {
+                                                    await schedulePost(id, date);
+                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
+                                                }}
+                                                onMarkPublished={async (id) => {
+                                                    await markPostAsPublished(id);
+                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
+                                                }}
+                                            />
                                         ))}
                                     </div>
                                 )}
