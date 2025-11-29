@@ -127,17 +127,7 @@ const SocialSparkApp: React.FC = () => {
     
     const count = isCampaignMode ? campaignCount : 1;
     const cost = useRealTime ? 10 : (1 * count);
-// ...
-// În interiorul handleGenerate, la secțiunea de save:
-if (user) {
-  // DETERMINĂM LIMITA (Agency = 50, Alții = 20)
-  const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
 
-  for (const postData of newPostsData) {
-      try {
-          // Trimitem limit ca al 4-lea parametru
-          const savedId = await savePostToHistory(user.uid, postData, topic, limit);
-          // ...
     if (!checkCredits(cost)) { 
         if (isTrialExpired) return; 
         alert(`Insufficient credits! This action requires ${cost} credits.`); 
@@ -182,9 +172,13 @@ if (user) {
       showVibe();
 
       if (user) {
+          // Calculăm limita dinamică (50 pt Agency, 20 altfel)
+          const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+          
           for (const postData of newPostsData) {
               try {
-                  const savedId = await savePostToHistory(user.uid, postData, topic);
+                  // Trimitem limita la funcția de salvare
+                  const savedId = await savePostToHistory(user.uid, postData, topic, limit);
                   if (savedId) {
                       setPosts(currentPosts => 
                           currentPosts.map(p => p.id === postData.id ? { ...p, id: savedId } : p)
