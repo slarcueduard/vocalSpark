@@ -158,4 +158,48 @@ export const togglePostLock = async (postId: string, currentStatus: boolean) => 
   } catch (e) {
       console.error("Lock failed:", e);
   }
+
+  // ... importuri existente
+
+// 7. SCHEDULE POST
+export const schedulePost = async (postId: string, date: Date) => {
+  try {
+    const docRef = doc(db, 'posts', postId);
+    await updateDoc(docRef, {
+      scheduledDate: date,
+      isPublished: false // Resetăm statusul
+    });
+    console.log(`📅 Post ${postId} scheduled for ${date}`);
+  } catch (e) {
+    console.error("Schedule failed:", e);
+  }
+};
+
+// 8. CHECK DUE POSTS (Pentru Notificări)
+export const checkDuePosts = async (userId: string) => {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.setHours(0, 0, 0, 0)); // Începutul zilei de azi
+    
+    const q = query(
+      collection(db, 'posts'),
+      where('userId', '==', userId),
+      where('isPublished', '==', false), // Doar cele nepostate
+      where('scheduledDate', '>=', startOfDay), // De azi...
+      where('scheduledDate', '<=', new Date(now.setHours(23, 59, 59, 999))) // ...până la finalul zilei
+      // Notă: Pentru "Missed posts" (din trecut) ar trebui o logică separată, dar pt MVP azi e ok.
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (e) {
+    console.error("Check due posts failed:", e);
+    return [];
+  }
+};
+
+// 9. MARK AS PUBLISHED
+export const markPostAsPublished = async (postId: string) => {
+    await updateDoc(doc(db, 'posts', postId), { isPublished: true });
+
 };
