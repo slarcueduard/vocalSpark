@@ -12,12 +12,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
-
+import { ..., Calendar as CalendarIcon } from 'lucide-react'; // Import icon
+        
 interface MainLayoutProps {
   children: React.ReactNode;
   onOpenBrandProfile: () => void;
-  currentView: 'create' | 'history'; // Prop nou pentru navigare
-  onViewChange: (view: 'create' | 'history') => void; // Funcția de schimbare
+ currentView: 'create' | 'history' | 'calendar'; // Adaugă 'calendar'
+  onViewChange: (view: 'create' | 'history' | 'calendar') => void;
+  
 }
 
 export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange }: MainLayoutProps) {
@@ -85,6 +87,15 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
                 active={currentView === 'history'} 
             />
           </div>
+          // Sub butonul Content Vault:
+
+<div onClick={() => onViewChange('calendar')}>
+    <NavItem 
+        icon={<CalendarIcon size={20} />} 
+        label="Calendar" 
+        active={currentView === 'calendar'} 
+    />
+</div>
           
           <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">
             Strategy
