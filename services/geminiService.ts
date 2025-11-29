@@ -35,46 +35,16 @@ async function safeFetch(url: string, body: any) {
 }
 
 // --- HELPER: Extract JSON ---
-// --- HELPER: Extract JSON (Versiune Robustă pt Perplexity) ---
 function extractJsonArray(text: string): any[] {
-    try {
-        // 1. Încercare directă
-        return JSON.parse(text);
-    } catch (e) {
-        // 2. Căutare agresivă a array-ului [...]
+    try { return JSON.parse(text); } 
+    catch (e) {
         const start = text.indexOf('[');
         const end = text.lastIndexOf(']');
-        
         if (start !== -1 && end !== -1) {
-            const potentialJson = text.substring(start, end + 1);
-            try {
-                return JSON.parse(potentialJson);
-            } catch (e2) {
-                // Continuăm dacă eșuează
-            }
+            try { return JSON.parse(text.substring(start, end + 1)); } catch (e2) {}
         }
-
-        // 3. Fallback pentru Markdown Code Blocks (```json ... ```)
-        // Perplexity adoră să pună codul în markdown
-        const markdownMatch = text.match(/```json([\s\S]*?)```/);
-        if (markdownMatch && markdownMatch[1]) {
-            try {
-                return JSON.parse(markdownMatch[1]);
-            } catch (e3) {}
-        }
-
-        // 4. Fallback ultim: Poate a returnat un singur obiect {...}, nu array
-        const objStart = text.indexOf('{');
-        const objEnd = text.lastIndexOf('}');
-        if (objStart !== -1 && objEnd !== -1) {
-            try {
-                const singleObj = JSON.parse(text.substring(objStart, objEnd + 1));
-                return [singleObj]; // Îl transformăm în array
-            } catch (e4) {}
-        }
-        
-        console.error("Failed to parse AI response:", text);
-        throw new Error("AI response format error. The AI might have refused the request or returned invalid data.");
+        try { if (text.trim().startsWith('{')) return [JSON.parse(text)]; } catch (e3) {}
+        throw new Error("AI response format error.");
     }
 }
 
@@ -98,10 +68,6 @@ export async function autoGenerateBrandProfile(rawContent: string): Promise<Bran
 }
 
 // --- 2. IMAGINI ---
-// ... 
-
-// --- 2. IMAGINI ---
-// Am adăugat parametrii noi: topic și brandColors
 export async function generateImageForPost(
     postText: string, 
     isPremium: boolean = false, 
@@ -109,16 +75,18 @@ export async function generateImageForPost(
     brandColors: string[] = []
 ): Promise<string> {
     try {
+        const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
+
         const data = await safeFetch('/api/generate-image', { 
-            prompt: postText,
+            prompt: imagePrompt,
             isPremium: isPremium,
-            topic: topicContext,     // <--- Trimitem Topicul
-            brandColors: brandColors // <--- Trimitem Culorile
+            topic: topicContext,
+            brandColors: brandColors
         });
         
         const imageUrl = data.imageUrl;
 
-        // Logică Proxy pt Premium (dacă backend-ul nu a returnat deja base64)
+        // Proxy logic for Premium DALL-E urls to avoid CORS
         if (isPremium && imageUrl.startsWith('http')) {
             try {
                 const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
@@ -138,63 +106,45 @@ export async function generateImageForPost(
     }
 }
 
-// --- 3. TEXT (UPDATED WITH REAL-TIME) ---
-// ... (restul fișierului rămâne la fel, modificăm doar funcția de text)
-
-// --- 3. TEXT (Prin Backend - Generare Postări) ---
-// ... (celelalte importuri)
-
-// --- 3. TEXT (Prin Backend - Generare Postări) ---
+// --- 3. TEXT (Generare Postări & Campanii) ---
 export async function generateSocialMediaPosts(
-  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false,
-  isCampaign: boolean = false // <--- PARAMETRU NOU
+  topic: string, 
+  tone: Tone, 
+  postCount: number, 
+  language: string, 
+  brandVoice: string, 
+  brandProfile?: BrandProfile, 
+  imageBase64?: string, 
+  imageMimeType?: string, 
+  objective: PostObjective = 'engagement', 
+  useRealTime: boolean = false,
+  isCampaign: boolean = false // Parametru nou pentru campanie
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
-    // 1. CONSTRUIREA "MEMORIEI" DE BRAND (Context Complet)
-    let contextString = '';
     
+    let contextString = '';
     if (brandProfile) {
-        contextString = `
-        === BRAND IDENTITY PROFILE ===
-        You are writing for a specific brand. You must strictly adhere to the following identity:
-        
-        1. NICHE / INDUSTRY: ${brandProfile.industry}
-        
-        2. TARGET AUDIENCE: ${brandProfile.description}
-        
-        3. VOICE DNA (Tone & Personality): ${brandProfile.voiceDNA}
-        
-        4. MANDATORY HASHTAGS: ${brandProfile.fixedHashtags || 'None'} (Append these to the end of the post).
-        
-        ${brandProfile.examplePosts ? `5. STYLE REFERENCE (Mimic the sentence structure and formatting of these examples):
-        """
-        ${brandProfile.examplePosts.substring(0, 1500)}
-        """` : ''}
-        ==============================
-        `;
+        contextString = `VOICE: ${brandProfile.voiceDNA}. AUDIENCE: ${brandProfile.description}. HASHTAGS: ${brandProfile.fixedHashtags}`;
     } else if (brandVoice) {
         contextString = `BRAND VOICE: ${brandVoice}`;
     }
 
-    // ... (restul rămâne la fel) ...
-
     const objectivesMap: Record<string, string> = {
-        engagement: "Goal: Ask questions, spark debate, get comments.",
-        sales: "Goal: Conversion (AIDA framework). Focus on pain points and solution.",
-        education: "Goal: Teach/Value. Use bullet points and clear steps.",
-        viral: "Goal: Maximum Reach. Short, punchy, shocking or relatable.",
-        traffic: "Goal: Clicks. Create a curiosity gap pointing to the link in bio."
+        engagement: "Goal: Comments & Debate.",
+        sales: "Goal: Conversion (AIDA).",
+        education: "Goal: Teach/Value.",
+        viral: "Goal: Maximum Reach/Shock.",
+        traffic: "Goal: Clicks to Bio."
     };
 
-    let prompt = `
-    ROLE: Expert Social Media Manager.
+    // Prompt simplificat aici, logica grea e în backend
+    const prompt = `
+    ROLE: Social Media Expert.
     GOAL: ${objectivesMap[objective] || "Engagement"}
-    TASK: Write ${postCount} post(s) about: "${topic}".
+    TOPIC: "${topic}"
     TONE: ${tone}.
-    
-    FORMAT: Return ONLY a raw JSON Array: [{"content": "..."}]
     `;
 
-     try {
+    try {
         const data = await safeFetch('/api/generate-text', { 
             prompt, 
             brandContext: contextString, 
@@ -203,17 +153,14 @@ export async function generateSocialMediaPosts(
             imageMimeType,
             objective,
             useRealTime,
-            isCampaign, // <--- Trimitem
-            postCount   // <--- Trimitem numărul cerut
+            isCampaign, // Trimitem flag-ul de campanie
+            postCount   // Trimitem numărul de postări dorit
         });
 
         const parsed = extractJsonArray(data.output);
-      const parsed = extractJsonArray(data.output);
         if(Array.isArray(parsed)) return parsed.map((p: any) => ({ content: p.content || p }));
         return [];
-
     } catch (e: any) {
-        console.error("Text Gen Error:", e);
         return [{ content: `⚠️ Error: ${e.message}` }];
     }
 }
@@ -240,59 +187,4 @@ export async function analyzeBrandVoice(sampleText: string): Promise<string> {
         const data = await safeFetch('/api/generate-text', { prompt: `Analyze tone: "${sampleText}"` });
         return data.output;
     } catch(e) { return ""; }
-}
-
-// ... (celelalte importuri și funcții rămân la fel)
-
-// --- HELPER: LOGO OVERLAY (Adaugă Logo pe Imagine) ---
-export async function overlayLogoOnImage(mainImageUrl: string, logoUrl: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        const mainImg = new Image();
-        const logoImg = new Image();
-        
-        // Setări CORS pentru a evita erorile de securitate la imagini externe
-        mainImg.crossOrigin = "Anonymous"; 
-        logoImg.crossOrigin = "Anonymous";
-        
-        mainImg.onload = () => {
-          // Setăm dimensiunea canvas-ului la fel ca imaginea generată
-          canvas.width = mainImg.width; 
-          canvas.height = mainImg.height;
-          
-          // 1. Desenăm imaginea principală
-          ctx?.drawImage(mainImg, 0, 0);
-          
-          logoImg.onload = () => {
-            if (ctx) {
-              // 2. Calculăm dimensiunea logo-ului (ex: 15% din lățimea imaginii)
-              const logoWidth = canvas.width * 0.15;
-              const scaleFactor = logoWidth / logoImg.width;
-              const logoHeight = logoImg.height * scaleFactor;
-              
-              // 3. Poziționare (Colțul Dreapta-Jos cu margine)
-              const padding = canvas.width * 0.05;
-              const x = canvas.width - logoWidth - padding;
-              const y = canvas.height - logoHeight - padding;
-              
-              // 4. Adăugăm o mică umbră pentru vizibilitate
-              ctx.shadowColor = "rgba(0,0,0,0.5)"; 
-              ctx.shadowBlur = 10;
-              
-              // 5. Desenăm logo-ul
-              ctx.drawImage(logoImg, x, y, logoWidth, logoHeight);
-              
-              // 6. Returnăm noua imagine ca Base64
-              resolve(canvas.toDataURL('image/png'));
-            }
-          };
-          logoImg.src = logoUrl;
-        };
-        
-        mainImg.onerror = (e) => reject(e);
-        logoImg.onerror = (e) => reject(e);
-        
-        mainImg.src = mainImageUrl;
-    });
 }
