@@ -3,7 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Post } from '../types';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Clock, Plus } from 'lucide-react';
+import { createManualEvent } from '../services/postService';
 
 interface CalendarViewProps {
     onNavigateToVault?: () => void;
@@ -14,126 +15,113 @@ export function CalendarView({ onNavigateToVault }: CalendarViewProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  
+  // Modal Add Event
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [newEventDate, setNewEventDate] = useState('');
 
-  // Helper de siguranță pentru date (PREVINE CRASH-UL)
-  const getSafeDate = (val: any): Date => {
-      if (!val) return new Date(); // Fallback la azi
-      if (val.toDate) return val.toDate(); // Firebase Timestamp
-      if (val instanceof Date) return val; // Deja Date
-      return new Date(val); // String sau Number
-  };
+  const getSafeDate = (val: any) => val?.toDate ? val.toDate() : (val ? new Date(val) : new Date());
 
   useEffect(() => {
     if (!user) return;
-    
-    // Ascultăm doar postările userului
     const q = query(collection(db, 'posts'), where('userId', '==', user.uid));
-    
     const unsubscribe = onSnapshot(q, (snap) => {
         const loadedPosts = snap.docs.map(doc => {
             const d = doc.data();
-            return { 
-                ...d, 
-                id: doc.id,
-                // Convertim datele imediat ce vin, sigur
-                createdAt: getSafeDate(d.createdAt),
-                scheduledDate: d.scheduledDate ? getSafeDate(d.scheduledDate) : null
-            } as any;
+            return { ...d, id: doc.id, createdAt: getSafeDate(d.createdAt), scheduledDate: getSafeDate(d.scheduledDate) } as any;
         });
         setPosts(loadedPosts);
     });
     return () => unsubscribe();
   }, [user]);
 
+  const handleAddEvent = async () => {
+      if (!newEventTitle || !newEventDate) return;
+      await createManualEvent(user!.uid, newEventTitle, new Date(newEventDate), "Manual Event");
+      setIsAddModalOpen(false);
+      setNewEventTitle('');
+  };
+
   // Verificare Agency
-  const isAgency = userProfile?.subscriptionTier === 'agency';
-  if (!isAgency) {
+  if (userProfile?.subscriptionTier !== 'agency') {
       return (
           <div className="flex flex-col items-center justify-center h-[60vh] text-center animate-in fade-in">
-              <div className="w-20 h-20 bg-[#161b22] rounded-full flex items-center justify-center mb-6 border border-gray-800">
-                  <Lock size={40} className="text-orange-500" />
-              </div>
+              <Lock size={40} className="text-orange-500 mb-4" />
               <h2 className="text-2xl font-bold text-white mb-2">Agency Feature</h2>
-              <p className="text-gray-400 mb-6 max-w-md">The Strategic Content Calendar is available exclusively on the Agency Plan.</p>
-              <div className="px-6 py-3 bg-gray-800/50 border border-gray-700 text-gray-300 font-bold rounded-xl">
-                  Upgrade to Unlock
-              </div>
+              <p className="text-gray-400 mb-6">Upgrade to Agency Plan to unlock the full Calendar Strategy.</p>
           </div>
       );
   }
 
-  // Helpers Calendar Logic
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayIndex = new Date(year, month, 1).getDay(); 
-  const startOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1; // Luni start
-
-  const days = [];
-  for (let i = 0; i < startOffset; i++) days.push(null);
-  for (let i = 1; i <= daysInMonth; i++) days.push(i);
-
-  const getPostsForDay = (day: number) => {
+  // Calendar Helpers
+  const getPostsForDay = (date: Date) => {
       return posts.filter(p => {
-          // Folosim data programată dacă există, altfel data creării
-          // @ts-ignore
           const d = p.scheduledDate || p.createdAt;
-          return d.getDate() === day && d.getMonth() === month && d.getFullYear() === year;
+          return d.getDate() === date.getDate() && d.getMonth() === date.getMonth() && d.getFullYear() === date.getFullYear();
       });
   };
 
-  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
+  // Render Logic
   return (
     <div className="max-w-6xl mx-auto pb-20 animate-in fade-in">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-            <div className="flex items-center gap-2">
-                <CalendarIcon className="text-orange-500" />
-                <h2 className="text-2xl font-bold text-white">Campaign Calendar</h2>
-            </div>
-            
-            <div className="flex gap-4">
-                <div className="flex items-center gap-2 bg-[#161b22] p-1 rounded-lg border border-gray-700">
-                    <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-1 hover:bg-gray-700 rounded text-white"><ChevronLeft size={18}/></button>
-                    <span className="text-xs font-bold text-white w-32 text-center">
-                        {monthNames[month]} {year}
-                    </span>
-                    <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-1 hover:bg-gray-700 rounded text-white"><ChevronRight size={18}/></button>
+        <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2"><CalendarIcon className="text-orange-500"/> Calendar</h2>
+                <div className="flex bg-[#161b22] rounded-lg border border-gray-700 p-1">
+                    {['month', 'week', 'day'].map(m => (
+                        <button key={m} onClick={() => setViewMode(m as any)} className={`px-3 py-1 text-xs font-bold rounded ${viewMode === m ? 'bg-orange-600 text-white' : 'text-gray-400'}`}>
+                            {m.charAt(0).toUpperCase() + m.slice(1)}
+                        </button>
+                    ))}
                 </div>
             </div>
+            <button onClick={() => setIsAddModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2"><Plus size={16}/> Add Event</button>
         </div>
 
-        {/* Month Grid */}
-        <div className="grid grid-cols-7 gap-px bg-gray-800 border border-gray-800 rounded-xl overflow-hidden shadow-2xl">
-            {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d} className="bg-[#161b22] p-3 text-center text-[10px] font-bold text-gray-500 uppercase">{d}</div>)}
-            
-            {days.map((day, idx) => {
-                const dayPosts = day ? getPostsForDay(day) : [];
-                const isToday = day === new Date().getDate() && month === new Date().getMonth();
+        {/* VIEW: MONTH */}
+        {viewMode === 'month' && (
+            <div className="grid grid-cols-7 gap-px bg-gray-800 border border-gray-800 rounded-xl overflow-hidden">
+                {['M','T','W','T','F','S','S'].map(d => <div key={d} className="bg-[#161b22] p-3 text-center text-xs font-bold text-gray-500">{d}</div>)}
+                {Array.from({ length: 35 }).map((_, idx) => {
+                    const dayNum = idx - 2; // Offset simplu pt demo
+                    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), dayNum);
+                    const dayPosts = getPostsForDay(date);
+                    
+                    return (
+                        <div key={idx} className="bg-[#0f1115] min-h-[100px] p-2 border-t border-gray-800">
+                            {dayNum > 0 && dayNum <= 31 && (
+                                <>
+                                    <span className="text-xs font-bold text-gray-500">{dayNum}</span>
+                                    <div className="mt-2 space-y-1">
+                                        {dayPosts.map(p => (
+                                            <div key={p.id} onClick={onNavigateToVault} className="text-[10px] bg-[#1c1c2e] p-1.5 rounded border border-gray-700 text-gray-300 truncate cursor-pointer hover:border-orange-500">
+                                                {p.topic || "Post"}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+        )}
 
-                return (
-                    <div key={idx} className={`bg-[#0f1115] min-h-[100px] p-2 border-t border-gray-800 hover:bg-[#13151a] transition relative group`}>
-                        {day && (
-                            <>
-                                <span className={`text-xs font-bold ${isToday ? 'text-black bg-orange-500 px-1.5 py-0.5 rounded-full' : 'text-gray-500'}`}>{day}</span>
-                                <div className="mt-2 space-y-1 overflow-y-auto max-h-[80px] custom-scrollbar">
-                                    {dayPosts.map(p => (
-                                        <div 
-                                            key={p.id} 
-                                            onClick={onNavigateToVault}
-                                            className="text-[10px] bg-[#1c1c2e] p-1.5 rounded border border-gray-700 text-gray-300 truncate cursor-pointer hover:border-orange-500 hover:text-white flex items-center gap-1"
-                                        >
-                                            {p.scheduledDate && <Clock size={8} className="text-orange-400"/>}
-                                            {p.topic || "Untitled Post"}
-                                        </div>
-                                    ))}
-                                </div>
-                            </>
-                        )}
+        {/* ADD EVENT MODAL */}
+        {isAddModalOpen && (
+            <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
+                <div className="bg-[#161b22] p-6 rounded-xl border border-gray-700 w-96">
+                    <h3 className="text-lg font-bold text-white mb-4">Add Event</h3>
+                    <input type="text" placeholder="Event Title" className="w-full bg-black border border-gray-700 rounded-lg p-3 mb-3 text-white text-sm" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} />
+                    <input type="datetime-local" className="w-full bg-black border border-gray-700 rounded-lg p-3 mb-4 text-white text-sm" value={newEventDate} onChange={e => setNewEventDate(e.target.value)} />
+                    <div className="flex gap-2">
+                        <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-2 text-gray-400">Cancel</button>
+                        <button onClick={handleAddEvent} className="flex-1 py-2 bg-blue-600 text-white rounded-lg font-bold">Save</button>
                     </div>
-                )
-            })}
-        </div>
+                </div>
+            </div>
+        )}
     </div>
   );
 }
