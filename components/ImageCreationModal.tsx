@@ -99,22 +99,24 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   };
 
   // --- FIX CRASH: PROCESARE OPTIMIZATĂ ---
+  // ... în interiorul ImageCreationModal ...
+
   const applyFilterAndUse = async () => {
     const targetImage = activeTab === 'upload' ? uploadedImageBlob : resultImage;
     if (!targetImage) return;
 
-    setIsProcessing(true);
+    // BYPASS: Dacă imaginea e un URL extern (Pollinations) și nu avem filtre/logo, o folosim direct
+    // Asta previne erorile de CORS ("Tainted Canvas")
+    const isExternalUrl = typeof targetImage === 'string' && targetImage.startsWith('http');
+    const hasFilters = (activeTab === 'upload' && selectedPhotoFilter !== 'normal') || (applyLogo && brandProfile?.logoUrl);
 
-    // 1. FAST PATH: Fără procesare dacă nu e nevoie
-    const needsFilter = activeTab === 'upload' && selectedPhotoFilter !== 'normal';
-    const needsLogo = applyLogo && brandProfile?.logoUrl;
-
-    if (!needsFilter && !needsLogo) {
+    if (isExternalUrl && !hasFilters) {
         onSelectImage(targetImage);
-        setIsProcessing(false);
         onClose();
         return;
     }
+    
+    // ... restul logicii cu Canvas ...
 
     try {
         const img = new Image();
