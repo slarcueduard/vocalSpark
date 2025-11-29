@@ -15,104 +15,96 @@ import { Post } from '../types';
 
 const VAULT_LIMIT = 20;
 
-// 1. SAVE (Versiune Robustă: Salvează Întâi, Curăță După)
+// 1. SAVE (Debug Version)
 export const savePostToHistory = async (userId: string, post: Post, topic: string): Promise<string | null> => {
-  console.log("🛠️ [DEBUG] Attempting Save...");
-  console.log("User:", userId);
-  console.log("Content Length:", post.content?.length);
-
+  console.log("🛠️ [DEBUG] Starting savePostToHistory...");
+  
   if (!userId || !post.content) {
-      console.error("❌ [DEBUG] Missing Data. Abort.");
+      console.error("❌ [DEBUG] Missing userId or content. Abort.");
       return null;
   }
 
   try {
     const postsRef = collection(db, 'posts');
 
-    // SCRIE DIRECT FĂRĂ LOGICĂ DE LIMITĂ (TEST PUR)
+    // PASUL A: Încercăm să ștergem postările vechi (Rotire)
+    // Punem într-un try/catch separat ca să nu blocheze salvarea dacă lipsește indexul
+    try {
+        const q = query(
+          postsRef,
+          where('userId', '==', userId),
+          where('isLocked', '==', false),
+          orderBy('createdAt', 'asc')
+        );
+        
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.size >= VAULT_LIMIT) {
+          const numToDelete = snapshot.size - VAULT_LIMIT + 1;
+          for (let i = 0; i < numToDelete; i++) {
+            await deleteDoc(snapshot.docs[i].ref);
+            console.log("🗑️ [DEBUG] Auto-deleted old post");
+          }
+        }
+    } catch (cleanupErr) {
+        console.warn("⚠️ [DEBUG] Cleanup skipped (Index missing?). Proceeding to save anyway.", cleanupErr);
+    }
+
+    // PASUL B: Salvarea propriu-zisă
     const docData = {
       userId,
       content: post.content,
       imageUrl: post.imageUrl || null,
-      platform: 'Generic',
+      platform: Object.keys(post.adaptedContent || {})[0] || 'Generic',
+      adaptedContent: post.adaptedContent || {},
       topic: topic || 'Untitled',
       createdAt: serverTimestamp(),
-      isLocked: false,
-      debugTest: true // Marker
+      isLocked: false
     };
 
     console.log("📝 [DEBUG] Writing to Firestore...", docData);
     
     const docRef = await addDoc(postsRef, docData);
     
-    console.log("✅ [DEBUG] SUCCESS! Document written with ID:", docRef.id);
+    console.log("✅ [DEBUG] SUCCESS! Saved with ID:", docRef.id);
     return docRef.id;
 
   } catch (e: any) {
-    console.error("❌ [DEBUG] FIRESTORE ERROR:", e);
-    console.error("Error Code:", e.code);
-    console.error("Error Message:", e.message);
+    console.error("❌ [DEBUG] FIRESTORE CRITICAL ERROR:", e);
     return null;
   }
 };
 
-    // PASUL 2: CURĂȚENIE (Async - nu blochează salvarea dacă dă eroare de index)
-    // Facem asta într-un bloc separat try-catch
-    try {
-        const q = query(
-          postsRef,
-          where('userId', '==', userId),
-          where('isLocked', '==', false),
-          orderBy('createdAt', 'asc') // Cele mai vechi primele
-        );
-        
-        const snapshot = await getDocs(q);
-        
-        // Dacă avem mai multe decât limita, ștergem surplusul
-        if (snapshot.size > VAULT_LIMIT) {
-          const numToDelete = snapshot.size - VAULT_LIMIT;
-          for (let i = 0; i < numToDelete; i++) {
-            await deleteDoc(snapshot.docs[i].ref);
-            console.log("🗑️ Auto-deleted old post");
-          }
-        }
-    } catch (cleanupError) {
-        console.warn("⚠️ Cleanup failed (probably missing Index). Post is safe though.", cleanupError);
-    }
-
-    return docRef.id;
-
-  } catch (e) {
-    console.error("❌ CRITICAL ERROR saving post:", e);
-    return null;
-  }
-};
-
-// 2. UPDATE
+// 2. UPDATE GENERAL
 export const updatePostInHistory = async (postId: string, updates: Partial<Post>) => {
   if (!postId) return;
   try {
     const docRef = doc(db, 'posts', postId);
     const updateData: any = { ...updates };
+    
+    // Curățăm datele care nu trebuie în DB
     delete updateData.id;
     delete updateData.isGeneratingImage;
+    
     updateData.updatedAt = serverTimestamp();
 
     await updateDoc(docRef, updateData);
+    console.log("🔄 Post updated:", postId);
   } catch (e) {
     console.error("Error updating post:", e);
   }
 };
 
+// 3. UPDATE CONTENT (Alias necesar pentru HistoryView)
 export const updatePostContent = async (postId: string, newContent: string) => {
     return updatePostInHistory(postId, { content: newContent });
 };
 
-// 3. FETCH (Versiune Simplificată Temporar)
+// 4. FETCH
 export const fetchUserHistory = async (userId: string): Promise<any[]> => {
   if (!userId) return [];
   try {
-    // Încercăm întâi query-ul complex
+    // Încercăm query-ul complex
     try {
         const q = query(
           collection(db, 'posts'),
@@ -122,15 +114,14 @@ export const fetchUserHistory = async (userId: string): Promise<any[]> => {
         const querySnapshot = await getDocs(q);
         return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (indexError: any) {
-        // Dacă dă eroare de index (Failed precondition), facem fallback la query simplu
+        // Fallback dacă lipsește indexul: luăm tot și sortăm în JS
         if (indexError.code === 'failed-precondition') {
-            console.warn("Index missing via fetch. Falling back to simple query.");
+            console.warn("⚠️ Index missing. Falling back to client-side sort.");
             const qSimple = query(collection(db, 'posts'), where('userId', '==', userId));
             const querySnapshot = await getDocs(qSimple);
-            // Sortăm manual în JS
-            const rawDocs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const docs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             // @ts-ignore
-            return rawDocs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+            return docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         }
         throw indexError;
     }
@@ -140,11 +131,20 @@ export const fetchUserHistory = async (userId: string): Promise<any[]> => {
   }
 };
 
-// 4. DELETE & LOCK
+// 5. DELETE
 export const deletePostFromHistory = async (postId: string) => {
-  await deleteDoc(doc(db, 'posts', postId));
+  try {
+      await deleteDoc(doc(db, 'posts', postId));
+  } catch (e) {
+      console.error("Delete failed:", e);
+  }
 };
 
+// 6. LOCK
 export const togglePostLock = async (postId: string, currentStatus: boolean) => {
-  await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus });
+  try {
+      await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus });
+  } catch (e) {
+      console.error("Lock failed:", e);
+  }
 };
