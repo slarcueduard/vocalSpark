@@ -1,10 +1,7 @@
 import OpenAI from 'openai';
 import { verifyUserAndCredits, deductCredits } from './_utils.js';
 
-// Client OpenAI Standard
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-// Client Perplexity
 const perplexity = new OpenAI({
   apiKey: process.env.PERPLEXITY_API_KEY,
   baseURL: 'https://api.perplexity.ai'
@@ -18,63 +15,74 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, brandContext, language, platform, objective, useRealTime } = req.body;
+    const { prompt, brandContext, language, platform, objective, useRealTime, isCampaign, postCount } = req.body;
 
     // 1. CALCULĂM COSTUL
-    const COST = useRealTime ? 10 : 1;
+    // Dacă e Campanie: 1 credit per post.
+    // Dacă e Real-Time: 10 credite (fix, indiferent de nr de posturi pt că facem 1 singur search mare)
+    let count = isCampaign ? (postCount || 3) : 1;
+    let COST = useRealTime ? 10 : (1 * count);
 
-    // 2. Verificăm Userul
     const { userRef, userData } = await verifyUserAndCredits(req, COST);
     const tier = userData.subscriptionTier || 'trial';
 
-    // 3. PROTECȚIE
-    if (useRealTime && (tier === 'creator')) {
-        return res.status(403).json({ error: "Real-Time Search is a PRO feature. Please upgrade." });
+    // 2. PROTECȚII & LIMITE
+    if (useRealTime && (tier === 'creator' || tier === 'trial')) {
+        return res.status(403).json({ error: "Real-Time Search is a PRO feature." });
+    }
+    
+    // Limite Campanie per Tier
+    const maxPosts = tier === 'agency' ? 30 : (tier === 'pro' ? 7 : 3);
+    if (isCampaign && count > maxPosts) {
+        count = maxPosts; // Limităm silențios la maximul abonamentului
     }
 
-    // 4. SELECTĂM CLIENTUL ȘI MODELUL
+    // 3. CLIENT & MODEL
     let client = openai;
-    let model = "gpt-4o-mini"; 
-    
+    let model = "gpt-4o-mini"; // Default
+
     if (useRealTime) {
         client = perplexity;
         model = "sonar-reasoning-pro";
     } else {
-        // Logică Model OpenAI
-        if (tier === 'trial' || tier === 'pro' || tier === 'agency') {
-            model = "gpt-4o";
-        } else {
-            model = "gpt-4o-mini";
-        }
+        // Trial/Pro/Agency primesc GPT-4o pentru calitate maximă
+        if (tier !== 'creator') model = "gpt-4o";
     }
 
-    console.log(`Generating for [${tier}]. RealTime: ${useRealTime}. Model: ${model}. Cost: ${COST}`);
+    console.log(`Generating [${tier}]. Campaign: ${isCampaign} (${count}). Model: ${model}. Cost: ${COST}`);
 
-    // 5. CONSTRUIRE PROMPT (Aici era eroarea - ordinea contează!)
+    // 4. PROMPT ENGINEERING
     const targetLanguage = language || 'English';
     
-    // Inițializăm variabila aici
     let systemPrompt = `You are an expert Social Media Manager. 
-    CRITICAL INSTRUCTION: You MUST write the content STRICTLY in ${targetLanguage}. 
-    Do NOT use English unless it is a specific technical term.`;
+    CRITICAL INSTRUCTION: Write strictly in ${targetLanguage}.`;
 
-    // Adăugăm instrucțiuni în funcție de context
     if (useRealTime) {
-        systemPrompt += ` You have access to real-time internet data. Use specific numbers, prices, dates, and recent events from TODAY. Cite sources if relevant.`;
-    } else {
-        if (model === 'gpt-4o') {
-             systemPrompt += ` Use sophisticated vocabulary, varied sentence structures, and high emotional intelligence. Avoid generic AI phrases like "Unlock your potential". Be specific, actionable, and human-sounding.`;
-        } else {
-             systemPrompt += ` Generate engaging content. Keep it simple and effective.`;
-        }
+        systemPrompt += ` Use real-time data from TODAY.`;
     }
 
-    // Adăugăm contextul de brand
+    // --- LOGICĂ CAMPANIE VS SINGLE ---
+    if (isCampaign) {
+        systemPrompt += `
+        TASK: Create a ${count}-part Content Calendar based on the user's topic.
+        STRATEGY: Create a mix of content types (Educational, Promotional, Engagement, Storytelling).
+        Each post must be distinct but connected to the main theme.
+        
+        FORMAT: Return a raw JSON Array with ${count} objects. Structure: 
+        [{"content": "Post 1 text..."}, {"content": "Post 2 text..."}]
+        `;
+    } else {
+        systemPrompt += `
+        TASK: Write a single high-impact post.
+        GOAL: ${objective ? objective.toUpperCase() : "ENGAGEMENT"}.
+        FORMAT: Return a raw JSON Array with 1 object.
+        `;
+    }
+
     if (brandContext) systemPrompt += `\n\nAdopt this Brand Voice: ${brandContext}`;
-    if (objective) systemPrompt += `\nGOAL: ${objective.toUpperCase()}.`;
     if (platform) systemPrompt += `\nOptimize format for: ${platform}.`;
 
-    // 6. APELARE API
+    // 5. GENERARE
     const completion = await client.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
@@ -86,14 +94,10 @@ export default async function handler(req, res) {
 
     const output = completion.choices[0].message.content;
 
-    // 7. SCĂDERE CREDITE
+    // 6. UPDATE CREDITE
     await deductCredits(userRef, COST);
 
-    // Returnăm și modelul folosit ca să știm (pt debug)
-    return res.status(200).json({ 
-        output, 
-        meta: { modelUsed: model }
-    });
+    return res.status(200).json({ output });
 
   } catch (error) {
     console.error("Generation Error:", error);
