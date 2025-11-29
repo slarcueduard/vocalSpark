@@ -36,6 +36,7 @@ export interface BrandProfile {
   logoUrl?: string | null;
 }
 
+// ...
 export interface Post {
   id: string;
   content: string;
@@ -43,7 +44,12 @@ export interface Post {
   isGeneratingImage?: boolean;
   adaptedContent: Partial<Record<Platform, string>>;
   isLocked?: boolean;
+  
+  // Câmpuri noi pentru Schedule
+  scheduledDate?: any; // Timestamp Firebase sau Date JS
+  isPublished?: boolean; // Ca să nu îl mai notificăm dacă l-a postat deja
 }
+// ...
 
 export interface UserProfile {
   uid: string;
