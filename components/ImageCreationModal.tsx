@@ -46,9 +46,14 @@ const PHOTO_FILTERS = [
   { id: 'soft', label: 'Soft Matte', filter: 'contrast(0.9) brightness(1.1) saturate(0.8)' },
 ];
 
+// ...
 export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
   const { checkCredits, credits, brandProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('generate');
+  
+  // MODIFICARE AICI: Default este 'upload' acum
+  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload'); 
+  
+  // ... restul codului
   
   // State Generate
   const [prompt, setPrompt] = useState(initialPrompt);
