@@ -13,20 +13,8 @@ interface ImageCreationModalProps {
 }
 
 const AI_STYLES = [
-  { 
-    id: 'none', 
-    label: 'Natural / Raw', 
-    description: 'No filters. Just your prompt.',
-    promptSuffix: '', 
-    isExclusive: false 
-  },
-  { 
-    id: 'velocity', 
-    label: 'Velocity Dark', 
-    description: 'Cyberpunk, Neon, Moody',
-    promptSuffix: ', dark moody cyberpunk aesthetic, neon blue and purple lighting, high contrast, John Wick style, cinematic atmosphere, sharp focus, 8k',
-    isExclusive: true 
-  },
+  { id: 'none', label: 'Natural / Raw', description: 'No filters. Just your prompt.', promptSuffix: '', isExclusive: false },
+  { id: 'velocity', label: 'Velocity Dark', description: 'Cyberpunk, Neon, Moody', promptSuffix: ', dark moody cyberpunk aesthetic, neon blue and purple lighting, high contrast, John Wick style, cinematic atmosphere, sharp focus, 8k', isExclusive: true },
   { id: 'lifestyle', label: 'Lifestyle', description: 'Natural, Influencer', promptSuffix: ', authentic lifestyle photography, shot on iPhone 15 Pro, natural sunlight, candid moment', isExclusive: false },
   { id: 'studio', label: 'Studio Pro', description: 'Clean, Product', promptSuffix: ', professional studio photography, neutral background, softbox lighting, 85mm lens, 4k', isExclusive: false },
   { id: 'realism', label: 'Hyper Realism', description: 'Raw, Detailed', promptSuffix: ', award winning photography, highly detailed texture, natural lighting, unedited look, raw file', isExclusive: false },
@@ -46,7 +34,7 @@ const PHOTO_FILTERS = [
 
 export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
   const { checkCredits, credits, brandProfile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload');
+  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload'); // Default pe Upload
   
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
@@ -56,9 +44,9 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   
   const [applyLogo, setApplyLogo] = useState(false);
 
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  // Folosim Blob URLs pentru preview ca să nu ocupăm RAM
+  const [uploadedImageBlob, setUploadedImageBlob] = useState<string | null>(null);
   const [selectedPhotoFilter, setSelectedPhotoFilter] = useState<string>('normal');
-  
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,13 +56,14 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const currentCost = modelType === 'standard' ? COST_STANDARD : COST_PREMIUM;
   const canAfford = checkCredits(currentCost);
 
-  // Curățare Blob URLs la unmount pentru a elibera memoria
+  // Cleanup memory
   useEffect(() => {
       return () => {
-          if (uploadedImage && uploadedImage.startsWith('blob:')) URL.revokeObjectURL(uploadedImage);
+          if (uploadedImageBlob) URL.revokeObjectURL(uploadedImageBlob);
+          // resultImage poate fi extern (URL) sau blob, încercăm revoke doar dacă e blob
           if (resultImage && resultImage.startsWith('blob:')) URL.revokeObjectURL(resultImage);
       }
-  }, []);
+  }, [uploadedImageBlob, resultImage]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -83,9 +72,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     setIsGenerating(true);
     setError(null);
     
-    // Resetăm imaginea anterioară doar dacă era uploadată, ca să nu avem flash negru
-    if (activeTab === 'upload') setResultImage(null);
-
     try {
       const styleObj = AI_STYLES.find(s => s.id === selectedAiStyle);
       const finalPrompt = styleObj ? `${prompt}${styleObj.promptSuffix}` : prompt;
@@ -98,6 +84,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
       );
 
       setResultImage(imageUrl);
+      if (activeTab === 'upload') setActiveTab('generate'); // Switch tab to see result
     } catch (err: any) {
       setError(err.message || "Failed to generate image.");
     } finally {
@@ -108,111 +95,101 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Creăm un URL temporar (Blob) - Instantaneu, fără memorie ocupată
+    if (file.size > 15 * 1024 * 1024) { setError("File too large (Max 15MB)"); return; }
+
+    // CRITIC: Creăm un URL Blob imediat, nu citim fișierul în memorie cu FileReader
     const objectUrl = URL.createObjectURL(file);
-    setUploadedImage(objectUrl);
+    setUploadedImageBlob(objectUrl);
+    
     setResultImage(null);
     setSelectedPhotoFilter('normal');
     setError(null);
   };
 
-  // --- THE FIX: COMPRESIE & BLOB ---
+  // --- SAVE & PROCESS ---
   const applyFilterAndUse = async () => {
-    const targetImage = activeTab === 'upload' ? uploadedImage : resultImage;
+    const targetImage = activeTab === 'upload' ? uploadedImageBlob : resultImage;
     if (!targetImage) return;
 
     setIsProcessing(true);
 
-    // Dacă nu avem modificări, trimitem direct
+    // Dacă nu avem modificări, trimitem direct (Super rapid)
     const needsProcessing = (activeTab === 'upload' && selectedPhotoFilter !== 'normal') || (applyLogo && brandProfile?.logoUrl);
 
     if (!needsProcessing) {
-        onSelectImage(targetImage);
+        onSelectImage(targetImage); // Trimitem URL-ul Blob
         onClose();
+        setIsProcessing(false);
         return;
     }
 
+    // Dacă avem filtre, procesăm pe Canvas
     try {
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.src = targetImage;
-        
-        await new Promise((resolve, reject) => { 
-            img.onload = resolve; 
-            img.onerror = () => reject(new Error("Image load failed"));
-        });
+        await new Promise((r) => { img.onload = r; });
 
         const canvas = document.createElement('canvas');
+        // Redimensionăm la MAX 1080p pentru a preveni crash-ul
+        const MAX_DIM = 1080;
+        let w = img.width;
+        let h = img.height;
         
-        // REDIMENSIONARE AGRESIVĂ (Max 800px e suficient pt social)
-        const MAX_WIDTH = 800;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > MAX_WIDTH) {
-            height = Math.round(height * (MAX_WIDTH / width));
-            width = MAX_WIDTH;
+        if (w > MAX_DIM || h > MAX_DIM) {
+            const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
         }
 
-        canvas.width = width;
-        canvas.height = height;
-        
+        canvas.width = w;
+        canvas.height = h;
         const ctx = canvas.getContext('2d');
-        
+
         if (ctx) {
-            // Filtru
+            // 1. Filtru
             if (activeTab === 'upload') {
-                 const filterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
-                 ctx.filter = filterStyle;
+                ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
             }
-            
-            ctx.drawImage(img, 0, 0, width, height);
-            
-            // Logo
+            ctx.drawImage(img, 0, 0, w, h);
+
+            // 2. Logo
             if (applyLogo && brandProfile?.logoUrl) {
                 const logoImg = new Image();
                 logoImg.crossOrigin = "anonymous";
                 logoImg.src = brandProfile.logoUrl;
-                
                 try {
                     await new Promise((r, j) => { logoImg.onload = r; logoImg.onerror = j; });
                     ctx.filter = 'none';
-                    const logoW = width * 0.20; // Logo mai vizibil
+                    const logoW = w * 0.20;
                     const scale = logoW / logoImg.width;
                     const logoH = logoImg.height * scale;
-                    const pad = width * 0.05;
-                    
-                    ctx.shadowColor = "rgba(0,0,0,0.5)"; 
-                    ctx.shadowBlur = 5;
-                    ctx.drawImage(logoImg, width - logoW - pad, height - logoH - pad, logoW, logoH);
-                } catch (e) {
-                    console.warn("Logo overlay skip");
-                }
+                    const pad = w * 0.05;
+                    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5;
+                    ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
+                } catch (e) {}
             }
 
-            // EXPORT CA BLOB (JPEG 80%) - Cheia succesului
+            // 3. EXPORT BLOB (JPEG 85%) - Foarte eficient
             canvas.toBlob((blob) => {
                 if (blob) {
-                    const compressedUrl = URL.createObjectURL(blob);
-                    onSelectImage(compressedUrl); // Trimitem URL scurt, nu Base64
+                    const newUrl = URL.createObjectURL(blob);
+                    onSelectImage(newUrl);
                     onClose();
-                } else {
-                    throw new Error("Canvas export failed");
                 }
             }, 'image/jpeg', 0.85);
         }
     } catch (error) {
-        console.error("Processing crash:", error);
-        // Fallback: trimitem imaginea originală dacă procesarea eșuează
+        console.error("Processing error:", error);
+        // Fallback
         onSelectImage(targetImage);
         onClose();
     } finally {
-        // setIsProcessing(false); // Nu oprim loading-ul aici ca să nu sară UI-ul înainte să se închidă modalul
+        // setIsProcessing(false); 
     }
   };
 
-  const previewImageSrc = activeTab === 'generate' ? resultImage : uploadedImage;
+  const previewImageSrc = activeTab === 'generate' ? resultImage : uploadedImageBlob;
   const activePhotoFilterStyle = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
 
   return (
@@ -295,6 +272,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                             >
                                 {style.isExclusive && <span className="absolute top-0 right-0 text-[8px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-bl-lg rounded-tr-lg">VELOCITY</span>}
                                 <div className={`text-xs font-bold mb-0.5 ${selectedAiStyle === style.id ? 'text-white' : 'text-gray-300'}`}>{style.label}</div>
+                                <div className="text-[10px] text-gray-500 leading-tight truncate">{style.description}</div>
                             </button>
                         ))}
                     </div>
@@ -308,14 +286,14 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
           {activeTab === 'upload' && (
             <>
-                {!uploadedImage ? (
+                {!uploadedImageBlob ? (
                     <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-gray-700 rounded-xl bg-[#0f1115] hover:border-gray-500 transition cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
                         <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" hidden />
                         <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition">
                             <ImageIcon size={32} className="text-gray-400" />
                         </div>
                         <p className="text-white font-medium mb-1">Click to upload</p>
-                        <p className="text-xs text-gray-500">JPG, PNG (Max 10MB)</p>
+                        <p className="text-xs text-gray-500">JPG, PNG (Max 15MB)</p>
                     </div>
                 ) : (
                     <div className="animate-in fade-in">
@@ -323,7 +301,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                                 <SlidersHorizontal size={12} /> Photo Filters
                             </label>
-                            <button onClick={() => { setUploadedImage(null); fileInputRef.current!.value = ''; }} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
+                            <button onClick={() => { setUploadedImageBlob(null); fileInputRef.current!.value = ''; }} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
                                 <Trash size={12} /> Remove
                             </button>
                         </div>
@@ -352,17 +330,15 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             
             {previewImageSrc ? (
                 <div className="flex flex-col items-center w-full h-full justify-center gap-4 animate-in fade-in relative">
-                    <button onClick={() => { if (activeTab === 'generate') setResultImage(null); else setUploadedImage(null); }} className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10" title="Delete Image"><Trash size={16} /></button>
+                    <button onClick={() => { if (activeTab === 'generate') setResultImage(null); else setUploadedImageBlob(null); }} className="absolute top-4 left-4 p-2 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-full border border-red-500/50 transition z-10" title="Delete Image"><Trash size={16} /></button>
                     
-                    {/* Imagine cu Filtru CSS + Logo Overlay vizual */}
                     <div className="relative max-h-[500px] max-w-full rounded-lg shadow-2xl border border-gray-800 overflow-hidden">
                         <img 
-                            key={previewImageSrc} 
+                            key={previewImageSrc} // Force Refresh
                             src={previewImageSrc} 
                             alt="Preview" 
                             style={{ filter: activeTab === 'upload' ? activePhotoFilterStyle : 'none' }}
                             className="w-full h-full object-contain bg-black" 
-                            onError={(e) => { e.currentTarget.style.display = 'none'; setError("Image load failed."); }}
                         />
                         {applyLogo && brandProfile?.logoUrl && (
                             <img src={brandProfile.logoUrl} alt="Logo" className="absolute bottom-4 right-4 w-[20%] object-contain drop-shadow-lg opacity-90 pointer-events-none"/>
@@ -377,7 +353,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                         >
                             {isProcessing ? <Loader className="animate-spin" size={16}/> : "Use Image"}
                         </button>
-                        <a href={previewImageSrc} download="image.png" target="_blank" rel="noopener noreferrer" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700"><Download size={20}/></a>
+                        <a href={previewImageSrc} download="image.jpg" className="p-3 bg-gray-800 text-white rounded-lg border border-gray-700 hover:bg-gray-700"><Download size={20}/></a>
                     </div>
                 </div>
             ) : (
