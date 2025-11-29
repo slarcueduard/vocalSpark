@@ -14,6 +14,7 @@ import { PhonePreview } from './components/PhonePreview';
 import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
+import { CalendarView } from './components/CalendarView';
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
@@ -21,7 +22,7 @@ const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
   const [currentView, setCurrentView] = useState<'create' | 'history'>('create');
   
   // Feature Flags & Modes
@@ -191,6 +192,10 @@ const SocialSparkApp: React.FC = () => {
         onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}
         currentView={currentView}
         onViewChange={setCurrentView}
+          <HistoryView />
+) : currentView === 'calendar' ? (
+    <CalendarView />
+) : (
     >
         
         {vibeMessage && (
