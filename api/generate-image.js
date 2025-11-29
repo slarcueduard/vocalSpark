@@ -20,8 +20,9 @@ export default async function handler(req, res) {
 
     if (isPremium) {
         // --- PREMIUM (DALL-E 3) ---
+        // Aici folosim Proxy intern (Base64) pentru calitate și siguranță
         let enhancedPrompt = prompt;
-        if (brandColors?.length) enhancedPrompt += ` Colors: ${brandColors.join(', ')}.`;
+        if (brandColors?.length) enhancedPrompt += ` Palette: ${brandColors.join(', ')}.`;
 
         const response = await openai.images.generate({
           model: "dall-e-3",
@@ -29,29 +30,24 @@ export default async function handler(req, res) {
           n: 1,
           size: "1024x1024",
           quality: "standard",
-          response_format: "b64_json" // Base64 direct
+          response_format: "b64_json"
         });
         
         imageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
 
     } else {
-        // --- STANDARD (Pollinations - Stabil) ---
-        // Curățăm promptul și îl codăm URL safe
-        const safePrompt = encodeURIComponent(prompt.substring(0, 500));
-        const seed = Math.floor(Math.random() * 100000);
+        // --- STANDARD (Pollinations) ---
+        // AICI ERA PROBLEMA: NU MAI FACEM FETCH PE SERVER.
+        // Trimitem URL-ul direct către frontend. Browserul îl va încărca rapid.
         
-        // Construim URL-ul Pollinations
-        const pollinationUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
-
-        // Descărcăm imaginea pe server și o trimitem ca Base64 pentru a evita erorile de Canvas/CORS în frontend
-        const imageResponse = await fetch(pollinationUrl);
-        if (!imageResponse.ok) throw new Error("Standard generation failed");
+        const safePrompt = encodeURIComponent(prompt.substring(0, 200));
+        const seed = Math.floor(Math.random() * 999999);
         
-        const arrayBuffer = await imageResponse.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        imageUrl = `data:image/jpeg;base64,${buffer.toString('base64')}`;
+        // URL-ul direct către Pollinations
+        imageUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=1024&height=1024&seed=${seed}&nologo=true`;
     }
 
+    // Scădem creditele
     await deductCredits(userRef, COST);
 
     return res.status(200).json({ imageUrl });
