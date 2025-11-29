@@ -17,24 +17,44 @@ const VAULT_LIMIT = 20;
 
 // 1. SAVE (Versiune Robustă: Salvează Întâi, Curăță După)
 export const savePostToHistory = async (userId: string, post: Post, topic: string): Promise<string | null> => {
-  if (!userId || !post.content) return null;
+  console.log("🛠️ [DEBUG] Attempting Save...");
+  console.log("User:", userId);
+  console.log("Content Length:", post.content?.length);
+
+  if (!userId || !post.content) {
+      console.error("❌ [DEBUG] Missing Data. Abort.");
+      return null;
+  }
 
   try {
     const postsRef = collection(db, 'posts');
 
-    // PASUL 1: SALVĂM DIRECT (Ca să fim siguri că datele ajung în DB)
-    const docRef = await addDoc(postsRef, {
+    // SCRIE DIRECT FĂRĂ LOGICĂ DE LIMITĂ (TEST PUR)
+    const docData = {
       userId,
       content: post.content,
       imageUrl: post.imageUrl || null,
-      platform: Object.keys(post.adaptedContent || {})[0] || 'Generic',
-      adaptedContent: post.adaptedContent || {},
+      platform: 'Generic',
       topic: topic || 'Untitled',
       createdAt: serverTimestamp(),
-      isLocked: false
-    });
+      isLocked: false,
+      debugTest: true // Marker
+    };
+
+    console.log("📝 [DEBUG] Writing to Firestore...", docData);
     
-    console.log("✅ Post saved successfully. ID:", docRef.id);
+    const docRef = await addDoc(postsRef, docData);
+    
+    console.log("✅ [DEBUG] SUCCESS! Document written with ID:", docRef.id);
+    return docRef.id;
+
+  } catch (e: any) {
+    console.error("❌ [DEBUG] FIRESTORE ERROR:", e);
+    console.error("Error Code:", e.code);
+    console.error("Error Message:", e.message);
+    return null;
+  }
+};
 
     // PASUL 2: CURĂȚENIE (Async - nu blochează salvarea dacă dă eroare de index)
     // Facem asta într-un bloc separat try-catch
