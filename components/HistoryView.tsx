@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { deletePostFromHistory, togglePostLock, updatePostContent } from '../services/postService';
 import { PostCard } from './PostCard';
 import { Loader } from './Loader';
-import { Archive, Search, Database, Ghost, ShieldCheck } from 'lucide-react';
+import { Archive, Search, Database, Ghost, Info, ShieldCheck } from 'lucide-react';
 import { Post } from '../types';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
+// Importăm și modalul de imagini dacă vrem să generăm din istoric (Opțional, vezi nota de mai jos)
+import { ImageCreationModal } from './ImageCreationModal';
+import { updatePostInHistory } from '../services/postService';
 
 export function HistoryView() {
   const { user } = useAuth();
@@ -14,26 +17,21 @@ export function HistoryView() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // State pentru Imagine în Vault
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [activePrompt, setActivePrompt] = useState('');
+
   useEffect(() => {
-    if (!user) {
-        console.log("⛔ HistoryView: No user logged in.");
-        return;
-    }
+    if (!user) return;
 
-    console.log("🔄 HistoryView: Starting Listener for User:", user.uid);
-    setLoading(true);
-
-    // --- QUERY SIMPLIFICAT (DEBUG) ---
-    // Am scos 'orderBy' temporar pentru a evita problemele de indexare.
-    // Sortarea o facem local în JavaScript.
     const q = query(
       collection(db, 'posts'),
-      where('userId', '==', user.uid)
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log("📦 HistoryView: Snapshot received! Docs found:", snapshot.size);
-
         const formattedPosts: Post[] = snapshot.docs.map((doc) => {
             const data = doc.data();
             return {
@@ -45,21 +43,10 @@ export function HistoryView() {
                 isLocked: !!data.isLocked
             };
         });
-        
-        // Sortare manuală (Cele mai noi primele)
-        // @ts-ignore
-        formattedPosts.sort((a, b) => {
-             // Verificăm dacă există createdAt, altfel punem 0
-             const dateA = a['createdAt']?.seconds || 0;
-             const dateB = b['createdAt']?.seconds || 0;
-             // @ts-ignore
-             return dateB - dateA;
-        });
-
         setPosts(formattedPosts);
         setLoading(false);
     }, (error) => {
-        console.error("❌ HistoryView Error:", error);
+        console.error("Vault Error:", error);
         setLoading(false);
     });
 
@@ -81,13 +68,28 @@ export function HistoryView() {
       await updatePostContent(id, newContent);
   };
 
+  // --- LOGICĂ GENERARE IMAGINE ÎN ISTORIC ---
+  const openImageModal = (id: string, content: string) => {
+      setActivePostId(id);
+      setActivePrompt(content);
+      setIsImageModalOpen(true);
+  };
+
+  const handleImageSelected = (url: string) => {
+      if (activePostId) {
+          // Salvăm imaginea direct în bază
+          updatePostInHistory(activePostId, { imageUrl: url });
+      }
+      setIsImageModalOpen(false);
+  };
+
   const filteredPosts = posts.filter(p => 
       (p.content || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const lockedCount = posts.filter(p => p.isLocked).length;
 
-  if (loading) return <div className="flex justify-center h-64 items-center text-gray-500 gap-2"><Loader /> Connecting to Vault...</div>;
+  if (loading) return <div className="flex justify-center h-64 items-center text-gray-500 gap-2"><Loader /> Loading Vault...</div>;
 
   return (
     <div className="max-w-5xl mx-auto pb-20 animate-in fade-in">
@@ -99,6 +101,7 @@ export function HistoryView() {
                     <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                         <Archive className="text-blue-500" /> Content Vault
                     </h2>
+                    <p className="text-sm text-gray-500 mt-1">Your saved masterpieces.</p>
                 </div>
                 <div className="flex gap-3">
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700">
@@ -108,9 +111,6 @@ export function HistoryView() {
                         <ShieldCheck size={14}/> {lockedCount} Locked
                     </div>
                 </div>
-            </div>
-            <div className="text-[10px] text-gray-600 font-mono">
-                Debug User ID: {user?.uid}
             </div>
         </div>
 
@@ -134,9 +134,15 @@ export function HistoryView() {
                         key={post.id} 
                         post={post} 
                         isRefining={false}
-                        onGenerateImage={() => {}} 
+                        
+                        // ACUM PUTEM GENERA IMAGINI ȘI AICI
+                        onGenerateImage={openImageModal} 
+                        
+                        // Adapt și Refine momentan doar updatează textul local, 
+                        // ideal ar fi să fie legate și ele la updatePostContent
                         onAdaptPost={() => {}} 
                         onRefinePost={() => {}} 
+                        
                         onDelete={handleDelete} 
                         onToggleLock={handleToggleLock} 
                         onManualEdit={handleUpdateContent}
@@ -147,10 +153,17 @@ export function HistoryView() {
             <div className="text-center py-24 border-2 border-dashed border-gray-800 rounded-2xl bg-[#161b22]/30">
                 <Ghost className="text-gray-600 mx-auto mb-4" size={48} />
                 <h3 className="text-xl font-bold text-gray-300 mb-2">Vault is Empty</h3>
-                <p className="text-sm text-gray-500">
-                    {posts.length === 0 ? "No posts found yet." : "No posts match your search."}
-                </p>
+                <p className="text-sm text-gray-500">Generated posts will appear here automatically.</p>
             </div>
+        )}
+
+        {/* Modalul de Imagini (pentru Vault) */}
+        {isImageModalOpen && (
+            <ImageCreationModal 
+                onClose={() => setIsImageModalOpen(false)}
+                onSelectImage={handleImageSelected}
+                initialPrompt={activePrompt}
+            />
         )}
     </div>
   );
