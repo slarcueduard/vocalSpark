@@ -5,7 +5,7 @@ import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe, Bell, Repeat } from 'lucide-react'; 
+import { Lock, X, HelpCircle, Globe, Bell } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -16,63 +16,49 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
+const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
+
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Navigare
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
-
-  // MODES
   const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   
-  // INPUTS
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
   const [objective, setObjective] = useState<PostObjective>('engagement');
   const [campaignCount, setCampaignCount] = useState(3);
   const [remixFormats, setRemixFormats] = useState<string[]>(['LinkedIn Post', 'Twitter Thread']);
-  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   
-  // Feature Flags
   const [useRealTime, setUseRealTime] = useState(false);
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Modale
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
-  
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-
-  // --- RESETARE LA SCHIMBAREA MODULUI (CRITIC) ---
-  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      if (mode === 'single') {
-          setAppMode('creator');
-          setIsCampaignMode(false);
-      } else if (mode === 'campaign') {
-          setAppMode('creator');
-          setIsCampaignMode(true);
-      } else if (mode === 'remix') {
-          setAppMode('remix');
-          setIsCampaignMode(false);
-      }
-  };
 
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // Notifications
+  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+      if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
+      else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
+      else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
+  };
+
   useEffect(() => {
       const checkReminders = async () => {
           if (user) {
@@ -86,17 +72,13 @@ const SocialSparkApp: React.FC = () => {
       checkReminders();
   }, [user]);
 
-  // Auto-Suggest
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
-        let templates: string[] = [`3 tips for ${niche}`, `How to start in ${niche}`, `Secrets of ${niche}`];
-        if (lang === 'Romanian') {
-            templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
-        }
-        const randomIdea = templates[Math.floor(Math.random() * templates.length)];
-        setTopic(randomIdea);
+        let templates: string[] = [`3 tips for ${niche}`, `How to start in ${niche}`];
+        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`];
+        setTopic(templates[Math.floor(Math.random() * templates.length)] || "");
     }
   }, [loading, brandProfile, appMode]); 
 
@@ -175,6 +157,11 @@ const SocialSparkApp: React.FC = () => {
           remixFormats
       );
       
+      // --- PROTECȚIE ANTI-CRASH ---
+      if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) {
+          throw new Error("AI returned an empty or invalid response.");
+      }
+
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -198,8 +185,12 @@ const SocialSparkApp: React.FC = () => {
           }
       }
 
-    } catch (err) { setError('Generation failed.'); } 
-    finally { setIsLoading(false); }
+    } catch (err: any) { 
+        console.error("Generate Error:", err);
+        setError(err.message || 'Failed to generate content.'); 
+    } finally { 
+        setIsLoading(false); 
+    }
   };
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
@@ -227,15 +218,6 @@ const SocialSparkApp: React.FC = () => {
                 <div className="bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-[0_0_30px_rgba(59,130,246,0.3)] flex items-center gap-3">
                     <span className="text-xl">✨</span>
                     <span className="font-bold text-sm tracking-wide">{vibeMessage}</span>
-                </div>
-            </div>
-        )}
-
-        {notification && (
-            <div className="fixed top-20 right-6 z-50 animate-in fade-in slide-in-from-right-10 cursor-pointer" onClick={() => setCurrentView('history')}>
-                <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl border border-blue-400 flex items-center gap-3">
-                    <div className="bg-white/20 p-2 rounded-full"><Bell size={20}/></div>
-                    <div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div>
                 </div>
             </div>
         )}
@@ -403,22 +385,20 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
 
-                            {appMode === 'creator' && (
-                                <section className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
-                                        <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition">
-                                            {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label>
-                                        <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition">
-                                            {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                                        </select>
-                                    </div>
-                                </section>
-                            )}
+                            <section className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
+                                    <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition">
+                                        {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label>
+                                    <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm focus:border-blue-500 transition">
+                                        {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                    </select>
+                                </div>
+                            </section>
                             
                             <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                 {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
