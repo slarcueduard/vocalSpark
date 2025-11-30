@@ -4,6 +4,7 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req, res) {
+  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -20,7 +21,7 @@ export default async function handler(req, res) {
 
     if (isPremium) {
         // --- PREMIUM (DALL-E 3) ---
-        // Aici folosim Proxy intern (Base64) pentru calitate și siguranță
+        // Aici trebuie să facem request server-side pentru că DALL-E e pe bani și are key secret
         let enhancedPrompt = prompt;
         if (brandColors?.length) enhancedPrompt += ` Palette: ${brandColors.join(', ')}.`;
 
@@ -30,20 +31,20 @@ export default async function handler(req, res) {
           n: 1,
           size: "1024x1024",
           quality: "standard",
-          response_format: "b64_json"
+          response_format: "b64_json" // Cerem Base64 direct de la OpenAI
         });
         
         imageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
 
     } else {
         // --- STANDARD (Pollinations) ---
-        // AICI ERA PROBLEMA: NU MAI FACEM FETCH PE SERVER.
-        // Trimitem URL-ul direct către frontend. Browserul îl va încărca rapid.
+        // NU facem fetch aici. Trimitem doar URL-ul construit.
+        // Frontend-ul îl va pune într-un tag <img> și va merge instant.
         
-        const safePrompt = encodeURIComponent(prompt.substring(0, 200));
-        const seed = Math.floor(Math.random() * 999999);
+        const safePrompt = encodeURIComponent(prompt.substring(0, 500));
+        const seed = Math.floor(Math.random() * 100000);
         
-        // URL-ul direct către Pollinations
+        // URL direct către Pollinations (Flux Model)
         imageUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=1024&height=1024&seed=${seed}&nologo=true`;
     }
 
