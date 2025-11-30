@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
 import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
-import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective } from './types';
+import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
@@ -23,15 +23,14 @@ const SocialSparkApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // --- NAVIGARE ---
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
-
-  // --- MODURI DE LUCRU ---
+  
+  // --- MODES ---
   const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   
-  // --- INPUT STATES ---
-  const [topic, setTopic] = useState(''); 
+  // --- INPUTS ---
+  const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
   const [objective, setObjective] = useState<PostObjective>('engagement');
@@ -41,29 +40,22 @@ const SocialSparkApp: React.FC = () => {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   
-  // --- FEATURE FLAGS ---
   const [useRealTime, setUseRealTime] = useState(false);
   
-  // --- UI FEEDBACK ---
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // --- MODALE ---
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
-  
-  // --- IMAGINE LOGIC ---
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
-
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      // Resetăm rezultatele anterioare pentru claritate
+  // --- MODE SWITCHER ---
+  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+      // Resetăm inputurile pentru claritate
       setPosts([]); 
-      setTopic('');
-      setAttachedImage(null);
       setError(null);
 
       if (mode === 'single') {
@@ -83,7 +75,6 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // 1. Check Notifications
   useEffect(() => {
       const checkReminders = async () => {
           if (user) {
@@ -97,7 +88,6 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       checkReminders();
   }, [user]);
 
-  // 2. Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
@@ -125,7 +115,6 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       } catch (e) { return null; }
   };
 
-  // --- IMAGINI ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -149,10 +138,9 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       setActivePostIdForImage(null);
   };
 
-  // --- GENERATE ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { 
-        setError(appMode === 'remix' ? "Paste your content to remix." : "Please write a topic."); 
+        setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
         return; 
     }
     
@@ -197,13 +185,19 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
           throw new Error("AI returned an empty response. Please try again.");
       }
 
+      // --- CALCULĂM TIPUL GENERĂRII (FIX PENTRU VAULT) ---
+      let genType: GenerationType = 'single';
+      if (appMode === 'remix') genType = 'remix';
+      else if (isCampaignMode) genType = 'campaign';
+
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
           adaptedContent: {}, 
           imageUrl: attachedImage || null, 
           isGeneratingImage: false, 
-          isLocked: false 
+          isLocked: false,
+          generationType: genType // <--- AICI ESTE CHEIA! Salvăm eticheta corectă
       }));
 
       setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
@@ -211,15 +205,17 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       
       showVibe();
 
+      // --- AUTO-SAVE ---
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+          
+          // Salvăm fiecare post generat cu eticheta corectă
           for (const postData of newPostsData) {
               try {
                   const savedId = await savePostToHistory(user.uid, postData, topic, limit);
                   if (savedId) {
-                      setPosts(currentPosts => 
-                          currentPosts.map(p => p.id === postData.id ? { ...p, id: savedId } : p)
-                      );
+                      // Actualizăm ID-ul local cu cel din DB
+                      setPosts(curr => curr.map(p => p.id === postData.id ? { ...p, id: savedId } : p));
                   }
               } catch (saveErr) { console.error("Save Failed:", saveErr); }
           }
@@ -227,7 +223,7 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
 
     } catch (err: any) { 
         console.error(err);
-        setError(err.message || 'Failed to generate content.'); 
+        setError('Failed to generate content.'); 
     } finally { 
         setIsLoading(false); 
     }
@@ -291,7 +287,6 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                 <div className="flex-1 min-w-0">
                     <div className="max-w-2xl mx-auto pb-20">
                         
-                        {/* HEADER & MODE SWITCHER */}
                         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
                                 <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -329,7 +324,6 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                         </header>
                         
                         <div className="space-y-8">
-                            {/* INPUT SECTION */}
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
@@ -436,7 +430,6 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                                 </div>
                             </section>
 
-                            {/* --- AICI ERA EROAREA (Am închis corect parantezele la select) --- */}
                             <section className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
