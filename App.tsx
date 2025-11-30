@@ -59,10 +59,23 @@ const SocialSparkApp: React.FC = () => {
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
-      else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
-      else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
+const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+      // Resetăm rezultatele anterioare pentru claritate
+      setPosts([]); 
+      setTopic('');
+      setAttachedImage(null);
+      setError(null);
+
+      if (mode === 'single') {
+          setAppMode('creator');
+          setIsCampaignMode(false);
+      } else if (mode === 'campaign') {
+          setAppMode('creator');
+          setIsCampaignMode(true);
+      } else if (mode === 'remix') {
+          setAppMode('remix');
+          setIsCampaignMode(false);
+      }
   };
 
   const showVibe = () => {
