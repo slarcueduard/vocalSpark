@@ -119,6 +119,16 @@ export async function generateSocialMediaPosts(
   objective: PostObjective = 'engagement', 
   useRealTime: boolean = false,
   isCampaign: boolean = false // Parametru nou pentru campanie
+     isRemix: boolean = false,
+  remixFormats: string[] = []
+): Promise<any[]> {
+    // ...
+    const data = await safeFetch('/api/generate-text', { 
+            // ...
+            isRemix,
+            remixFormats
+    });
+    
 ): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
     let contextString = '';
