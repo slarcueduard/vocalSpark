@@ -4,12 +4,10 @@ import {
     Instagram, Facebook, Linkedin, Twitter, Video, 
     Check, Copy, Trash2, Wand2, Download, 
     Image as ImageIcon, Share2, Smartphone, Lock, Unlock, Edit3, Save,
-    CalendarClock, CheckCircle // Iconițe noi
+    CalendarClock, CheckCircle
 } from 'lucide-react';
 import { Loader } from './Loader';
 
-// Importăm funcția de schedule direct aici sau o primim ca prop. 
-// Pentru simplitate în MVP, o să cerem un prop nou onSchedule.
 interface PostCardProps {
   post: Post;
   isRefining: boolean;
@@ -19,8 +17,8 @@ interface PostCardProps {
   onDelete: (postId: string) => void;
   onToggleLock: (postId: string) => void;
   onManualEdit?: (postId: string, newContent: string) => void;
-  onSchedule?: (postId: string, date: Date) => void; // <--- PROP NOU
-  onMarkPublished?: (postId: string) => void; // <--- PROP NOU
+  onSchedule?: (postId: string, date: Date) => void;
+  onMarkPublished?: (postId: string) => void;
 }
 
 export const PostCard: React.FC<PostCardProps> = ({ 
@@ -35,11 +33,10 @@ export const PostCard: React.FC<PostCardProps> = ({
 
   const [showRefineMenu, setShowRefineMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null); // Ref pentru input-ul de dată
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setEditContent(post.content); }, [post.content]);
 
-  // ... (restul useEffect-urilor rămân la fel) ...
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -60,8 +57,6 @@ export const PostCard: React.FC<PostCardProps> = ({
   const handleSaveEdit = () => { if (onManualEdit) onManualEdit(post.id, editContent); setIsEditing(false); };
 
   const handleNativeShare = async () => {
-      // ... (logica de share existentă) ...
-      // La fel ca înainte
       const contentToShare = activeTab === 'Original' ? post.content : post.adaptedContent[activeTab as Platform] || post.content;
       if (!navigator.share) { handleCopy(); alert("Sharing not supported. Copied!"); return; }
       setIsSharing(true);
@@ -84,7 +79,6 @@ export const PostCard: React.FC<PostCardProps> = ({
       setShowRefineMenu(false);
   };
 
-  // --- SCHEDULE LOGIC ---
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.value && onSchedule) {
           const date = new Date(e.target.value);
@@ -92,7 +86,6 @@ export const PostCard: React.FC<PostCardProps> = ({
       }
   };
 
-  // Formatare dată pentru afișare
   const scheduledDateDisplay = post.scheduledDate 
     // @ts-ignore
     ? new Date(post.scheduledDate.toDate ? post.scheduledDate.toDate() : post.scheduledDate).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -108,13 +101,8 @@ export const PostCard: React.FC<PostCardProps> = ({
   ];
 
   return (
-    <div className={`bg-[#161b22] border rounded-2xl overflow-hidden transition shadow-xl flex flex-col md:flex-row group relative ${post.isLocked ? 'border-yellow-500/30' : 'border-gray-800'}`}>
+    <div className={`bg-[#161b22] border rounded-2xl overflow-hidden transition shadow-xl flex flex-col md:flex-row group relative ${post.isLocked ? 'border-yellow-500/50 shadow-yellow-900/20' : 'border-gray-800'}`}>
         
-        {/* Header Status Strip */}
-        {post.isPublished && (
-             <div className="absolute top-0 left-0 w-full h-1 bg-green-500 z-10"></div>
-        )}
-
         {/* A. IMAGINE */}
         <div className="w-full md:w-1/3 bg-black relative group min-h-[250px] border-b md:border-b-0 md:border-r border-gray-800 flex items-center justify-center">
             {post.isGeneratingImage ? (
@@ -148,52 +136,39 @@ export const PostCard: React.FC<PostCardProps> = ({
         <div className="flex-1 p-6 flex flex-col">
             
             <div className="flex justify-between items-start mb-4">
-                <div className="flex gap-2 items-center">
-                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded border ${activeTab === 'Original' ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-blue-900/20 text-blue-400 border-blue-500/30'}`}>
+                <div className="flex flex-col gap-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded border w-fit ${activeTab === 'Original' ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-blue-900/20 text-blue-400 border-blue-500/30'}`}>
                         {activeTab === 'Original' ? 'Base Content' : `Adapted for ${activeTab}`}
                     </span>
-                    {/* STATUS PROGRAMARE */}
                     {scheduledDateDisplay && (
-                        <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 ${post.isPublished ? 'bg-green-900/30 text-green-400' : 'bg-orange-900/30 text-orange-300'}`}>
-                            {post.isPublished ? <CheckCircle size={10}/> : <CalendarClock size={10}/>}
-                            {scheduledDateDisplay}
+                        <span className="text-[10px] text-orange-400 flex items-center gap-1 bg-orange-900/20 px-2 py-0.5 rounded border border-orange-900/50 w-fit">
+                            <CalendarClock size={10}/> {scheduledDateDisplay}
                         </span>
                     )}
                 </div>
                 
                 <div className="flex gap-1">
-                    {/* BUTTON SCHEDULE */}
                     {onSchedule && (
                         <>
-                            <button 
-                                onClick={() => dateInputRef.current?.showPicker()} 
-                                className="p-2 text-gray-600 hover:text-orange-400 transition" 
-                                title="Schedule Post"
-                            >
+                            <button onClick={() => dateInputRef.current?.showPicker()} className="p-2 text-gray-600 hover:text-orange-400 transition" title="Schedule">
                                 <CalendarClock size={16} />
                             </button>
-                            <input 
-                                type="datetime-local" 
-                                ref={dateInputRef}
-                                onChange={handleDateChange}
-                                className="absolute opacity-0 w-0 h-0"
-                            />
+                            <input type="datetime-local" ref={dateInputRef} onChange={handleDateChange} className="absolute opacity-0 w-0 h-0" />
                         </>
                     )}
 
-                    {/* Mark Published */}
-                    {onMarkPublished && !post.isPublished && post.scheduledDate && (
-                        <button onClick={() => onMarkPublished(post.id)} className="p-2 text-gray-600 hover:text-green-400 transition" title="Mark as Published">
-                            <CheckCircle size={16} />
-                        </button>
-                    )}
-
-                    <button onClick={() => onToggleLock(post.id)} className={`p-2 transition ${post.isLocked ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-500'}`}>
-                        {post.isLocked ? <Lock size={16} /> : <Unlock size={16} />}
+                    {/* --- BUTONUL DE PIN / LOCK AICI --- */}
+                    <button 
+                        onClick={() => onToggleLock(post.id)} 
+                        className={`p-2 transition rounded-lg ${post.isLocked ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-500/30' : 'text-gray-600 hover:text-yellow-500'}`} 
+                        title={post.isLocked ? "Pinned (Safe from auto-delete)" : "Pin to Vault"}
+                    >
+                        {post.isLocked ? <Lock size={16} fill="currentColor" /> : <Unlock size={16} />}
                     </button>
-                    
+                    {/* ---------------------------------- */}
+
                     {onManualEdit && activeTab === 'Original' && (
-                        <button onClick={() => isEditing ? handleSaveEdit() : setIsEditing(true)} className={`p-2 transition ${isEditing ? 'text-green-400' : 'text-gray-600 hover:text-blue-400'}`}>
+                        <button onClick={() => isEditing ? handleSaveEdit() : setIsEditing(true)} className={`p-2 transition rounded-lg ${isEditing ? 'text-green-400' : 'text-gray-600 hover:text-blue-400'}`}>
                             {isEditing ? <Save size={16} /> : <Edit3 size={16} />}
                         </button>
                     )}
@@ -203,22 +178,13 @@ export const PostCard: React.FC<PostCardProps> = ({
             
             <div className="flex-1 mb-6 relative min-h-[120px]">
                 {isEditing ? (
-                    <textarea 
-                        className="w-full h-full bg-[#0f1115] border border-blue-500/50 rounded-lg p-3 text-gray-200 text-sm leading-relaxed resize-none outline-none focus:ring-1 focus:ring-blue-500 min-h-[150px]"
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                    />
+                    <textarea className="w-full h-full bg-[#0f1115] border border-blue-500/50 rounded-lg p-3 text-gray-200 text-sm leading-relaxed resize-none outline-none focus:ring-1 focus:ring-blue-500 min-h-[150px]" value={editContent} onChange={(e) => setEditContent(e.target.value)} />
                 ) : (
-                    <textarea 
-                        readOnly
-                        className="w-full h-full bg-transparent text-gray-300 text-base md:text-sm leading-relaxed resize-none outline-none cursor-text min-h-[200px] md:min-h-[120px]"
-                        value={displayContent}
-                    />
+                    <textarea readOnly className="w-full h-full bg-transparent text-gray-300 text-base md:text-sm leading-relaxed resize-none outline-none cursor-text min-h-[200px] md:min-h-[120px]" value={displayContent} />
                 )}
             </div>
 
             <div className="border-t border-gray-800 pt-4 space-y-5">
-                {/* Platforms Row */}
                 <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                     {platforms.map((p) => (
                         <button key={p.id} onClick={() => { setActiveTab(p.id); if (!post.adaptedContent[p.id]) onAdaptPost(post.id, p.id, post.content); }} className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-200 ${activeTab === p.id ? 'bg-blue-600 text-white border-blue-500 shadow-lg' : !!post.adaptedContent[p.id] ? 'bg-gray-800 text-gray-300 border-gray-500' : 'bg-transparent text-gray-700 border-gray-800 hover:text-gray-400'}`}>
@@ -227,7 +193,6 @@ export const PostCard: React.FC<PostCardProps> = ({
                     ))}
                 </div>
 
-                {/* Actions Row */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     <button onClick={handleCopy} className="py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-xs font-bold text-gray-300 flex items-center justify-center gap-2 transition-all active:scale-95">
                         {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />} {copied ? 'Copied!' : 'Copy'}
@@ -243,10 +208,10 @@ export const PostCard: React.FC<PostCardProps> = ({
                         {showRefineMenu && (
                             <div className="absolute bottom-full right-0 mb-2 w-full sm:w-48 bg-[#1c1c2e] border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-20 animate-in fade-in zoom-in-95 duration-100">
                                 <div className="p-1 space-y-0.5">
-                                    <button onClick={() => handleRefineClick('makeShorter')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg">Shorten</button>
-                                    <button onClick={() => handleRefineClick('addEmojis')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg">Emojify</button>
-                                    <button onClick={() => handleRefineClick('askQuestion')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg">Question</button>
-                                    <button onClick={() => handleRefineClick('formal')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg">Formal</button>
+                                    <button onClick={() => handleRefineClick('makeShorter')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg transition">Shorten</button>
+                                    <button onClick={() => handleRefineClick('addEmojis')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg transition">Emojify</button>
+                                    <button onClick={() => handleRefineClick('askQuestion')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg transition">Question</button>
+                                    <button onClick={() => handleRefineClick('formal')} className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg transition">Formal</button>
                                 </div>
                             </div>
                         )}
