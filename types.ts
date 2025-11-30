@@ -72,6 +72,26 @@ export interface PlanConfig {
   highlight?: boolean;
 }
 
+// ... restul codului ...
+
+export type GenerationType = 'single' | 'campaign' | 'remix'; // <--- NOU
+
+export interface Post {
+  id: string;
+  content: string;
+  imageUrl?: string | null;
+  isGeneratingImage?: boolean;
+  adaptedContent: Partial<Record<Platform, string>>;
+  isLocked?: boolean;
+  scheduledDate?: any;
+  isPublished?: boolean;
+  
+  // Câmpuri noi pentru structură
+  type?: string; // (script/thread) - existent
+  generationType?: GenerationType; // (single/campaign/remix) - NOU
+}
+
+
 export const PLANS: Record<SubscriptionTier, PlanConfig> = {
   trial: {
     id: 'trial',
