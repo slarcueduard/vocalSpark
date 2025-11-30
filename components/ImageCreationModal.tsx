@@ -238,13 +238,21 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         </div>
 
         {/* RIGHT: Preview */}
+ {/* RIGHT: Preview */}
         <div className="w-full md:w-1/2 bg-black flex flex-col items-center justify-center p-6 relative">
-            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white"><X size={20}/></button>
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10"><X size={20}/></button>
             
-            {previewUrl ? (
-                <div className="flex flex-col items-center w-full gap-4 animate-in fade-in zoom-in-95">
+            {/* --- LOADING STATE NOU --- */}
+            {isGenerating ? (
+                <div className="flex flex-col items-center gap-4 animate-pulse">
+                    <div className="w-20 h-20 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+                    <p className="text-blue-400 font-bold text-lg tracking-widest animate-pulse">CREATING ART...</p>
+                    <p className="text-gray-500 text-xs">This might take up to 15 seconds for Premium</p>
+                </div>
+            ) : previewSrc ? (
+                <div className="flex flex-col items-center w-full gap-4 animate-in zoom-in-95 duration-300">
                     <img 
-                        src={previewUrl} 
+                        src={previewSrc} 
                         alt="Preview" 
                         className="max-h-[400px] max-w-full rounded-lg shadow-2xl object-contain border border-gray-800" 
                     />
@@ -258,6 +266,13 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                         </button>
                     </div>
                 </div>
+            ) : (
+                <div className="text-center text-gray-600">
+                    <Sparkles className="w-16 h-16 mx-auto mb-4 opacity-20" />
+                    <p className="text-sm font-medium">Your visual will appear here</p>
+                </div>
+            )}
+        </div>
             ) : (
                 <div className="text-gray-600 text-sm flex flex-col items-center">
                     <ImageIcon className="mb-2 opacity-20 w-12 h-12" /> 
