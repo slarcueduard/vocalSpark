@@ -16,7 +16,54 @@ export default async function handler(req, res) {
 
   try {
     const { prompt, brandContext, language, platform, objective, useRealTime, isCampaign, postCount } = req.body;
+// ... (în interiorul try, după extragerea body-ului)
 
+    const { 
+        prompt, // În modul Remix, aici va veni "Source Content"
+        brandContext, 
+        language, 
+        // ... altele
+        isRemix, // <--- Parametru nou
+        remixFormats // Array ex: ['LinkedIn', 'Twitter']
+    } = req.body;
+
+    // ...
+
+    if (isRemix) {
+        systemPrompt += `
+        TASK: REPURPOSE CONTENT.
+        You are an expert Content Strategist.
+        Take the provided SOURCE CONTENT and rewrite it into the following formats: ${remixFormats.join(', ')}.
+        
+        RULES:
+        - Maintain the core message but adapt the tone for each platform.
+        - Extract the key value points.
+        - If creating a Thread, split it logically.
+        - If creating a TikTok Script, include visual cues.
+        
+        FORMAT: Return a raw JSON Array:
+        [
+            { "platform": "LinkedIn", "content": "..." },
+            { "platform": "TikTok Script", "content": "..." }
+        ]
+        `;
+        
+        // Pentru Remix, prompt-ul userului este sursa
+        // Modificăm mesajul trimis la AI
+        // systemPrompt rămâne system
+        // user message devine: "SOURCE CONTENT:\n" + prompt
+    } 
+    // ... (restul logicii else if isCampaign etc.)
+
+    // La final, apelul către AI:
+    const userMessageContent = isRemix ? `SOURCE CONTENT:\n${prompt}` : prompt;
+
+    const completion = await client.chat.completions.create({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessageContent } // Aici folosim variabila nouă
+      ],
+      // ...
     // 1. CALCULĂM COSTUL
     // Dacă e Campanie: 1 credit per post.
     // Dacă e Real-Time: 10 credite (fix, indiferent de nr de posturi pt că facem 1 singur search mare)
