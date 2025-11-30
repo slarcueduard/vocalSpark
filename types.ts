@@ -21,7 +21,7 @@ export type AppMode = 'creator' | 'business';
 export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
 export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion' | 'formal';
 export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'traffic';
-
+export type AppMode = 'creator' | 'business' | 'remix'; // <--- Adaugă 'remix'
 export interface BrandProfile {
   industry: string;
   customIndustry?: string;
