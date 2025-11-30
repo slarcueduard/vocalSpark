@@ -4,7 +4,6 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export default async function handler(req, res) {
-  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -21,9 +20,10 @@ export default async function handler(req, res) {
 
     if (isPremium) {
         // --- PREMIUM (DALL-E 3) ---
-        // Aici trebuie să facem request server-side pentru că DALL-E e pe bani și are key secret
+        // Aici avem nevoie de Base64 pentru că URL-ul expiră
+        console.log("Generating Premium...");
         let enhancedPrompt = prompt;
-        if (brandColors?.length) enhancedPrompt += ` Palette: ${brandColors.join(', ')}.`;
+        if (brandColors?.length) enhancedPrompt += ` Colors: ${brandColors.join(', ')}.`;
 
         const response = await openai.images.generate({
           model: "dall-e-3",
@@ -31,30 +31,30 @@ export default async function handler(req, res) {
           n: 1,
           size: "1024x1024",
           quality: "standard",
-          response_format: "b64_json" // Cerem Base64 direct de la OpenAI
+          response_format: "b64_json"
         });
         
         imageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
 
     } else {
         // --- STANDARD (Pollinations) ---
-        // NU facem fetch aici. Trimitem doar URL-ul construit.
-        // Frontend-ul îl va pune într-un tag <img> și va merge instant.
+        // NU descărcăm pe server (evităm Timeout 504). Trimitem URL direct.
+        // Frontend-ul îl va afișa în <img> instant.
+        console.log("Generating Standard (URL Only)...");
         
-        const safePrompt = encodeURIComponent(prompt.substring(0, 500));
+        const safePrompt = encodeURIComponent(prompt.replace(/[^a-zA-Z0-9 ,]/g, ''));
         const seed = Math.floor(Math.random() * 100000);
         
-        // URL direct către Pollinations (Flux Model)
-        imageUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=1024&height=1024&seed=${seed}&nologo=true`;
+        // Folosim modelul 'flux' simplu, e cel mai rapid
+        imageUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
     }
 
-    // Scădem creditele
     await deductCredits(userRef, COST);
 
     return res.status(200).json({ imageUrl });
 
   } catch (error) {
     console.error("Image Gen Error:", error);
-    return res.status(500).json({ error: error.message || "Failed to generate image" });
+    return res.status(500).json({ error: error.message });
   }
 }
