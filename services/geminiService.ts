@@ -106,7 +106,7 @@ export async function generateImageForPost(
     }
 }
 
-// --- 3. TEXT (Generare Postări & Campanii) ---
+// --- 3. TEXT (Generare Postări & Campanii & Remix) ---
 export async function generateSocialMediaPosts(
   topic: string, 
   tone: Tone, 
@@ -118,18 +118,10 @@ export async function generateSocialMediaPosts(
   imageMimeType?: string, 
   objective: PostObjective = 'engagement', 
   useRealTime: boolean = false,
-  isCampaign: boolean = false // Parametru nou pentru campanie
-     isRemix: boolean = false,
+  isCampaign: boolean = false, 
+  isRemix: boolean = false, // <--- Aici era problema, acum e corect
   remixFormats: string[] = []
 ): Promise<any[]> {
-    // ...
-    const data = await safeFetch('/api/generate-text', { 
-            // ...
-            isRemix,
-            remixFormats
-    });
-    
-): Promise<Omit<Post, 'id' | 'imageUrl' | 'isGeneratingImage' | 'adaptedContent'>[]> {
     
     let contextString = '';
     if (brandProfile) {
@@ -146,7 +138,6 @@ export async function generateSocialMediaPosts(
         traffic: "Goal: Clicks to Bio."
     };
 
-    // Prompt simplificat aici, logica grea e în backend
     const prompt = `
     ROLE: Social Media Expert.
     GOAL: ${objectivesMap[objective] || "Engagement"}
@@ -163,8 +154,10 @@ export async function generateSocialMediaPosts(
             imageMimeType,
             objective,
             useRealTime,
-            isCampaign, // Trimitem flag-ul de campanie
-            postCount   // Trimitem numărul de postări dorit
+            isCampaign, 
+            postCount,   
+            isRemix,      // <--- Trimitem la backend
+            remixFormats  // <--- Trimitem la backend
         });
 
         const parsed = extractJsonArray(data.output);
