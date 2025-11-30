@@ -3,12 +3,11 @@ import { verifyUserAndCredits, deductCredits } from './_utils.js';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const perplexity = new OpenAI({
-  apiKey: process.env.PERPLEXITY_API_KEY || 'dummy', // Evităm crash dacă lipsește cheia local
+  apiKey: process.env.PERPLEXITY_API_KEY,
   baseURL: 'https://api.perplexity.ai'
 });
 
 export default async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -16,117 +15,105 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats } = req.body;
+    const { prompt, brandContext, language, platform, objective, useRealTime, isCampaign, isRemix, remixFormats, postCount } = req.body;
 
-    // 1. Calcul Cost
-    const COST = useRealTime ? 10 : 1;
+    // 1. CALCUL COST
+    // Single = 1
+    // Campaign = postCount
+    // Remix = Câte formate sunt selectate
+    // RealTime = 10 (Flat fee)
+    let count = 1;
+    if (isCampaign) count = postCount || 3;
+    if (isRemix && remixFormats) count = remixFormats.length;
+
+    const COST = useRealTime ? 10 : (1 * count);
+    
     const { userRef, userData } = await verifyUserAndCredits(req, COST);
     const tier = userData.subscriptionTier || 'trial';
 
-    // 2. Selecție Model
+    // 2. SELECTIE MODEL
     let client = openai;
-    let model = "gpt-4o-mini"; // Default
-    let useJsonMode = true; // OpenAI suportă JSON mode nativ
+    let model = "gpt-4o-mini"; 
 
     if (useRealTime) {
         if (tier === 'creator' || tier === 'trial') return res.status(403).json({ error: "Real-Time is PRO." });
         client = perplexity;
         model = "sonar-reasoning-pro";
-        useJsonMode = false; // Perplexity nu suportă mereu json_object, ne bazăm pe prompt
     } else if (tier === 'trial' || tier === 'pro' || tier === 'agency') {
         model = "gpt-4o";
     }
 
-    // 3. Construire Prompt
+    // 3. PROMPT ENGINEERING (STRATEGIA)
     const targetLanguage = language || 'English';
-    let systemPrompt = `You are an expert Social Media Manager. 
-    CRITICAL: Write strictly in ${targetLanguage}. 
-    Output MUST be a valid JSON object with a "posts" array.`;
+    
+    let systemPrompt = `You are an elite Social Media Strategist.
+    LANGUAGE: Write STRICTLY in ${targetLanguage}.
+    
+    INPUT CONTEXT:
+    Brand Voice: ${brandContext || 'Professional but engaging'}
+    Goal: ${objective || 'Engagement'}
+    `;
 
-    let userMessage = prompt;
+    if (useRealTime) systemPrompt += `\nSOURCE: Use real-time data from TODAY.`;
 
-    // --- MOD REMIX ---
+    // --- LOGICA PE MODURI ---
+    
     if (isRemix) {
+        // === MOD REMIX (REPURPOSING) ===
         systemPrompt += `
-        TASK: REPURPOSE CONTENT.
-        Rewrite the source content into these formats: ${remixFormats?.join(', ') || 'Social Post'}.
+        TASK: Repurpose the user's input content into these specific formats: ${remixFormats.join(', ')}.
         
-        JSON SCHEMA:
-        {
-          "posts": [
-            {
-              "platform": "Platform Name",
-              "content": "The content here...",
-              "type": "thread | script | post" 
-            }
-          ]
-        }
-        
-        For Threads: Split content into numbered tweets separated by double newlines.
-        For TikTok/Reels: Write a script with (Visual) and (Audio) cues.
-        `;
-        userMessage = `SOURCE CONTENT:\n${prompt}`;
-    } 
-    // --- MOD STANDARD ---
-    else {
-        systemPrompt += `
-        TASK: Write social media content.
-        JSON SCHEMA:
-        {
-          "posts": [
-            { "content": "The post text..." }
-          ]
-        }
-        `;
-        
-        if (useRealTime) systemPrompt += ` Use real-time data from TODAY.`;
-        else if (model === 'gpt-4o') systemPrompt += ` Use sophisticated, human-like writing.`;
+        FORMAT DEFINITIONS:
+        - "LinkedIn Post": Storytelling text, professional tone. No slides.
+        - "Twitter Thread": A series of short tweets (max 280 chars). Split by double newlines.
+        - "Newsletter Email": Subject line + Body. Rich text.
+        - "TikTok Script": Return a JSON object with "slides" array. Each slide has "visualPrompt" (for AI image gen), "overlayText", and "voiceover".
+        - "Instagram Carousel": Return a JSON object with "slides" array. Each slide has "visualPrompt" (for AI image gen) and "caption".
+        - "Facebook Story": Short, punchy text + 1 visual prompt.
 
-        if (brandContext) systemPrompt += `\n\nBrand Voice: ${brandContext}`;
-        if (objective) systemPrompt += `\nGoal: ${objective}`;
-        if (platform) systemPrompt += `\nPlatform: ${platform}`;
+        OUTPUT: Return a JSON Array with ${count} objects. Each object must have:
+        {
+            "platform": "The Format Name",
+            "content": "The text content or script",
+            "type": "text" | "script" | "carousel" | "thread",
+            "slides": [] (ONLY if type is script/carousel)
+        }
+        `;
+    
+    } else if (isCampaign) {
+        // === MOD CAMPANIE ===
+        systemPrompt += `
+        TASK: Create a ${count}-part Content Series (Calendar) about: "${prompt}".
+        STRATEGY: Create a cohesive sequence (Teaser -> Value -> Sales -> Proof).
+        OUTPUT: Return a JSON Array with exactly ${count} post objects.
+        `;
+    
+    } else {
+        // === MOD SINGLE (STRICT) ===
+        systemPrompt += `
+        TASK: Write EXACTLY ONE high-impact post about: "${prompt}".
+        PLATFORM: ${platform}.
+        OUTPUT: Return a JSON Array with EXACTLY 1 object. Do NOT generate variations.
+        `;
     }
 
-    // 4. Apelare AI
+    // 4. EXECUȚIE
     const completion = await client.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userMessage }
+        { role: "user", content: prompt }
       ],
       model: model,
       temperature: 0.7,
-      // Activăm JSON mode doar pentru OpenAI ca să nu crape Perplexity
-      response_format: useJsonMode ? { type: "json_object" } : undefined
     });
 
-    const rawOutput = completion.choices[0].message.content;
-    console.log("AI Output:", rawOutput.substring(0, 100) + "...");
+    const output = completion.choices[0].message.content;
 
-    // 5. Curățare JSON (pentru Perplexity care poate fi vorbăreț)
-    let jsonOutput;
-    try {
-        jsonOutput = JSON.parse(rawOutput);
-    } catch (e) {
-        // Încercăm să extragem JSON-ul dintr-un bloc ```json ... ```
-        const match = rawOutput.match(/```json([\s\S]*?)```/) || rawOutput.match(/\{[\s\S]*\}/);
-        if (match) {
-            jsonOutput = JSON.parse(match[1] || match[0]);
-        } else {
-            throw new Error("AI did not return JSON");
-        }
-    }
-
-    // Normalizăm structura pentru frontend (vrea un Array simplu sau obiect cu chei)
-    const finalPosts = jsonOutput.posts || jsonOutput; 
-
-    // 6. Scădere Credite
     await deductCredits(userRef, COST);
-
-    // Trimitem JSON stringified ca să fie compatibil cu frontend-ul existent care face JSON.parse
-    return res.status(200).json({ output: JSON.stringify(finalPosts) });
+    return res.status(200).json({ output });
 
   } catch (error) {
-    console.error("Backend Error:", error);
-    return res.status(500).json({ error: error.message || "Internal Server Error" });
+    console.error("Gen Error:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
