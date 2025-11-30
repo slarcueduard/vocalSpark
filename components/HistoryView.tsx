@@ -19,21 +19,20 @@ export function HistoryView() {
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activePrompt, setActivePrompt] = useState('');
-
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'posts'), where('userId', '==', user.uid));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+// ... în useEffect ...
         const formattedPosts: Post[] = snapshot.docs.map((doc) => {
             const d = doc.data();
             return { 
                 ...d, 
                 id: doc.id, 
-                // Fallback: Dacă nu are tip, e single
-                generationType: d.generationType || 'single' 
+                content: d.content || "",
+                imageUrl: d.imageUrl || null,
+                // Mapăm tipul din DB
+                generationType: d.generationType || 'single', 
+                createdAt: getSafeDate(d.createdAt) // Folosim funcția de siguranță dacă ai implementat-o, sau d.createdAt direct
             } as any;
         });
+    // ...
         
         // Sortare după dată
         formattedPosts.sort((a: any, b: any) => {
