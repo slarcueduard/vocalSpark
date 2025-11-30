@@ -34,11 +34,11 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
   const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none');
+  
   const [isGenerating, setIsGenerating] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [applyLogo, setApplyLogo] = useState(false);
-
   const [uploadedImageBlob, setUploadedImageBlob] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [selectedPhotoFilter, setSelectedPhotoFilter] = useState<string>('normal');
@@ -89,75 +89,91 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     const objectUrl = URL.createObjectURL(file);
     setUploadedImageBlob(objectUrl);
     setResultImage(null);
+    setSelectedPhotoFilter('normal');
     setError(null);
   };
 
   const handleUseImage = async () => {
-      const target = activeTab === 'upload' ? uploadedImageBlob : resultImage;
-      if (!target) return;
+    const target = activeTab === 'upload' ? uploadedImageBlob : resultImage;
+    if (!target) return;
 
-      const noProcessingNeeded = (selectedPhotoFilter === 'normal') && !(applyLogo && brandProfile?.logoUrl);
-      if (noProcessingNeeded) {
-          onSelectImage(target);
-          onClose();
-          return;
-      }
+    // 1. FAST PATH (URL Direct pentru Standard sau Upload simplu)
+    const needsFilter = activeTab === 'upload' && selectedPhotoFilter !== 'normal';
+    const needsLogo = applyLogo && brandProfile?.logoUrl;
 
-      setIsProcessing(true);
-      try {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = target;
-          await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+    // Dacă e URL extern (Standard) și nu avem filtre, trimitem direct
+    if (typeof target === 'string' && target.startsWith('http') && !target.startsWith('blob:') && !needsLogo) {
+        onSelectImage(target);
+        onClose();
+        return;
+    }
 
-          const canvas = document.createElement('canvas');
-          const MAX_DIM = 1080; 
-          let w = img.width;
-          let h = img.height;
-          if (w > MAX_DIM || h > MAX_DIM) {
-              const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
-              w = Math.round(w * ratio);
-              h = Math.round(h * ratio);
-          }
+    // Dacă e Blob (Upload) și nu avem filtre, trimitem direct
+    if (!needsFilter && !needsLogo) {
+        onSelectImage(target);
+        onClose();
+        return;
+    }
 
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          
-          if (ctx) {
-              const filterStr = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
-              ctx.filter = filterStr;
-              ctx.drawImage(img, 0, 0, w, h);
-              
-              if (applyLogo && brandProfile?.logoUrl) {
-                  ctx.filter = 'none';
-                  const logoImg = new Image();
-                  logoImg.crossOrigin = "anonymous";
-                  logoImg.src = brandProfile.logoUrl;
-                  await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
-                  
-                  const logoW = w * 0.2;
-                  const scale = logoW / logoImg.width;
-                  const logoH = logoImg.height * scale;
-                  const pad = w * 0.05;
-                  ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5;
-                  ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
-              }
+    // 2. PROCESS PATH (Canvas)
+    setIsProcessing(true);
+    try {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = target;
+        await new Promise((r, j) => { img.onload = r; img.onerror = j; });
 
-              canvas.toBlob(blob => {
-                  if (blob) {
-                      onSelectImage(URL.createObjectURL(blob));
-                      onClose();
-                  }
-              }, 'image/jpeg', 0.8);
-          }
-      } catch (e) {
-          console.error(e);
-          onSelectImage(target);
-          onClose();
-      } finally {
-          setIsProcessing(false);
-      }
+        const canvas = document.createElement('canvas');
+        const MAX_DIM = 1080;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX_DIM || h > MAX_DIM) {
+            const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+        }
+
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+
+        if (ctx) {
+            if (needsFilter) {
+                ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
+            }
+            ctx.drawImage(img, 0, 0, w, h);
+
+            if (needsLogo && brandProfile?.logoUrl) {
+                ctx.filter = 'none';
+                const logoImg = new Image();
+                logoImg.crossOrigin = "anonymous";
+                logoImg.src = brandProfile.logoUrl;
+                try {
+                    await new Promise((r) => { logoImg.onload = r; logoImg.onerror = () => r(null); });
+                    const logoW = w * 0.2;
+                    const scale = logoW / logoImg.width;
+                    const logoH = logoImg.height * scale;
+                    const pad = w * 0.05;
+                    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5;
+                    ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
+                } catch (e) {}
+            }
+
+            canvas.toBlob((blob) => {
+                if (blob) {
+                    const newUrl = URL.createObjectURL(blob);
+                    onSelectImage(newUrl);
+                    onClose();
+                }
+                setIsProcessing(false);
+            }, 'image/jpeg', 0.85);
+        }
+    } catch (error) {
+        console.error("Processing error:", error);
+        onSelectImage(target); // Fallback
+        onClose();
+        setIsProcessing(false);
+    }
   };
 
   const previewSrc = activeTab === 'generate' ? resultImage : uploadedImageBlob;
@@ -165,9 +181,9 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-5xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] shadow-2xl">
+      <div className="w-full max-w-6xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] shadow-2xl">
         
-        <div className="w-full md:w-1/2 p-6 flex flex-col bg-[#161b22] border-r border-gray-800 overflow-y-auto">
+        <div className="w-full md:w-1/2 p-6 flex flex-col bg-[#161b22] border-r border-gray-800 overflow-y-auto custom-scrollbar">
              <div className="flex justify-between items-center mb-6">
                 <button onClick={onClose} className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium"><ArrowLeft size={16} /> Back</button>
                 {activeTab === 'generate' && <div className="bg-gray-800 px-3 py-1 rounded-full border border-gray-700 text-xs text-white font-bold">Credits: {credits}</div>}
@@ -191,7 +207,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                             <div className="font-bold text-sm text-white">Premium</div>
                         </div>
                     </div>
-                    {/* Styles */}
                     <div className="mb-6">
                         <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Style</label>
                         <div className="grid grid-cols-2 gap-2">
@@ -200,8 +215,8 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                             ))}
                         </div>
                     </div>
-                    <button onClick={handleGenerate} disabled={isGenerating} className="w-full py-3 bg-blue-600 rounded-xl text-white font-bold text-sm disabled:opacity-50">
-                        {isGenerating ? "Generating..." : "Generate"}
+                    <button onClick={handleGenerate} disabled={isGenerating} className="w-full py-3 bg-blue-600 rounded-xl text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                        {isGenerating ? "Waiting for AI..." : "Generate Image"}
                     </button>
                  </>
              )}
@@ -240,16 +255,29 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
              {error && <div className="mt-4 text-red-400 text-xs">{error}</div>}
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT: Preview */}
         <div className="w-full md:w-1/2 bg-black flex flex-col items-center justify-center p-6 relative">
             <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white"><X size={20}/></button>
-            {previewSrc ? (
-                <div className="flex flex-col items-center w-full gap-4">
-                    <img src={previewSrc} alt="Preview" style={{ filter: activeTab === 'upload' ? activeFilterStyle : 'none' }} className="max-h-[400px] max-w-full rounded-lg shadow-2xl object-contain" />
+            
+            {/* --- LOADING INDICATOR (AICI E SCHIMBAREA) --- */}
+            {isGenerating ? (
+                <div className="flex flex-col items-center gap-4 animate-pulse">
+                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-blue-400 font-bold text-lg tracking-widest">CREATING VISUAL...</p>
+                </div>
+            ) : previewSrc ? (
+                <div className="flex flex-col items-center w-full gap-4 animate-in zoom-in-95">
+                    <img 
+                        src={previewSrc} 
+                        alt="Preview" 
+                        style={{ filter: activeTab === 'upload' ? activeFilterStyle : 'none' }} 
+                        className="max-h-[400px] max-w-full rounded-lg shadow-2xl object-contain border border-gray-800" 
+                    />
                     <div className="flex gap-2 w-full max-w-xs">
-                        <button onClick={handleUseImage} disabled={isProcessing} className="flex-1 bg-green-600 py-3 rounded-lg text-white font-bold text-sm shadow-lg">
-                            {isProcessing ? <Loader className="animate-spin mx-auto" size={16}/> : "Use Image"}
+                        <button onClick={handleUseImage} disabled={isProcessing} className="flex-1 bg-green-600 py-3 rounded-lg text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2">
+                            {isProcessing ? <Loader className="animate-spin" size={16}/> : "Use Image"}
                         </button>
+                        <a href={previewSrc} download="image.jpg" className="p-3 bg-gray-800 rounded-lg text-white border border-gray-700"><Download size={20}/></a>
                     </div>
                 </div>
             ) : (
