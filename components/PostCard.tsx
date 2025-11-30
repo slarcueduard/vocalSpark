@@ -266,9 +266,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                     />
                 ) : (
                     <>
-                        {/* MOD VIZUAL PENTRU TIKTOK SCRIPT */}
-                        // ...
-// În PostCard.tsx
+        
 
                         {/* MOD VIZUAL PENTRU TIKTOK SCRIPT */}
                         {isScript ? (
