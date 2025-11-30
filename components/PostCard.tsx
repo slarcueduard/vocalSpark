@@ -267,18 +267,45 @@ export const PostCard: React.FC<PostCardProps> = ({
                 ) : (
                     <>
                         {/* MOD VIZUAL PENTRU TIKTOK SCRIPT */}
+                        // ...
+// În PostCard.tsx
+
+                        {/* MOD VIZUAL PENTRU TIKTOK SCRIPT */}
                         {isScript ? (
                             <div className="w-full h-full bg-[#0a0c10] border border-gray-700 rounded-lg p-4 overflow-y-auto max-h-[300px] custom-scrollbar font-mono text-xs text-gray-300">
                                 <div className="flex items-center gap-2 mb-3 text-pink-500 font-bold uppercase border-b border-gray-800 pb-2">
                                     <Video size={14}/> Script Breakdown
                                 </div>
-                                {displayContent.split('\n').map((line, i) => (
-                                    <div key={i} className={`mb-3 pl-2 border-l-2 ${line.includes('Visual') ? 'border-blue-500 text-blue-300' : line.includes('Audio') ? 'border-green-500 text-green-300' : 'border-transparent text-gray-400'}`}>
-                                        {line}
-                                    </div>
-                                ))}
+                                {displayContent.split('\n').map((line, i) => {
+                                    // Detectăm liniile care descriu vizualul
+                                    const isVisual = line.toLowerCase().includes('visual') || line.includes('[');
+                                    
+                                    return (
+                                        <div 
+                                            key={i} 
+                                            className={`mb-3 pl-2 border-l-2 ${
+                                                isVisual 
+                                                ? 'border-blue-500 text-blue-300 cursor-pointer hover:bg-blue-900/20 p-1 rounded' 
+                                                : line.includes('Audio') ? 'border-green-500 text-green-300' : 'border-transparent text-gray-400'
+                                            }`}
+                                            // AICI E MAGIA: Click pe vizual -> Deschide generatorul de imagini
+                                            onClick={() => {
+                                                if (isVisual) {
+                                                    // Curățăm textul (scoatem "Visual:", paranteze)
+                                                    const cleanPrompt = line.replace(/Visual:|\[|\]|\(|\)/g, '').trim();
+                                                    onGenerateImage(post.id, cleanPrompt);
+                                                }
+                                            }}
+                                            title={isVisual ? "Click to generate this scene!" : ""}
+                                        >
+                                            {line} 
+                                            {isVisual && <ImageIcon size={10} className="inline ml-2 opacity-50"/>}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : 
+// ...
                         /* MOD VIZUAL PENTRU THREADS */
                         isThread || (displayContent.includes('1/') && displayContent.includes('2/')) ? (
                             <div className="w-full h-full bg-[#0a0c10] border border-gray-700 rounded-lg p-4 overflow-y-auto max-h-[300px] custom-scrollbar space-y-4">
