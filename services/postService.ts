@@ -14,11 +14,11 @@ import { db } from './firebase';
 import { Post } from '../types';
 
 // 1. SAVE (Cu limită dinamică)
-export const savePostToHistory = async (userId: string, post: Post, topic: string, limit: number = 20) => {
+export const savePostToHistory = async (
     userId: string, 
     post: Post, 
     topic: string, 
-    limit: number = 20 // Default 20, dar poate fi 50
+    limit: number = 20 // Default 20
 ): Promise<string | null> => {
   if (!userId || !post.content) return null;
 
@@ -48,13 +48,19 @@ export const savePostToHistory = async (userId: string, post: Post, topic: strin
     }
 
     // --- SALVARE ---
-   await addDoc(postsRef, {
-      // ...
+    const docData = {
+      userId,
       content: post.content,
+      imageUrl: post.imageUrl || null,
       platform: post.adaptedContent ? Object.keys(post.adaptedContent)[0] : 'Generic',
-      // ADAUGĂM CÂMPUL NOU:
-      generationType: post.generationType || 'single', 
-      type: post.type || 'post', // script/thread
+      adaptedContent: post.adaptedContent || {},
+      topic: topic || 'Untitled',
+      createdAt: serverTimestamp(),
+      scheduledDate: post.scheduledDate || null,
+      isLocked: false,
+      isPublished: false,
+      generationType: post.generationType || 'single',
+      type: post.type || 'post'
     };
     
     const docRef = await addDoc(postsRef, docData);
@@ -68,32 +74,39 @@ export const savePostToHistory = async (userId: string, post: Post, topic: strin
 
 // 2. MANUAL EVENT (Pentru Calendar)
 export const createManualEvent = async (userId: string, title: string, date: Date, description: string) => {
-    // Salvăm un "Post" special care apare doar în calendar
     const dummyPost: Post = {
         id: 'manual',
         content: `${title}\n\n${description}`,
         adaptedContent: {},
         isGeneratingImage: false,
-        scheduledDate: date, // CRITIC
-        isLocked: true // Îl blocăm ca să nu dispară la rotire
+        scheduledDate: date,
+        isLocked: true,
+        imageUrl: null
     };
-    return savePostToHistory(userId, dummyPost, title, 100); // Limită mare pt siguranță
+    // Salvăm cu o limită mare (ex: 100) pentru a nu șterge alte postări importante
+    return savePostToHistory(userId, dummyPost, title, 100); 
 };
 
-// ... (Restul funcțiilor rămân neschimbate: updatePostInHistory, fetchUserHistory, delete, toggleLock etc.)
+// 3. UPDATE GENERAL
 export const updatePostInHistory = async (postId: string, updates: Partial<Post>) => {
   if (!postId) return;
   try {
     const docRef = doc(db, 'posts', postId);
     const updateData: any = { ...updates };
-    delete updateData.id; delete updateData.isGeneratingImage;
+    delete updateData.id; 
+    delete updateData.isGeneratingImage;
+    
     updateData.updatedAt = serverTimestamp();
     await updateDoc(docRef, updateData);
   } catch (e) { console.error(e); }
 };
 
-export const updatePostContent = async (postId: string, newContent: string) => updatePostInHistory(postId, { content: newContent });
+// Alias pentru update content
+export const updatePostContent = async (postId: string, newContent: string) => {
+    return updatePostInHistory(postId, { content: newContent });
+};
 
+// 4. FETCH HISTORY
 export const fetchUserHistory = async (userId: string): Promise<any[]> => {
   if (!userId) return [];
   try {
@@ -103,8 +116,40 @@ export const fetchUserHistory = async (userId: string): Promise<any[]> => {
   } catch (e) { return []; }
 };
 
-export const deletePostFromHistory = async (postId: string) => { await deleteDoc(doc(db, 'posts', postId)); };
-export const togglePostLock = async (postId: string, currentStatus: boolean) => { await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus }); };
-export const schedulePost = async (postId: string, date: Date) => { await updateDoc(doc(db, 'posts', postId), { scheduledDate: date, isPublished: false }); };
-export const checkDuePosts = async (userId: string) => { /* ... cod vechi ... */ return []; }; // Simplificat pt spațiu
-export const markPostAsPublished = async (postId: string) => { await updateDoc(doc(db, 'posts', postId), { isPublished: true }); };
+// 5. DELETE & LOCK & SCHEDULE
+export const deletePostFromHistory = async (postId: string) => { 
+    await deleteDoc(doc(db, 'posts', postId)); 
+};
+
+export const togglePostLock = async (postId: string, currentStatus: boolean) => { 
+    await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus }); 
+};
+
+export const schedulePost = async (postId: string, date: Date) => { 
+    await updateDoc(doc(db, 'posts', postId), { scheduledDate: date, isPublished: false }); 
+};
+
+export const checkDuePosts = async (userId: string) => {
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+    
+    const q = query(
+      collection(db, 'posts'),
+      where('userId', '==', userId),
+      where('isPublished', '==', false),
+      where('scheduledDate', '>=', startOfDay),
+      where('scheduledDate', '<=', endOfDay)
+    );
+
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (e) {
+    return [];
+  }
+};
+
+export const markPostAsPublished = async (postId: string) => { 
+    await updateDoc(doc(db, 'posts', postId), { isPublished: true }); 
+};
