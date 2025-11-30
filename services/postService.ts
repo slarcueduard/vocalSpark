@@ -14,7 +14,7 @@ import { db } from './firebase';
 import { Post } from '../types';
 
 // 1. SAVE (Cu limită dinamică)
-export const savePostToHistory = async (
+export const savePostToHistory = async (userId: string, post: Post, topic: string, limit: number = 20) => {
     userId: string, 
     post: Post, 
     topic: string, 
@@ -48,17 +48,13 @@ export const savePostToHistory = async (
     }
 
     // --- SALVARE ---
-    const docData = {
-      userId,
+   await addDoc(postsRef, {
+      // ...
       content: post.content,
-      imageUrl: post.imageUrl || null,
-      platform: Object.keys(post.adaptedContent || {})[0] || 'Generic',
-      adaptedContent: post.adaptedContent || {},
-      topic: topic || 'Untitled',
-      createdAt: serverTimestamp(),
-      scheduledDate: post.scheduledDate || null, // Salvăm data dacă există (pt Calendar)
-      isLocked: false,
-      isPublished: false
+      platform: post.adaptedContent ? Object.keys(post.adaptedContent)[0] : 'Generic',
+      // ADAUGĂM CÂMPUL NOU:
+      generationType: post.generationType || 'single', 
+      type: post.type || 'post', // script/thread
     };
     
     const docRef = await addDoc(postsRef, docData);
