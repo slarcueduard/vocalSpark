@@ -5,7 +5,7 @@ import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe, Bell } from 'lucide-react'; 
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, LayoutList, FileText } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -16,48 +16,55 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
-const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
-
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // --- NAVIGARE ---
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
-  
-  // Feature Flags
-  const [useRealTime, setUseRealTime] = useState(false);
+
+  // --- MODURI DE LUCRU ---
+  // 'creator' = Single Post / Campaign
+  // 'remix' = Content Repurposing
+  const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
-  const [campaignCount, setCampaignCount] = useState(3);
   
+  // --- INPUT STATES ---
+  const [topic, setTopic] = useState(''); // Folosit și ca "Source Content" la Remix
+  const [tone, setTone] = useState<Tone>(Tone.Inspirational);
+  const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
+  const [objective, setObjective] = useState<PostObjective>('engagement');
+  const [campaignCount, setCampaignCount] = useState(3);
+  const [remixFormats, setRemixFormats] = useState<string[]>(['LinkedIn Post', 'Twitter Thread']); // Default Remix
+  
+  const [attachedImage, setAttachedImage] = useState<string | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  
+  // --- FEATURE FLAGS ---
+  const [useRealTime, setUseRealTime] = useState(false);
+  
+  // --- UI FEEDBACK ---
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Modale
+  // --- MODALE ---
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // Imagine Logic
+  // --- IMAGINE LOGIC ---
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // Form State
-  const [topic, setTopic] = useState('');
-  const [tone, setTone] = useState<Tone>(Tone.Inspirational);
-  const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
-  const [objective, setObjective] = useState<PostObjective>('engagement');
-  const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // 1. Check Notifications la Login
+  // 1. Check Notifications
   useEffect(() => {
       const checkReminders = async () => {
           if (user) {
@@ -71,9 +78,9 @@ const SocialSparkApp: React.FC = () => {
       checkReminders();
   }, [user]);
 
-  // 2. Auto-Sugestie
+  // 2. Auto-Sugestie (Doar în Creator Mode)
   useEffect(() => {
-    if (!loading && brandProfile?.industry && topic === '' && posts.length === 0) {
+    if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
         let templates: string[] = [];
@@ -85,7 +92,7 @@ const SocialSparkApp: React.FC = () => {
         const randomIdea = templates[Math.floor(Math.random() * templates.length)];
         setTopic(randomIdea);
     }
-  }, [loading, brandProfile]); 
+  }, [loading, brandProfile, appMode]); 
 
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
@@ -99,6 +106,7 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
+  // --- IMAGINI ---
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -122,15 +130,23 @@ const SocialSparkApp: React.FC = () => {
       setActivePostIdForImage(null);
   };
 
+  // --- GENERATE ---
   const handleGenerate = async () => {
-    if (!topic.trim() && !attachedImage) { setError("Please write a topic or attach an image first."); return; }
+    if (!topic.trim() && !attachedImage) { 
+        setError(appMode === 'remix' ? "Paste your content to remix." : "Please write a topic."); 
+        return; 
+    }
     
-    const count = isCampaignMode ? campaignCount : 1;
+    // Calcul Cost
+    let count = 1;
+    if (isCampaignMode) count = campaignCount;
+    if (appMode === 'remix') count = remixFormats.length;
+    
     const cost = useRealTime ? 10 : (1 * count);
 
     if (!checkCredits(cost)) { 
         if (isTrialExpired) return; 
-        alert(`Insufficient credits! This action requires ${cost} credits.`); 
+        alert(`Insufficient credits! This requires ${cost} credits.`); 
         return; 
     }
 
@@ -148,13 +164,16 @@ const SocialSparkApp: React.FC = () => {
           }
       }
 
+      // Apelăm Serviciul (cu noile argumente pt Remix)
       const generatedPosts = await generateSocialMediaPosts(
           topic, tone, count, 
           brandProfile?.language || 'English',
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
           imgData, imgMime, objective, useRealTime,
-          isCampaignMode
+          isCampaignMode,
+          appMode === 'remix', // isRemix
+          remixFormats         // Formatele alese pt Remix
       );
       
       const newPostsData = generatedPosts.map(p => ({ 
@@ -166,18 +185,16 @@ const SocialSparkApp: React.FC = () => {
           isLocked: false 
       }));
 
-      setPosts(prev => [...newPostsData, ...prev].slice(0, 6));
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 10)); // Păstrăm ultimele 10 în UI
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       
       showVibe();
 
+      // Auto-Save
       if (user) {
-          // Calculăm limita dinamică (50 pt Agency, 20 altfel)
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
-          
           for (const postData of newPostsData) {
               try {
-                  // Trimitem limita la funcția de salvare
                   const savedId = await savePostToHistory(user.uid, postData, topic, limit);
                   if (savedId) {
                       setPosts(currentPosts => 
@@ -196,6 +213,7 @@ const SocialSparkApp: React.FC = () => {
     }
   };
 
+  // Helpers
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
@@ -204,6 +222,15 @@ const SocialSparkApp: React.FC = () => {
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
   const isPremiumUser = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
+
+  // Helpers Remix Toggle
+  const toggleRemixFormat = (fmt: string) => {
+      if (remixFormats.includes(fmt)) {
+          if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt));
+      } else {
+          setRemixFormats(prev => [...prev, fmt]);
+      }
+  };
 
   return (
     <MainLayout 
@@ -225,10 +252,7 @@ const SocialSparkApp: React.FC = () => {
             <div className="fixed top-20 right-6 z-50 animate-in fade-in slide-in-from-right-10 cursor-pointer" onClick={() => setCurrentView('history')}>
                 <div className="bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl border border-blue-400 flex items-center gap-3">
                     <div className="bg-white/20 p-2 rounded-full"><Bell size={20}/></div>
-                    <div>
-                        <p className="font-bold text-sm">Reminder</p>
-                        <p className="text-xs opacity-90">{notification}</p>
-                    </div>
+                    <div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div>
                 </div>
             </div>
         )}
@@ -253,38 +277,50 @@ const SocialSparkApp: React.FC = () => {
                 <div className="flex-1 min-w-0">
                     <div className="max-w-2xl mx-auto pb-20">
                         
+                        {/* HEADER & MODE SWITCHER */}
                         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-3xl font-bold text-white tracking-tight">
-                                    {isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}
+                                <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-2">
+                                    {appMode === 'remix' ? 'Content Remix ♻️' : isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}
                                 </h2>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    {isCampaignMode ? 'Generate a full content calendar in one click.' : 'Craft one perfect viral post.'}
+                                    {appMode === 'remix' 
+                                        ? 'Turn one piece of content into multiple formats.'
+                                        : isCampaignMode 
+                                            ? 'Generate a full content calendar.' 
+                                            : 'Craft one perfect viral post.'}
                                 </p>
                             </div>
 
-                            <div className="flex bg-[#161b22] p-1 rounded-xl border border-gray-700">
+                            <div className="flex bg-[#161b22] p-1 rounded-xl border border-gray-700 overflow-x-auto">
                                 <button 
-                                    onClick={() => setIsCampaignMode(false)}
-                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${!isCampaignMode ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                    onClick={() => { setAppMode('creator'); setIsCampaignMode(false); }}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'creator' && !isCampaignMode ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                                 >
-                                    Single Post
+                                    Single
                                 </button>
                                 <button 
-                                    onClick={() => setIsCampaignMode(true)}
-                                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                    onClick={() => { setAppMode('creator'); setIsCampaignMode(true); }}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'creator' && isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     Campaign
+                                </button>
+                                <button 
+                                    onClick={() => setAppMode('remix')}
+                                    className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Remix
                                 </button>
                             </div>
                         </header>
                         
                         <div className="space-y-8">
+                            {/* INPUT SECTION */}
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                         <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span>
-                                        What's on your mind?
+                                        {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}
                                     </label>
                                     {attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}
                                 </div>
@@ -293,8 +329,8 @@ const SocialSparkApp: React.FC = () => {
                                     <textarea 
                                         value={topic} 
                                         onChange={(e) => setTopic(e.target.value)} 
-                                        rows={3} 
-                                        placeholder="E.g. 3 tips for crypto beginners..." 
+                                        rows={appMode === 'remix' ? 6 : 3} 
+                                        placeholder={appMode === 'remix' ? "Paste your Blog Post, Newsletter, or YouTube Transcript here..." : "E.g. 3 tips for crypto beginners..."} 
                                         className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" 
                                     />
                                     <div className="absolute bottom-3 right-3 flex gap-2">
@@ -308,73 +344,82 @@ const SocialSparkApp: React.FC = () => {
                                         )}
                                     </div>
                                 </div>
+                            </section>
 
-                                {isCampaignMode && (
-                                    <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2">
-                                                <BriefcaseIcon size={14} /> Campaign Length
-                                            </label>
-                                            <span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">
-                                                {campaignCount} Posts
-                                            </span>
-                                        </div>
-                                        <input 
-                                            type="range" 
-                                            min="3" 
-                                            max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} 
-                                            value={campaignCount}
-                                            onChange={(e) => setCampaignCount(parseInt(e.target.value))}
-                                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
-                                        />
-                                        <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-                                            <span>Min: 3</span>
-                                            <span>Max: {userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)}</span>
-                                        </div>
-                                    </section>
-                                )}
-
-                                <div className="flex items-center justify-between mt-2 px-1">
-                                    {isPremiumUser ? (
-                                        <label className="flex items-center gap-2 cursor-pointer group">
-                                            <div className="relative">
-                                                <input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" />
-                                                <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
-                                            </div>
-                                            <span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}>
-                                                <Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span>
-                                            </span>
+                            {/* SETTINGS SECTION BASED ON MODE */}
+                            
+                            {/* A. REMIX MODE SETTINGS */}
+                            {appMode === 'remix' && (
+                                <section className="bg-green-900/10 border border-green-500/30 p-4 rounded-xl animate-in fade-in">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <label className="text-xs font-bold text-green-400 uppercase flex items-center gap-2">
+                                            <Repeat size={14} /> Remix Formats
                                         </label>
-                                    ) : (
-                                        <div className="flex items-center gap-2 opacity-50 cursor-not-allowed" title="Upgrade to PRO for Live News">
-                                            <div className="w-9 h-5 bg-gray-800 rounded-full border border-gray-700"></div>
-                                            <span className="text-xs text-gray-500 flex items-center gap-1">
-                                                <Globe size={12} /> Real-Time Data <span className="bg-purple-900/50 text-purple-300 text-[9px] px-1.5 rounded border border-purple-500/30">PRO</span>
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
-
-                            <section className="space-y-3">
-                                <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
-                                    <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span>
-                                    What is your Goal?
-                                </label>
-                                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                    {OBJECTIVES.map((obj) => {
-                                        const Icon = obj.icon;
-                                        const isActive = objective === obj.id;
-                                        return (
-                                            <button key={obj.id} onClick={() => setObjective(obj.id)} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 h-24 ${isActive ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-[#161b22] border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800'}`}>
-                                                <Icon size={20} className={`mb-2 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} />
-                                                <span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">{obj.label}</span>
+                                        <span className="text-[10px] text-green-300 bg-green-900/30 px-2 py-0.5 rounded">{remixFormats.length} Selected</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                        {['LinkedIn Post', 'Twitter Thread', 'TikTok Script', 'Instagram Carousel', 'Newsletter Email', 'Facebook Story'].map(fmt => (
+                                            <button
+                                                key={fmt}
+                                                onClick={() => toggleRemixFormat(fmt)}
+                                                className={`px-3 py-2 rounded-lg text-xs border transition ${remixFormats.includes(fmt) ? 'bg-green-600 border-green-500 text-white shadow-lg' : 'bg-[#0f1115] border-gray-700 text-gray-400 hover:border-gray-500'}`}
+                                            >
+                                                {fmt}
                                             </button>
-                                        )
-                                    })}
-                                </div>
-                            </section>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
 
+                            {/* B. CAMPAIGN MODE SETTINGS */}
+                            {appMode === 'creator' && isCampaignMode && (
+                                <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2">
+                                            <BriefcaseIcon size={14} /> Campaign Length
+                                        </label>
+                                        <span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">
+                                            {campaignCount} Posts
+                                        </span>
+                                    </div>
+                                    <input 
+                                        type="range" 
+                                        min="3" 
+                                        max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} 
+                                        value={campaignCount}
+                                        onChange={(e) => setCampaignCount(parseInt(e.target.value))}
+                                        className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+                                        <span>Min: 3</span>
+                                        <span>Max: {userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)}</span>
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* C. SINGLE POST SETTINGS */}
+                            {appMode === 'creator' && !isCampaignMode && (
+                                <section className="space-y-3">
+                                    <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span>
+                                        What is your Goal?
+                                    </label>
+                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                                        {OBJECTIVES.map((obj) => {
+                                            const Icon = obj.icon;
+                                            const isActive = objective === obj.id;
+                                            return (
+                                                <button key={obj.id} onClick={() => setObjective(obj.id)} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 h-24 ${isActive ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-[#161b22] border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800'}`}>
+                                                    <Icon size={20} className={`mb-2 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} />
+                                                    <span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">{obj.label}</span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* SHARED SETTINGS */}
                             <section className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
@@ -389,10 +434,35 @@ const SocialSparkApp: React.FC = () => {
                                     </select>
                                 </div>
                             </section>
+
+                            {/* REAL TIME TOGGLE */}
+                            <div className="flex items-center justify-between mt-2 px-1">
+                                {isPremiumUser ? (
+                                    <label className="flex items-center gap-2 cursor-pointer group">
+                                        <div className="relative">
+                                            <input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" />
+                                            <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div>
+                                        </div>
+                                        <span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}>
+                                            <Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span>
+                                        </span>
+                                    </label>
+                                ) : (
+                                    <div className="flex items-center gap-2 opacity-50 cursor-not-allowed" title="Upgrade to PRO for Live News">
+                                        <div className="w-9 h-5 bg-gray-800 rounded-full border border-gray-700"></div>
+                                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                                            <Globe size={12} /> Real-Time Data <span className="bg-purple-900/50 text-purple-300 text-[9px] px-1.5 rounded border border-purple-500/30">PRO</span>
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                             
                             <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                 {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
-                                {isLoading ? (isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (isCampaignMode ? 'Generate Campaign' : 'Craft my Post')}
+                                {isLoading 
+                                    ? (appMode === 'remix' ? 'Remixing...' : isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') 
+                                    : (appMode === 'remix' ? 'Remix Content ♻️' : isCampaignMode ? 'Generate Campaign 🚀' : 'Craft my Post ✨')
+                                }
                             </button>
 
                             {error && <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2"><BriefcaseIcon size={16} /> {error}</div>}
