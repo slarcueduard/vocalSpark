@@ -92,14 +92,18 @@ export function HistoryView() {
   const handleImageSelected = (url: string) => { if (activePostId) updatePostInHistory(activePostId, { imageUrl: url }); setIsImageModalOpen(false); };
 
   // --- LOGICA FILTRARE ---
+// ...
   const getGroupedPosts = () => {
       const filtered = posts.filter(p => {
           const matchesSearch = (p.content || "").toLowerCase().includes(searchTerm.toLowerCase());
-          // Fix: Verificăm dacă tipul se potrivește SAU dacă e 'all'
-          const type = p.generationType || 'single'; // Fallback
-          const matchesType = filterType === 'all' || type === filterType;
+          
+          // FIX: Dacă postarea nu are tip, o considerăm 'single'
+          const postType = p.generationType || 'single';
+          
+          const matchesType = filterType === 'all' || postType === filterType;
           return matchesSearch && matchesType;
       });
+      // ...
 
       const groups: Record<string, Post[]> = {};
       filtered.forEach(p => {
