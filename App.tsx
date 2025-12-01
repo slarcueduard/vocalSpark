@@ -16,8 +16,6 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
-const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
-
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
@@ -94,7 +92,7 @@ const SocialSparkApp: React.FC = () => {
       checkReminders();
   }, [user]);
 
-  // 2. Auto-Sugestie (Doar o singură dată la încărcare dacă nu e conținut)
+  // 2. Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
@@ -194,12 +192,11 @@ const SocialSparkApp: React.FC = () => {
       }
 
       // Determinare Tip
- // 1. Determinăm Tipul
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
-      // 2. Creăm obiectele locale
+      // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -207,8 +204,7 @@ const SocialSparkApp: React.FC = () => {
           imageUrl: attachedImage || null, 
           isGeneratingImage: false, 
           isLocked: false,
-          
-          generationType: genType, // <--- TREBUIE SĂ FIE AICI
+          generationType: genType,
           type: p.type || 'post'
       }));
 
@@ -220,7 +216,6 @@ const SocialSparkApp: React.FC = () => {
       // --- AUTO-SAVE ---
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
-          console.log(`💾 Saving ${generatedPosts.length} posts to Vault...`);
 
           for (const postData of newPostsData) {
               try {
@@ -257,39 +252,25 @@ const SocialSparkApp: React.FC = () => {
         currentView={currentView}
         onViewChange={setCurrentView}
     >
-        
         {vibeMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3"><span className="text-xl">✨</span><span className="font-bold text-sm">{vibeMessage}</span></div>}
-        
         {notification && <div className="fixed top-20 right-6 z-50 animate-in fade-in bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex gap-3 cursor-pointer" onClick={() => setCurrentView('history')}><div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div></div>}
-        
         {isTrialExpired && <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center rounded-xl"><div className="bg-[#161b22] border border-red-500 p-8 rounded-2xl text-center"><Lock size={32} className="mx-auto mb-4 text-red-500"/><h2 className="text-2xl font-bold text-white">Trial Expired</h2><div className="mt-4 text-xs bg-gray-900 p-2 rounded">Click UPGRADE PLAN</div></div></div>}
 
-        {currentView === 'history' ? (
-            <HistoryView />
-        ) : currentView === 'calendar' ? (
-            <CalendarView onNavigateToVault={() => setCurrentView('history')} />
-        ) : (
+        {currentView === 'history' ? <HistoryView /> : currentView === 'calendar' ? <CalendarView onNavigateToVault={() => setCurrentView('history')} /> : (
             <div className="flex h-full gap-6 relative">
                 <div className="flex-1 min-w-0">
                     <div className="max-w-2xl mx-auto pb-20">
-                        
                         <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <h2 className="text-3xl font-bold text-white tracking-tight">
-                                    {appMode === 'remix' ? 'Content Remix ♻️' : isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}
-                                </h2>
-                                <p className="text-gray-500 text-sm mt-1">
-                                    {appMode === 'remix' ? 'Turn one piece of content into multiple formats.' : isCampaignMode ? 'Generate a full content calendar.' : 'Craft one perfect viral post.'}
-                                </p>
+                                <h2 className="text-3xl font-bold text-white tracking-tight">{appMode === 'remix' ? 'Content Remix ♻️' : isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}</h2>
+                                <p className="text-gray-500 text-sm mt-1">{appMode === 'remix' ? 'Turn one piece of content into multiple formats.' : isCampaignMode ? 'Generate a full content calendar.' : 'Craft one perfect viral post.'}</p>
                             </div>
-
                             <div className="flex bg-[#161b22] p-1 rounded-xl border border-gray-700 overflow-x-auto">
                                 <button onClick={() => handleSwitchMode('single')} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'creator' && !isCampaignMode ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Single</button>
                                 <button onClick={() => handleSwitchMode('campaign')} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'creator' && isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Campaign</button>
                                 <button onClick={() => handleSwitchMode('remix')} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
                             </div>
                         </header>
-                        
                         <div className="space-y-8">
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between"><label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}</label>{attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}</div>
@@ -310,31 +291,38 @@ const SocialSparkApp: React.FC = () => {
                                         </div>
                                     </section>
                                 )}
-
                                 {isCampaignMode && appMode === 'creator' && (
                                     <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
                                         <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2"><BriefcaseIcon size={14} /> Campaign Length</label><span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">{campaignCount} Posts</span></div>
                                         <input type="range" min="3" max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} value={campaignCount} onChange={(e) => setCampaignCount(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
                                     </section>
                                 )}
-
                                 <div className="flex items-center justify-between mt-2 px-1">
                                     {isPremiumUser ? <label className="flex items-center gap-2 cursor-pointer group"><div className="relative"><input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" /><div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div></div><span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}><Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span></span></label> : <div className="flex items-center gap-2 opacity-50 cursor-not-allowed"><Globe size={12} /><span className="text-xs text-gray-500">Real-Time Data (PRO)</span></div>}
                                 </div>
                             </section>
 
-                            {appMode === 'creator' && !isCampaignMode && (
-                                <section className="space-y-3">
-                                    <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span> What is your Goal?</label>
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                        {OBJECTIVES.map((obj) => { const Icon = obj.icon; const isActive = objective === obj.id; return (<button key={obj.id} onClick={() => setObjective(obj.id)} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 h-24 ${isActive ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-[#161b22] border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800'}`}><Icon size={20} className={`mb-2 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} /><span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">{obj.label}</span></button>) })}
-                                    </div>
-                                </section>
-                            )}
-
                             <section className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label><select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm"><{TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
-                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label><select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">{PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
+                                    <select 
+                                        value={tone} 
+                                        onChange={(e) => setTone(e.target.value as Tone)} 
+                                        className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm"
+                                    >
+                                        {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label>
+                                    <select 
+                                        value={selectedPlatform} 
+                                        onChange={(e) => setSelectedPlatform(e.target.value as Platform)} 
+                                        className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm"
+                                    >
+                                        {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                    </select>
+                                </div>
                             </section>
                             
                             <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
@@ -354,7 +342,6 @@ const SocialSparkApp: React.FC = () => {
                         </div>
                     </div>
                 </div>
-                
                 <div className="hidden xl:block w-[400px] shrink-0">
                     <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
                 </div>
