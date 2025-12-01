@@ -89,7 +89,43 @@ export function HistoryView() {
   const handleUpdateContent = async (id: string, c: string) => { await updatePostContent(id, c); };
   const openImageModal = (id: string, c: string) => { setActivePostId(id); setActivePrompt(c); setIsImageModalOpen(true); };
   const handleImageSelected = (url: string) => { if (activePostId) updatePostInHistory(activePostId, { imageUrl: url }); setIsImageModalOpen(false); };
+// ... (partea de sus a fișierului)
 
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const formattedPosts: Post[] = snapshot.docs.map((doc) => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                content: data.content || "",
+                imageUrl: data.imageUrl || null,
+                adaptedContent: data.adaptedContent || {}, 
+                isGeneratingImage: false,
+                isLocked: !!data.isLocked,
+                createdAt: data.createdAt,
+                
+                // FIX CRITIC: Citim tipul din DB. Dacă lipsește, punem 'single'.
+                generationType: data.generationType || 'single', 
+                type: data.type || 'post'
+            } as any;
+        });
+        // ...
+    });
+
+// ...
+
+    // --- LOGICA FILTRARE ---
+    const getGroupedPosts = () => {
+      const filtered = posts.filter(p => {
+          const matchesSearch = (p.content || "").toLowerCase().includes(searchTerm.toLowerCase());
+          
+          // FIX CRITIC: Verificare tip
+          const postType = p.generationType || 'single';
+          
+          const matchesType = filterType === 'all' || postType === filterType;
+          return matchesSearch && matchesType;
+      });
+      // ...
+    };
   // --- LOGICA FILTRARE ---
 // ...
   const getGroupedPosts = () => {
