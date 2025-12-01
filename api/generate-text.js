@@ -15,13 +15,9 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, brandContext, language, platform, objective, useRealTime, isCampaign, isRemix, remixFormats, postCount } = req.body;
+    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount } = req.body;
 
     // 1. CALCUL COST
-    // Single = 1
-    // Campaign = postCount
-    // Remix = Câte formate sunt selectate
-    // RealTime = 10 (Flat fee)
     let count = 1;
     if (isCampaign) count = postCount || 3;
     if (isRemix && remixFormats) count = remixFormats.length;
@@ -43,74 +39,67 @@ export default async function handler(req, res) {
         model = "gpt-4o";
     }
 
-    // 3. PROMPT ENGINEERING (STRATEGIA)
+    // 3. PROMPT ENGINEERING
     const targetLanguage = language || 'English';
     
-    let systemPrompt = `You are an elite Social Media Strategist.
-    LANGUAGE: Write STRICTLY in ${targetLanguage}.
-    
-    INPUT CONTEXT:
-    Brand Voice: ${brandContext || 'Professional but engaging'}
-    Goal: ${objective || 'Engagement'}
-    `;
+    let systemPrompt = `You are an expert Social Media Manager. 
+    CRITICAL: Write strictly in ${targetLanguage}.
+    OUTPUT FORMAT: You must return a valid JSON ARRAY of objects. Each object MUST have a "content" key.`;
 
-    if (useRealTime) systemPrompt += `\nSOURCE: Use real-time data from TODAY.`;
+    let userMessage = prompt;
 
-    // --- LOGICA PE MODURI ---
-    
     if (isRemix) {
-        // === MOD REMIX (REPURPOSING) ===
         systemPrompt += `
-        TASK: Repurpose the user's input content into these specific formats: ${remixFormats.join(', ')}.
-        
-        FORMAT DEFINITIONS:
-        - "LinkedIn Post": Storytelling text, professional tone. No slides.
-        - "Twitter Thread": A series of short tweets (max 280 chars). Split by double newlines.
-        - "Newsletter Email": Subject line + Body. Rich text.
-        - "TikTok Script": Return a JSON object with "slides" array. Each slide has "visualPrompt" (for AI image gen), "overlayText", and "voiceover".
-        - "Instagram Carousel": Return a JSON object with "slides" array. Each slide has "visualPrompt" (for AI image gen) and "caption".
-        - "Facebook Story": Short, punchy text + 1 visual prompt.
-
-        OUTPUT: Return a JSON Array with ${count} objects. Each object must have:
-        {
-            "platform": "The Format Name",
-            "content": "The text content or script",
-            "type": "text" | "script" | "carousel" | "thread",
-            "slides": [] (ONLY if type is script/carousel)
-        }
+        TASK: Repurpose content into: ${remixFormats?.join(', ')}.
+        STRUCTURE: [{"platform": "Name", "content": "The text...", "type": "post"}]
         `;
-    
+        userMessage = `SOURCE: ${prompt}`;
     } else if (isCampaign) {
-        // === MOD CAMPANIE ===
         systemPrompt += `
-        TASK: Create a ${count}-part Content Series (Calendar) about: "${prompt}".
-        STRATEGY: Create a cohesive sequence (Teaser -> Value -> Sales -> Proof).
-        OUTPUT: Return a JSON Array with exactly ${count} post objects.
+        TASK: Create a ${count}-post campaign.
+        STRUCTURE: [{"content": "Post 1..."}, {"content": "Post 2..."}]
         `;
-    
     } else {
-        // === MOD SINGLE (STRICT) ===
+        // SINGLE POST - AICI ERA PROBLEMA
         systemPrompt += `
-        TASK: Write EXACTLY ONE high-impact post about: "${prompt}".
-        PLATFORM: ${platform}.
-        OUTPUT: Return a JSON Array with EXACTLY 1 object. Do NOT generate variations.
+        TASK: Write ONE high-impact post.
+        GOAL: ${objective || 'Engagement'}.
+        STRUCTURE: [{"content": "Write the post text here..."}]
         `;
+        
+        if (platform) systemPrompt += `\nPlatform: ${platform}`;
     }
+
+    if (brandContext) systemPrompt += `\n\nBrand Voice: ${brandContext}`;
 
     // 4. EXECUȚIE
     const completion = await client.chat.completions.create({
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: prompt }
+        { role: "user", content: userMessage }
       ],
       model: model,
       temperature: 0.7,
+      response_format: { type: "json_object" } // Forțăm JSON
     });
 
     const output = completion.choices[0].message.content;
-
+    
+    // 5. SCĂDERE CREDITE
     await deductCredits(userRef, COST);
-    return res.status(200).json({ output });
+
+    // Parsăm aici să fim siguri că e ok înainte de a trimite
+    let jsonOutput;
+    try {
+        jsonOutput = JSON.parse(output);
+        // OpenAI pune uneori array-ul într-o cheie gen "posts" sau "content"
+        const finalData = jsonOutput.posts || jsonOutput.content || jsonOutput; 
+        
+        return res.status(200).json({ output: JSON.stringify(finalData) });
+    } catch (e) {
+        // Dacă nu e JSON, trimitem brut (frontend-ul va încerca să repare)
+        return res.status(200).json({ output });
+    }
 
   } catch (error) {
     console.error("Gen Error:", error);
