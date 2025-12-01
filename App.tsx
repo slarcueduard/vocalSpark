@@ -194,11 +194,12 @@ const SocialSparkApp: React.FC = () => {
       }
 
       // Determinare Tip
+ // 1. Determinăm Tipul
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
-      // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
+      // 2. Creăm obiectele locale
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -206,7 +207,8 @@ const SocialSparkApp: React.FC = () => {
           imageUrl: attachedImage || null, 
           isGeneratingImage: false, 
           isLocked: false,
-          generationType: genType,
+          
+          generationType: genType, // <--- TREBUIE SĂ FIE AICI
           type: p.type || 'post'
       }));
 
