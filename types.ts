@@ -75,7 +75,6 @@ export interface PlanConfig {
 // ... restul codului ...
 
 export type GenerationType = 'single' | 'campaign' | 'remix'; // <--- NOU
-
 export interface Post {
   id: string;
   content: string;
@@ -86,9 +85,9 @@ export interface Post {
   scheduledDate?: any;
   isPublished?: boolean;
   
-  // Câmpuri noi pentru structură
-  type?: string; // (script/thread) - existent
-  generationType?: GenerationType; // (single/campaign/remix) - NOU
+  // Câmpuri Critice
+  generationType?: GenerationType; // Trebuie să fie aici
+  type?: string;
 }
 
 
