@@ -190,7 +190,7 @@ const SocialSparkApp: React.FC = () => {
       );
       
       if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) {
-          throw new Error("AI returned an empty response.");
+          throw new Error("AI returned an empty response. Please try again.");
       }
 
       // Determinare Tip
@@ -199,54 +199,38 @@ const SocialSparkApp: React.FC = () => {
       else if (isCampaignMode) genType = 'campaign';
 
       // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
-      const finalPosts: Post[] = [];
+      const newPostsData = generatedPosts.map(p => ({ 
+          ...p, 
+          id: crypto.randomUUID(), 
+          adaptedContent: {}, 
+          imageUrl: attachedImage || null, 
+          isGeneratingImage: false, 
+          isLocked: false,
+          generationType: genType,
+          type: p.type || 'post'
+      }));
 
+      // Actualizăm UI
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
+      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      showVibe();
+
+      // --- AUTO-SAVE ---
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
           console.log(`💾 Saving ${generatedPosts.length} posts to Vault...`);
 
-          // Salvăm secvențial ca să fim siguri de ID-uri
-          for (const p of generatedPosts) {
-              const postData: Post = {
-                  id: 'temp', // Placeholder
-                  content: p.content || "",
-                  imageUrl: attachedImage || null, // Propagăm imaginea atașată
-                  adaptedContent: {},
-                  isGeneratingImage: false,
-                  isLocked: false,
-                  generationType: genType,
-                  type: p.type || 'post'
-              };
-
+          for (const postData of newPostsData) {
               try {
-                  // Salvăm și luăm ID-ul REAL
-                  const realId = await savePostToHistory(user.uid, postData, topic, limit);
-                  // Adăugăm în lista finală cu ID-ul real
-                  finalPosts.push({ ...postData, id: realId || crypto.randomUUID() });
-              } catch (e) {
-                  console.error("Save failed for post", e);
-                  finalPosts.push({ ...postData, id: crypto.randomUUID() }); // Fallback local
-              }
+                  const savedId = await savePostToHistory(user.uid, postData, topic, limit);
+                  if (savedId) {
+                      setPosts(currentPosts => 
+                          currentPosts.map(p => p.id === postData.id ? { ...p, id: savedId } : p)
+                      );
+                  }
+              } catch (saveErr) { console.error("Save Failed:", saveErr); }
           }
-      } else {
-          // Guest Mode
-          finalPosts.push(...generatedPosts.map(p => ({
-              id: crypto.randomUUID(),
-              content: p.content || "",
-              imageUrl: attachedImage || null,
-              adaptedContent: {},
-              isGeneratingImage: false,
-              isLocked: false,
-              generationType: genType,
-              type: p.type || 'post'
-          })));
       }
-
-      // Actualizăm UI-ul cu postările care au ID-uri corecte
-      setPosts(prev => [...finalPosts, ...prev].slice(0, 10));
-      
-      setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-      showVibe();
 
     } catch (err: any) { 
         console.error("Generate Error:", err);
@@ -293,7 +277,7 @@ const SocialSparkApp: React.FC = () => {
                                     {appMode === 'remix' ? 'Content Remix ♻️' : isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}
                                 </h2>
                                 <p className="text-gray-500 text-sm mt-1">
-                                    {appMode === 'remix' ? 'Turn content into multiple formats.' : isCampaignMode ? 'Generate a content calendar.' : 'Craft one perfect viral post.'}
+                                    {appMode === 'remix' ? 'Turn one piece of content into multiple formats.' : isCampaignMode ? 'Generate a full content calendar.' : 'Craft one perfect viral post.'}
                                 </p>
                             </div>
 
@@ -368,6 +352,7 @@ const SocialSparkApp: React.FC = () => {
                         </div>
                     </div>
                 </div>
+                
                 <div className="hidden xl:block w-[400px] shrink-0">
                     <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
                 </div>
