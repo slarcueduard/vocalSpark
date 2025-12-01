@@ -136,27 +136,14 @@ export async function generateImageForPost(
 }
 
 // --- 3. TEXT (Generare Postări & Campanii & Remix) ---
+// ...
 export async function generateSocialMediaPosts(
-  topic: string, 
-  tone: Tone, 
-  postCount: number, 
-  language: string, 
-  brandVoice: string, 
-  brandProfile?: BrandProfile, 
-  imageBase64?: string, 
-  imageMimeType?: string, 
-  objective: PostObjective = 'engagement', 
-  useRealTime: boolean = false,
-  isCampaign: boolean = false, 
-  isRemix: boolean = false, 
-  remixFormats: string[] = []
+  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
     let contextString = '';
     if (brandProfile) {
         contextString = `VOICE: ${brandProfile.voiceDNA}. AUDIENCE: ${brandProfile.description}. HASHTAGS: ${brandProfile.fixedHashtags}`;
-    } else if (brandVoice) {
-        contextString = `BRAND VOICE: ${brandVoice}`;
     }
 
     try {
@@ -164,30 +151,31 @@ export async function generateSocialMediaPosts(
             prompt: topic, 
             brandContext: contextString, 
             language: brandProfile?.language || language || 'English',
-            imageBase64, 
-            imageMimeType,
-            objective,
-            useRealTime,
-            isCampaign, 
-            postCount,   
-            isRemix,      
-            remixFormats 
+            imageBase64, imageMimeType, objective, useRealTime,
+            isCampaign, postCount, isRemix, remixFormats 
         });
 
         const parsed = extractJsonArray(data.output);
         
         if(Array.isArray(parsed)) {
-            return parsed.map((p: any) => ({ 
-                content: p.content || "Error generating content",
-                type: p.type || 'post', 
-                platform: p.platform || 'Generic'
-            }));
+            return parsed.map((p: any) => {
+                // AICI ESTE FIX-UL: Căutăm conținutul oriunde ar fi
+                let content = p.content || p.post || p.text || p.body || p;
+                if (typeof content !== 'string') content = JSON.stringify(content);
+
+                return { 
+                    content: content,
+                    type: p.type || 'post', 
+                    platform: p.platform || 'Generic'
+                };
+            });
         }
         return [];
 
     } catch (e: any) {
         return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
     }
+// ...
 }
 
 // --- ADAPTERS ---
