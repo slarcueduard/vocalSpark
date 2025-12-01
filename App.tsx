@@ -191,12 +191,12 @@ const SocialSparkApp: React.FC = () => {
           throw new Error("AI returned an empty response. Please try again.");
       }
 
-      // Determinare Tip
+// 1. DETERMINARE TIP
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
-      // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
+      // 2. MAPARE DATE
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -204,7 +204,7 @@ const SocialSparkApp: React.FC = () => {
           imageUrl: attachedImage || null, 
           isGeneratingImage: false, 
           isLocked: false,
-          generationType: genType,
+          generationType: genType, // <--- CRITIC: Aici se setează tipul
           type: p.type || 'post'
       }));
 
@@ -213,21 +213,20 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
-      // --- AUTO-SAVE ---
+ // 3. SALVARE SIGURĂ
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
-
+          
           for (const postData of newPostsData) {
-              try {
-                  const savedId = await savePostToHistory(user.uid, postData, topic, limit);
-                  if (savedId) {
-                      setPosts(currentPosts => 
-                          currentPosts.map(p => p.id === postData.id ? { ...p, id: savedId } : p)
-                      );
-                  }
-              } catch (saveErr) { console.error("Save Failed:", saveErr); }
-          }
-      }
+              // Apelăm noua funcție robustă
+              savePostToHistory(user.uid, postData, topic, limit)
+                .then(savedId => {
+                    if (savedId) {
+                        // Actualizăm ID-ul în UI doar după ce confirmăm salvarea
+                        setPosts(curr => curr.map(p => p.id === postData.id ? { ...p, id: savedId } : p));
+                    }
+                });
+          
 
     } catch (err: any) { 
         console.error("Generate Error:", err);
