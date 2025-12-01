@@ -59,7 +59,8 @@ export const savePostToHistory = async (
       scheduledDate: post.scheduledDate || null,
       isLocked: false,
       isPublished: false,
-      generationType: post.generationType || 'single',
+      // AICI ESTE FIX-UL: Salvăm explicit tipul
+      generationType: post.generationType || 'single', 
       type: post.type || 'post'
     };
     
@@ -89,67 +90,42 @@ export const createManualEvent = async (userId: string, title: string, date: Dat
 
 // 3. UPDATE GENERAL
 export const updatePostInHistory = async (postId: string, updates: Partial<Post>) => {
-  if (!postId) return;
-  try {
-    const docRef = doc(db, 'posts', postId);
-    const updateData: any = { ...updates };
-    delete updateData.id; 
-    delete updateData.isGeneratingImage;
-    
-    updateData.updatedAt = serverTimestamp();
-    await updateDoc(docRef, updateData);
-  } catch (e) { console.error(e); }
-};
-
-// Alias pentru update content
-export const updatePostContent = async (postId: string, newContent: string) => {
-    return updatePostInHistory(postId, { content: newContent });
-};
-
-// 4. FETCH HISTORY
+    if (!postId) return;
+    try {
+      const docRef = doc(db, 'posts', postId);
+      const updateData: any = { ...updates };
+      delete updateData.id; delete updateData.isGeneratingImage;
+      updateData.updatedAt = serverTimestamp();
+      await updateDoc(docRef, updateData);
+    } catch (e) { console.error(e); }
+  };
+  
+export const updatePostContent = async (postId: string, newContent: string) => updatePostInHistory(postId, { content: newContent });
+  
 export const fetchUserHistory = async (userId: string): Promise<any[]> => {
-  if (!userId) return [];
-  try {
-    const q = query(collection(db, 'posts'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (e) { return []; }
+    if (!userId) return [];
+    try {
+      const q = query(collection(db, 'posts'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) { return []; }
 };
-
-// 5. DELETE & LOCK & SCHEDULE
-export const deletePostFromHistory = async (postId: string) => { 
-    await deleteDoc(doc(db, 'posts', postId)); 
-};
-
-export const togglePostLock = async (postId: string, currentStatus: boolean) => { 
-    await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus }); 
-};
-
-export const schedulePost = async (postId: string, date: Date) => { 
-    await updateDoc(doc(db, 'posts', postId), { scheduledDate: date, isPublished: false }); 
-};
-
+  
+export const deletePostFromHistory = async (postId: string) => { await deleteDoc(doc(db, 'posts', postId)); };
+export const togglePostLock = async (postId: string, currentStatus: boolean) => { await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus }); };
+export const schedulePost = async (postId: string, date: Date) => { await updateDoc(doc(db, 'posts', postId), { scheduledDate: date, isPublished: false }); };
 export const checkDuePosts = async (userId: string) => {
-  try {
-    const now = new Date();
-    const startOfDay = new Date(now.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(now.setHours(23, 59, 59, 999));
-    
-    const q = query(
-      collection(db, 'posts'),
-      where('userId', '==', userId),
-      where('isPublished', '==', false),
-      where('scheduledDate', '>=', startOfDay),
-      where('scheduledDate', '<=', endOfDay)
-    );
-
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (e) {
-    return [];
-  }
+    try {
+      const now = new Date();
+      const startOfDay = new Date(now.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(now.setHours(23, 59, 59, 999));
+      const q = query(collection(db, 'posts'), where('userId', '==', userId), where('isPublished', '==', false), where('scheduledDate', '>=', startOfDay), where('scheduledDate', '<=', endOfDay));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (e) { return []; }
 };
-
-export const markPostAsPublished = async (postId: string) => { 
-    await updateDoc(doc(db, 'posts', postId), { isPublished: true }); 
+export const markPostAsPublished = async (postId: string) => { await updateDoc(doc(db, 'posts', postId), { isPublished: true }); };
+export const createManualEvent = async (userId: string, title: string, date: Date, description: string) => {
+    const dummyPost: Post = { id: 'manual', content: `${title}\n\n${description}`, adaptedContent: {}, isGeneratingImage: false, scheduledDate: date, isLocked: true, generationType: 'single' };
+    return savePostToHistory(userId, dummyPost, title, 100); 
 };
