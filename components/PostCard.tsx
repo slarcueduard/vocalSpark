@@ -260,23 +260,27 @@ export const PostCard: React.FC<PostCardProps> = ({
                     </div>
 
                     {/* --- BUTONUL NOU DE SALVARE MANUALĂ --- */}
-                    {onSaveToVault && (
-                        <button 
-                            onClick={() => onSaveToVault(post)}
-                            disabled={post.isSaved}
-                            className={`py-2 border rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
-                                post.isSaved 
-                                ? 'bg-green-900/20 border-green-500/50 text-green-400 cursor-default' 
-                                : 'bg-blue-600 hover:bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-900/20'
-                            }`}
-                            title="Save to Vault for later"
-                        >
-                            {post.isSaved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-                            {post.isSaved ? 'Saved' : 'Save'}
-                        </button>
-                    )}
-                </div>
-            </div>
+             {onSaveToVault && (
+                        <div className="relative group/save">
+                            <button 
+                                onClick={() => onSaveToVault(post)}
+                                disabled={post.isSaved}
+                                className={`py-2 border rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 w-full ${
+                                    post.isSaved 
+                                    ? 'bg-green-900/20 border-green-500/50 text-green-400 cursor-default' 
+                                    : 'bg-blue-600 hover:bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-900/20'
+                                }`}
+                            >
+                                {post.isSaved ? <CheckCircle size={14} /> : <Bookmark size={14} />}
+                                {post.isSaved ? 'Saved' : 'Add to Vault'}
+                            </button>
+                            {/* HINT TOOLTIP */}
+                            {!post.isSaved && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-gray-300 text-[10px] rounded border border-gray-700 opacity-0 group-hover/save:opacity-100 transition pointer-events-none whitespace-nowrap">
+                                    Save for later
+                                </div>
+                            )}
+                        </div>
         </div>
     </div>
   );
