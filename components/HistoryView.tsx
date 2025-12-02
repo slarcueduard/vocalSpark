@@ -119,7 +119,7 @@ export function HistoryView() {
       }
   };
 
-  const handleToggleLock = async (id: string) => {
+const handleToggleLock = async (id: string) => {
       if (!user) return;
       const post = posts.find(p => p.id === id);
       
