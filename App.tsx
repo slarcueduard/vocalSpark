@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
+import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts, togglePostLock } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, HelpCircle, Globe, Bell, Repeat } from 'lucide-react'; 
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -15,6 +15,8 @@ import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
+
+const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
@@ -34,14 +36,13 @@ const SocialSparkApp: React.FC = () => {
   
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  
   const [useRealTime, setUseRealTime] = useState(false);
+  
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
-  
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
@@ -52,20 +53,14 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
+  // --- MODIFICARE AICI: NU MAI ȘTERGEM POSTĂRILE ---
   const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      // Resetăm doar erorile, păstrăm postările vizibile dacă vrea userul să le vadă
-      // setPosts([]); // Comentează linia asta dacă vrei să păstrezi postările la schimbarea tab-ului
-      setPosts([]); 
+      // setPosts([]); // <--- AM SCOS ASTA! Postările rămân vizibile.
       setError(null);
-
+      
       if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
       else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
       else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
-  };
-
-  const toggleRemixFormat = (fmt: string) => {
-      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
-      else { setRemixFormats(prev => [...prev, fmt]); }
   };
 
   useEffect(() => {
@@ -73,7 +68,7 @@ const SocialSparkApp: React.FC = () => {
           if (user) {
               const duePosts = await checkDuePosts(user.uid);
               if (duePosts.length > 0) {
-                  setNotification(`🔔 ${duePosts.length} posts due!`);
+                  setNotification(`🔔 ${duePosts.length} posts scheduled for today!`);
                   setTimeout(() => setNotification(null), 10000);
               }
           }
@@ -83,7 +78,10 @@ const SocialSparkApp: React.FC = () => {
 
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
-        const templates = [`3 tips for ${brandProfile.industry}`, `How to start in ${brandProfile.industry}`];
+        const lang = brandProfile.language || 'English';
+        const niche = brandProfile.industry;
+        let templates: string[] = [`3 tips for ${niche}`, `How to start in ${niche}`];
+        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`];
         setTopic(templates[Math.floor(Math.random() * templates.length)] || "");
     }
   }, [loading, brandProfile, appMode]); 
@@ -124,17 +122,24 @@ const SocialSparkApp: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!topic.trim() && !attachedImage) { setError("Please add content."); return; }
+    if (!topic.trim() && !attachedImage) { 
+        setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
+        return; 
+    }
     
     let count = 1;
     if (isCampaignMode) count = campaignCount;
     if (appMode === 'remix') count = remixFormats.length;
     
     const cost = useRealTime ? 10 : (1 * count);
-    if (!checkCredits(cost)) { if (isTrialExpired) return; alert("Insufficient credits!"); return; }
+
+    if (!checkCredits(cost)) { 
+        if (isTrialExpired) return; 
+        alert(`Insufficient credits! This action requires ${cost} credits.`); 
+        return; 
+    }
 
     setIsLoading(true); setError(null);
-    
     try {
       let imgData = undefined, imgMime = undefined;
       if (attachedImage) {
@@ -154,14 +159,15 @@ const SocialSparkApp: React.FC = () => {
           brandProfile?.voiceDNA || '',
           brandProfile || undefined, 
           imgData, imgMime, objective, useRealTime,
-          isCampaignMode, appMode === 'remix', remixFormats
+          isCampaignMode,
+          appMode === 'remix',
+          remixFormats
       );
       
       if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) {
-          throw new Error("AI returned empty.");
+          throw new Error("AI returned an empty response. Please try again.");
       }
 
-      // --- CRITIC: SETARE TIP CORECT ---
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
@@ -173,42 +179,56 @@ const SocialSparkApp: React.FC = () => {
           imageUrl: attachedImage || null, 
           isGeneratingImage: false, 
           isLocked: false,
-          generationType: genType, // AICI SE PUNE ETICHETA
+          generationType: genType,
           type: p.type || 'post'
       }));
 
-      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
+      // Adăugăm la începutul listei, păstrând vechile postări
+      setPosts(prev => [...newPostsData, ...prev]);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
-      // --- AUTO-SAVE ---
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
           
-          // Salvăm secvențial sau paralel, dar ne asigurăm că logica de salvare primește datele complete
           for (const postData of newPostsData) {
-              // Trimitem obiectul complet cu generationType setat
-              savePostToHistory(user.uid, postData, topic, limit).then(savedId => {
+              try {
+                  const savedId = await savePostToHistory(user.uid, postData, topic, limit);
                   if (savedId) {
-                      // Actualizăm ID-ul local ca să corespundă cu DB
                       setPosts(curr => curr.map(p => p.id === postData.id ? { ...p, id: savedId } : p));
                   }
-              });
+              } catch (saveErr) { console.error("Save Failed:", saveErr); }
           }
       }
 
     } catch (err: any) { 
-        console.error(err);
-        setError('Failed to generate content.'); 
+        console.error("Generate Error:", err);
+        setError(err.message || 'Failed to generate content.'); 
     } finally { 
         setIsLoading(false); 
     }
   };
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
-  const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
+  
+  // --- MODIFICARE: LOCK CU LIMITĂ ---
+  const handleToggleLock = async (id: string) => {
+      if (!user) return;
+      const p = posts.find(x => x.id === id);
+      if (p) {
+          const success = await togglePostLock(user.uid, id, p.isLocked || false);
+          if (success) {
+              setPosts(prev => prev.map(item => item.id === id ? { ...item, isLocked: !item.isLocked } : item));
+          }
+      }
+  };
+
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); updatePostInHistory(id, { content: refined }); setRefiningPostId(null); };
+  const toggleRemixFormat = (fmt: string) => {
+      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
+      else { setRemixFormats(prev => [...prev, fmt]); }
+  };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
