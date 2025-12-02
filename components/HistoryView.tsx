@@ -5,7 +5,7 @@ import { PostCard } from './PostCard';
 import { Loader } from './Loader';
 import { Archive, Search, Database, Ghost, ShieldCheck, Trash2, Filter } from 'lucide-react';
 import { Post } from '../types';
-import { collection, query, where, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { ImageCreationModal } from './ImageCreationModal';
 
@@ -16,7 +16,6 @@ export function HistoryView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'single' | 'campaign' | 'remix'>('all');
 
-  // State pentru Imagine în Vault
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activePrompt, setActivePrompt] = useState('');
@@ -24,14 +23,16 @@ export function HistoryView() {
   useEffect(() => {
     if (!user) return;
 
-    // Query simplu (fără orderBy pentru a evita erorile de index Firebase)
+    // --- QUERY ULTRA-SIMPLU (Anti-Eroare Index) ---
+    // Cerem tot ce e al userului. Nu filtrăm, nu sortăm în DB.
     const q = query(
       collection(db, 'posts'),
       where('userId', '==', user.uid)
     );
 
-    // Listener Real-Time
     const unsubscribe = onSnapshot(q, (snapshot) => {
+        console.log(`📦 Vault: Loaded ${snapshot.size} posts.`);
+        
         const formattedPosts: Post[] = snapshot.docs.map((doc) => {
             const d = doc.data();
             return { 
@@ -41,15 +42,16 @@ export function HistoryView() {
                 adaptedContent: d.adaptedContent || {}, 
                 isGeneratingImage: false,
                 isLocked: !!d.isLocked,
-                // Fallback pentru tip
+                
+                // Asigurăm fallback la 'single' pentru postări vechi
                 generationType: d.generationType || 'single',
                 type: d.type || 'post',
-                // Gestionare sigură a datei
                 createdAt: d.createdAt 
             } as any;
         });
         
-        // Sortare manuală în JS (Cele mai noi primele)
+        // --- SORTARE ÎN BROWSER ---
+        // Cele mai noi primele
         formattedPosts.sort((a: any, b: any) => {
              const timeA = a.createdAt?.seconds || 0;
              const timeB = b.createdAt?.seconds || 0;
@@ -66,78 +68,22 @@ export function HistoryView() {
     return () => unsubscribe();
   }, [user]);
 
-  // --- ACȚIUNI ---
-
-  const handleDelete = async (id: string) => {
-      if (window.confirm("Delete this post permanently?")) {
-          await deletePostFromHistory(id);
-      }
-  };
-
-  const handleDeleteAll = async () => {
-      if (!user) return;
-      // Ștergem doar ce e vizibil în filtrul curent și NU este blocat
-      const visiblePosts = getGroupedPostsList(); // Luăm lista filtrată
-      const deletablePosts = visiblePosts.filter(p => !p.isLocked);
-      
-      if (deletablePosts.length === 0) {
-          alert("No unlocked posts to delete in current view.");
-          return;
-      }
-
-      if (window.confirm(`Are you sure you want to delete ${deletablePosts.length} posts? Locked posts will stay safe.`)) {
-          setLoading(true);
-          try {
-            // Ștergem unul câte unul (mai sigur decât batch pt volume mici/medii fără logică complexă)
-            for (const p of deletablePosts) {
-                await deletePostFromHistory(p.id);
-            }
-          } catch (e) {
-              console.error(e);
-          } finally {
-              setLoading(false);
-          }
-      }
-  };
-
-  const handleToggleLock = async (id: string) => {
-      const post = posts.find(p => p.id === id);
-      if (post) await togglePostLock(id, post.isLocked || false);
-  };
-
-  const handleUpdateContent = async (id: string, newContent: string) => {
-      await updatePostContent(id, newContent);
-  };
-
-  // Logică Imagine
-  const openImageModal = (id: string, content: string) => {
-      setActivePostId(id);
-      setActivePrompt(content);
-      setIsImageModalOpen(true);
-  };
-
-  const handleImageSelected = (url: string) => {
-      if (activePostId) {
-          updatePostInHistory(activePostId, { imageUrl: url });
-      }
-      setIsImageModalOpen(false);
-  };
-
-  // --- LOGICA DE FILTRARE ȘI GRUPARE ---
-  
-  // Helper pentru a obține lista filtrată plată (pt delete all)
-  const getGroupedPostsList = () => {
+  // --- LOGICA DE FILTRARE VIZUALĂ ---
+  const getFilteredPosts = () => {
       return posts.filter(p => {
-          const matchesSearch = (p.content || "").toLowerCase().includes(searchTerm.toLowerCase());
-          // Compatibilitate: Dacă nu are tip, e 'single'
-          const type = p.generationType || 'single';
-          const matchesType = filterType === 'all' || type === filterType;
-          return matchesSearch && matchesType;
+          const contentMatch = (p.content || "").toLowerCase().includes(searchTerm.toLowerCase());
+          const topicMatch = ((p as any).topic || "").toLowerCase().includes(searchTerm.toLowerCase());
+          
+          // Filtrăm după tip (Tab-ul selectat)
+          const typeMatch = filterType === 'all' || p.generationType === filterType;
+
+          return (contentMatch || topicMatch) && typeMatch;
       });
   };
 
+  // --- GRUPARE PE ZILE ---
   const getGroupedPosts = () => {
-      const filtered = getGroupedPostsList();
+      const filtered = getFilteredPosts();
       const groups: Record<string, Post[]> = {};
       
       filtered.forEach(p => {
@@ -159,6 +105,27 @@ export function HistoryView() {
 
       return groups;
   };
+
+  // Handlers
+  const handleDelete = async (id: string) => {
+      if (window.confirm("Delete this post?")) await deletePostFromHistory(id);
+  };
+  
+  const handleDeleteAll = async () => {
+      const visiblePosts = getFilteredPosts().filter(p => !p.isLocked);
+      if (visiblePosts.length === 0) { alert("No unlocked posts to delete."); return; }
+      if (window.confirm(`Delete ${visiblePosts.length} unlocked posts?`)) {
+          for (const p of visiblePosts) await deletePostFromHistory(p.id);
+      }
+  };
+
+  const handleToggleLock = async (id: string) => {
+      const p = posts.find(x => x.id === id);
+      if (p) await togglePostLock(id, p.isLocked || false);
+  };
+  const handleUpdateContent = async (id: string, c: string) => { await updatePostContent(id, c); };
+  const openImageModal = (id: string, c: string) => { setActivePostId(id); setActivePrompt(c); setIsImageModalOpen(true); };
+  const handleImageSelected = (url: string) => { if (activePostId) updatePostInHistory(activePostId, { imageUrl: url }); setIsImageModalOpen(false); };
 
   const groupedPosts = getGroupedPosts();
   const groupKeys = Object.keys(groupedPosts);
@@ -188,18 +155,14 @@ export function HistoryView() {
                     </div>
                     
                     {posts.length > 0 && (
-                        <button 
-                            onClick={handleDeleteAll}
-                            className="flex items-center gap-2 text-xs font-bold text-red-400 bg-red-900/10 px-3 py-1.5 rounded-lg border border-red-900/30 hover:bg-red-900/30 transition"
-                            title="Delete all visible unlocked posts"
-                        >
+                        <button onClick={handleDeleteAll} className="flex items-center gap-2 text-xs font-bold text-red-400 bg-red-900/10 px-3 py-1.5 rounded-lg border border-red-900/30 hover:bg-red-900/30 transition">
                             <Trash2 size={14}/> Clear List
                         </button>
                     )}
                 </div>
             </div>
 
-            {/* Filters Bar */}
+            {/* Tabs & Search */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex bg-black/30 p-1 rounded-lg border border-gray-700 overflow-x-auto no-scrollbar">
                     {['all', 'single', 'campaign', 'remix'].map((t) => (
@@ -214,24 +177,18 @@ export function HistoryView() {
                 </div>
                 <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={16} />
-                    <input 
-                        type="text" 
-                        placeholder="Search content..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full bg-[#0f1115] border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-blue-500 outline-none"
-                    />
+                    <input type="text" placeholder="Search content..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-[#0f1115] border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-blue-500 outline-none" />
                 </div>
             </div>
         </div>
 
-        {/* Grid Grupat pe Zile */}
+        {/* LISTA GRUPATĂ */}
         {groupKeys.length > 0 ? (
-            <div className="space-y-10">
+            <div className="space-y-8">
                 {groupKeys.map(dateLabel => (
                     <div key={dateLabel}>
-                        <div className="flex items-center gap-4 mb-6">
-                            <h3 className="text-lg font-bold text-white bg-[#1c1c2e] px-3 py-1 rounded-lg border border-gray-700">{dateLabel}</h3>
+                        <div className="flex items-center gap-4 mb-4">
+                            <h3 className="text-lg font-bold text-gray-300">{dateLabel}</h3>
                             <div className="h-px bg-gray-800 flex-1"></div>
                         </div>
                         <div className="grid grid-cols-1 gap-6">
@@ -256,19 +213,10 @@ export function HistoryView() {
             <div className="text-center py-24 border-2 border-dashed border-gray-800 rounded-2xl bg-[#161b22]/30">
                 <Ghost className="text-gray-600 mx-auto mb-4" size={48} />
                 <h3 className="text-xl font-bold text-gray-300 mb-2">No posts found</h3>
-                <p className="text-sm text-gray-500">
-                    {searchTerm || filterType !== 'all' ? "Try adjusting your filters." : "Start creating in the Studio!"}
-                </p>
             </div>
         )}
 
-        {isImageModalOpen && (
-            <ImageCreationModal 
-                onClose={() => setIsImageModalOpen(false)}
-                onSelectImage={handleImageSelected}
-                initialPrompt={activePrompt}
-            />
-        )}
+        {isImageModalOpen && <ImageCreationModal onClose={() => setIsImageModalOpen(false)} onSelectImage={handleImageSelected} initialPrompt={activePrompt} />}
     </div>
   );
 }
