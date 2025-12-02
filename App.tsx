@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts, togglePostLock } from './services/postService';
+import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
@@ -23,10 +23,14 @@ const SocialSparkApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // --- NAVIGARE ---
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
+
+  // --- MODURI DE LUCRU ---
   const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   
+  // --- INPUT STATES ---
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -36,33 +40,48 @@ const SocialSparkApp: React.FC = () => {
   
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  
+  // --- FEATURE FLAGS ---
   const [useRealTime, setUseRealTime] = useState(false);
   
+  // --- UI FEEDBACK ---
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
+  // --- MODALE ---
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
+  
+  // --- IMAGINE LOGIC ---
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
+
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // --- HELPERS ---
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // --- MODIFICARE AICI: NU MAI ȘTERGEM POSTĂRILE ---
+  // --- MODIFICARE AICI: NU MAI ȘTERGEM POSTS ---
   const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      // setPosts([]); // <--- AM SCOS ASTA! Postările rămân vizibile.
+      // setPosts([]); // <--- AM SCOS ACEASTĂ LINIE. Acum postările rămân.
       setError(null);
-      
       if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
       else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
       else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
   };
 
+  const toggleRemixFormat = (fmt: string) => {
+      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
+      else { setRemixFormats(prev => [...prev, fmt]); }
+  };
+
+  // --- EFFECTS ---
+
+  // 1. Notificări la Login
   useEffect(() => {
       const checkReminders = async () => {
           if (user) {
@@ -76,15 +95,18 @@ const SocialSparkApp: React.FC = () => {
       checkReminders();
   }, [user]);
 
+  // 2. Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
         let templates: string[] = [`3 tips for ${niche}`, `How to start in ${niche}`];
-        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`];
+        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
         setTopic(templates[Math.floor(Math.random() * templates.length)] || "");
     }
   }, [loading, brandProfile, appMode]); 
+
+  // --- CORE LOGIC ---
 
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
@@ -98,6 +120,7 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
+  // Gestionare Modal Imagini
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -112,15 +135,18 @@ const SocialSparkApp: React.FC = () => {
 
   const handleImageSelected = (url: string) => {
       if (activePostIdForImage) {
+          // Update Post existent
           setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
           updatePostInHistory(activePostIdForImage, { imageUrl: url });
       } else {
+          // Update Input Principal
           setAttachedImage(url);
       }
       setIsImageModalOpen(false);
       setActivePostIdForImage(null);
   };
 
+  // --- GENERATE ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { 
         setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
@@ -168,10 +194,12 @@ const SocialSparkApp: React.FC = () => {
           throw new Error("AI returned an empty response. Please try again.");
       }
 
+      // Determinare Tip
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
+      // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -183,11 +211,12 @@ const SocialSparkApp: React.FC = () => {
           type: p.type || 'post'
       }));
 
-      // Adăugăm la începutul listei, păstrând vechile postări
-      setPosts(prev => [...newPostsData, ...prev]);
+      // Actualizăm UI (Adăugăm la ce există deja)
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 20)); // Păstrăm ultimele 20 în UI
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
+      // --- AUTO-SAVE ---
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
           
@@ -210,25 +239,9 @@ const SocialSparkApp: React.FC = () => {
   };
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
-  
-  // --- MODIFICARE: LOCK CU LIMITĂ ---
-  const handleToggleLock = async (id: string) => {
-      if (!user) return;
-      const p = posts.find(x => x.id === id);
-      if (p) {
-          const success = await togglePostLock(user.uid, id, p.isLocked || false);
-          if (success) {
-              setPosts(prev => prev.map(item => item.id === id ? { ...item, isLocked: !item.isLocked } : item));
-          }
-      }
-  };
-
+  const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); updatePostInHistory(id, { content: refined }); setRefiningPostId(null); };
-  const toggleRemixFormat = (fmt: string) => {
-      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
-      else { setRemixFormats(prev => [...prev, fmt]); }
-  };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -259,7 +272,9 @@ const SocialSparkApp: React.FC = () => {
                                 <button onClick={() => handleSwitchMode('remix')} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
                             </div>
                         </header>
+                        
                         <div className="space-y-8">
+                            {/* INPUT SECTION */}
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between"><label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}</label>{attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}</div>
                                 <div className="relative group">
@@ -274,71 +289,4 @@ const SocialSparkApp: React.FC = () => {
                                         <div className="flex justify-between items-center mb-3"><label className="text-xs font-bold text-green-400 uppercase flex items-center gap-2"><Repeat size={14} /> Remix Formats</label><span className="text-[10px] text-green-300 bg-green-900/30 px-2 py-0.5 rounded">{remixFormats.length} Selected</span></div>
                                         <div className="flex flex-wrap gap-2">
                                             {['LinkedIn Post', 'Twitter Thread', 'TikTok Script', 'Instagram Carousel', 'Newsletter Email', 'Facebook Story'].map(fmt => (
-                                                <button key={fmt} onClick={() => toggleRemixFormat(fmt)} className={`px-3 py-2 rounded-lg text-xs border transition ${remixFormats.includes(fmt) ? 'bg-green-600 border-green-500 text-white shadow-lg' : 'bg-[#0f1115] border-gray-700 text-gray-400 hover:border-gray-500'}`}>{fmt}</button>
-                                            ))}
-                                        </div>
-                                    </section>
-                                )}
-                                {isCampaignMode && appMode === 'creator' && (
-                                    <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
-                                        <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2"><BriefcaseIcon size={14} /> Campaign Length</label><span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">{campaignCount} Posts</span></div>
-                                        <input type="range" min="3" max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} value={campaignCount} onChange={(e) => setCampaignCount(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
-                                    </section>
-                                )}
-                                <div className="flex items-center justify-between mt-2 px-1">
-                                    {isPremiumUser ? <label className="flex items-center gap-2 cursor-pointer group"><div className="relative"><input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" /><div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div></div><span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}><Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span></span></label> : <div className="flex items-center gap-2 opacity-50 cursor-not-allowed"><Globe size={12} /><span className="text-xs text-gray-500">Real-Time Data (PRO)</span></div>}
-                                </div>
-                            </section>
-
-                            {appMode === 'creator' && !isCampaignMode && (
-                                <section className="space-y-3">
-                                    <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span> What is your Goal?</label>
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                        {OBJECTIVES.map((obj) => { const Icon = obj.icon; const isActive = objective === obj.id; return (<button key={obj.id} onClick={() => setObjective(obj.id)} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 h-24 ${isActive ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-[#161b22] border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800'}`}><Icon size={20} className={`mb-2 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} /><span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">{obj.label}</span></button>) })}
-                                    </div>
-                                </section>
-                            )}
-
-                            <section className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label><select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm"><{TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
-                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label><select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">{PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
-                            </section>
-                            
-                            <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
-                                {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} {isLoading ? (appMode === 'remix' ? 'Remixing...' : isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (appMode === 'remix' ? 'Remix Content ♻️' : isCampaignMode ? 'Generate Campaign 🚀' : 'Craft my Post ✨')}
-                            </button>
-
-                            {error && <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2"><BriefcaseIcon size={16} /> {error}</div>}
-
-                            <div ref={resultsRef} className="scroll-mt-24">
-                                {posts.length > 0 && (
-                                    <div className="space-y-6 mt-10 pt-10 border-t border-gray-800 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        <div className="flex items-center justify-between"><h3 className="font-bold text-xl text-white">Generated Results</h3><span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{posts.length} variations</span></div>
-                                        {posts.map(post => <PostCard key={post.id} post={post} isRefining={refiningPostId === post.id} onGenerateImage={(id, content) => openImageModalForPost(id, content)} onAdaptPost={handleAdaptPost} onRefinePost={handleRefinePost} onDelete={handleDeletePost} onToggleLock={handleToggleLock} onManualEdit={(id, newContent) => { setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p)); updatePostInHistory(id, { content: newContent }); }} onSchedule={async (id, date) => { await schedulePost(id, date); setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p)); }} onMarkPublished={async (id) => { await markPostAsPublished(id); setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p)); }} />)}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div className="hidden xl:block w-[400px] shrink-0">
-                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
-                </div>
-            </div>
-        )}
-
-        {isImageModalOpen && <ImageCreationModal onClose={() => setIsImageModalOpen(false)} onSelectImage={handleImageSelected} initialPrompt={currentPromptForImage} />}
-        {isBrandProfileModalOpen && <BrandProfileModal currentProfile={brandProfile} onSave={saveBrandProfile} onClose={() => setIsBrandProfileModalOpen(false)} />}
-    </MainLayout>
-  );
-};
-
-const AppContent: React.FC = () => {
-    const { user, loading, signIn } = useAuth();
-    if (loading) return <div className="min-h-screen bg-[#0f1115] flex items-center justify-center"><div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
-    if (user) return <SocialSparkApp />;
-    return <LandingPage onLogin={signIn} />;
-};
-
-const App: React.FC = () => (<AuthProvider><AppContent /></AuthProvider>);
-export default App;
+                                                <button key={fmt} onClick={() => toggleRemixFormat(fmt
