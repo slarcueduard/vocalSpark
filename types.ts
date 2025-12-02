@@ -44,10 +44,12 @@ export interface Post {
   isGeneratingImage?: boolean;
   adaptedContent: Partial<Record<Platform, string>>;
   isLocked?: boolean;
+  scheduledDate?: any;
+  isPublished?: boolean;
+  generationType?: GenerationType;
+  type?: string;
   
-  // Câmpuri noi pentru Schedule
-  scheduledDate?: any; // Timestamp Firebase sau Date JS
-  isPublished?: boolean; // Ca să nu îl mai notificăm dacă l-a postat deja
+  isSaved?: boolean; // <--- CÂMP NOU (Doar pentru UI, să știm dacă am apăsat butonul)
 }
 // ...
 
