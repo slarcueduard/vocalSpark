@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
+import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts, togglePostLock } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
@@ -37,6 +37,7 @@ const SocialSparkApp: React.FC = () => {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [useRealTime, setUseRealTime] = useState(false);
+  
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -52,17 +53,14 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
+  // --- MODIFICARE AICI: NU MAI ȘTERGEM POSTĂRILE ---
   const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      setPosts([]); 
+      // setPosts([]); // <--- AM SCOS ASTA! Postările rămân vizibile.
       setError(null);
+      
       if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
       else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
       else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
-  };
-
-  const toggleRemixFormat = (fmt: string) => {
-      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
-      else { setRemixFormats(prev => [...prev, fmt]); }
   };
 
   useEffect(() => {
@@ -83,7 +81,7 @@ const SocialSparkApp: React.FC = () => {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
         let templates: string[] = [`3 tips for ${niche}`, `How to start in ${niche}`];
-        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
+        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`];
         setTopic(templates[Math.floor(Math.random() * templates.length)] || "");
     }
   }, [loading, brandProfile, appMode]); 
@@ -124,7 +122,10 @@ const SocialSparkApp: React.FC = () => {
   };
 
   const handleGenerate = async () => {
-    if (!topic.trim() && !attachedImage) { setError("Please add content."); return; }
+    if (!topic.trim() && !attachedImage) { 
+        setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
+        return; 
+    }
     
     let count = 1;
     if (isCampaignMode) count = campaignCount;
@@ -167,12 +168,9 @@ const SocialSparkApp: React.FC = () => {
           throw new Error("AI returned an empty response. Please try again.");
       }
 
-      // --- CRITIC: SETARE TIP CORECT ---
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
-
-      console.log("Generating type:", genType);
 
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
@@ -181,27 +179,22 @@ const SocialSparkApp: React.FC = () => {
           imageUrl: attachedImage || null, 
           isGeneratingImage: false, 
           isLocked: false,
-          generationType: genType, // <--- AICI
+          generationType: genType,
           type: p.type || 'post'
       }));
 
-      // Afișăm în UI
-      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
+      // Adăugăm la începutul listei, păstrând vechile postări
+      setPosts(prev => [...newPostsData, ...prev]);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
-      // --- AUTO-SAVE ---
       if (user) {
-          console.log(`Saving ${newPostsData.length} posts...`);
+          const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+          
           for (const postData of newPostsData) {
               try {
-                  // Limit 50 pt Agency, 20 altfel
-                  const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
-                  
                   const savedId = await savePostToHistory(user.uid, postData, topic, limit);
-                  
                   if (savedId) {
-                      console.log("Saved with ID:", savedId);
                       setPosts(curr => curr.map(p => p.id === postData.id ? { ...p, id: savedId } : p));
                   }
               } catch (saveErr) { console.error("Save Failed:", saveErr); }
@@ -217,9 +210,25 @@ const SocialSparkApp: React.FC = () => {
   };
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
-  const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
+  
+  // --- MODIFICARE: LOCK CU LIMITĂ ---
+  const handleToggleLock = async (id: string) => {
+      if (!user) return;
+      const p = posts.find(x => x.id === id);
+      if (p) {
+          const success = await togglePostLock(user.uid, id, p.isLocked || false);
+          if (success) {
+              setPosts(prev => prev.map(item => item.id === id ? { ...item, isLocked: !item.isLocked } : item));
+          }
+      }
+  };
+
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); updatePostInHistory(id, { content: refined }); setRefiningPostId(null); };
+  const toggleRemixFormat = (fmt: string) => {
+      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
+      else { setRemixFormats(prev => [...prev, fmt]); }
+  };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -250,7 +259,6 @@ const SocialSparkApp: React.FC = () => {
                                 <button onClick={() => handleSwitchMode('remix')} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
                             </div>
                         </header>
-                        
                         <div className="space-y-8">
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between"><label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}</label>{attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}</div>
@@ -277,7 +285,6 @@ const SocialSparkApp: React.FC = () => {
                                         <input type="range" min="3" max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} value={campaignCount} onChange={(e) => setCampaignCount(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
                                     </section>
                                 )}
-
                                 <div className="flex items-center justify-between mt-2 px-1">
                                     {isPremiumUser ? <label className="flex items-center gap-2 cursor-pointer group"><div className="relative"><input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" /><div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div></div><span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}><Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span></span></label> : <div className="flex items-center gap-2 opacity-50 cursor-not-allowed"><Globe size={12} /><span className="text-xs text-gray-500">Real-Time Data (PRO)</span></div>}
                                 </div>
