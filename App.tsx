@@ -65,21 +65,12 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // --- SCHIMBARE TAB-URI (FIX PERSISTENȚĂ) ---
   const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      // setPosts([]); // <--- AM SCOS ACEASTĂ LINIE! Acum nu se mai șterg postările.
+      // setPosts([]); // Păstrăm postările la schimbarea tab-urilor
       setError(null);
-
-      if (mode === 'single') { 
-          setAppMode('creator'); 
-          setIsCampaignMode(false); 
-      } else if (mode === 'campaign') { 
-          setAppMode('creator'); 
-          setIsCampaignMode(true); 
-      } else if (mode === 'remix') { 
-          setAppMode('remix'); 
-          setIsCampaignMode(false); 
-      }
+      if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
+      else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
+      else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
   };
 
   const toggleRemixFormat = (fmt: string) => {
@@ -219,9 +210,8 @@ const SocialSparkApp: React.FC = () => {
           type: p.type || 'post'
       }));
 
-      // Actualizăm UI - ADĂUGĂM la început, nu înlocuim
-      setPosts(prev => [...newPostsData, ...prev].slice(0, 20)); // Păstrăm ultimele 20 vizibile
-      
+      // Actualizăm UI
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
@@ -231,6 +221,7 @@ const SocialSparkApp: React.FC = () => {
           
           for (const postData of newPostsData) {
               try {
+                  // Așteptăm salvarea pentru a avea ID-ul real
                   const savedId = await savePostToHistory(user.uid, postData, topic, limit);
                   if (savedId) {
                       setPosts(curr => curr.map(p => p.id === postData.id ? { ...p, id: savedId } : p));
@@ -281,7 +272,6 @@ const SocialSparkApp: React.FC = () => {
                                 <button onClick={() => handleSwitchMode('remix')} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
                             </div>
                         </header>
-                        
                         <div className="space-y-8">
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between"><label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}</label>{attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}</div>
@@ -323,7 +313,12 @@ const SocialSparkApp: React.FC = () => {
                             )}
 
                             <section className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label><select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm"><{TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
+                                    {/* FIX SINTAXĂ AICI: Am scos < din fata acoladei */}
+                                    <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
+                                        {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                    </select>
+                                </div>
                                 <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label><select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">{PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
                             </section>
                             
