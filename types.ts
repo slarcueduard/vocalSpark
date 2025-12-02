@@ -37,6 +37,12 @@ export interface BrandProfile {
 }
 
 // ...
+// src/types.ts
+
+// ... enum-uri ...
+
+export type GenerationType = 'single' | 'campaign' | 'remix';
+
 export interface Post {
   id: string;
   content: string;
@@ -46,11 +52,14 @@ export interface Post {
   isLocked?: boolean;
   scheduledDate?: any;
   isPublished?: boolean;
-  generationType?: GenerationType;
-  type?: string;
   
-  isSaved?: boolean; // <--- CÂMP NOU (Doar pentru UI, să știm dacă am apăsat butonul)
+  // Câmpuri noi
+  generationType?: GenerationType; 
+  type?: string; 
+  isSaved?: boolean; // <--- NOU: Pt a dezactiva butonul după salvare
 }
+
+// ... restul ...
 // ...
 
 export interface UserProfile {
