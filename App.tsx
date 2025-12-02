@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
-import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts, togglePostLock } from './services/postService';
+import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
@@ -23,10 +23,14 @@ const SocialSparkApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // --- NAVIGARE ---
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
+
+  // --- MODURI DE LUCRU ---
   const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   
+  // --- INPUT STATES ---
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -36,33 +40,47 @@ const SocialSparkApp: React.FC = () => {
   
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  
+  // --- FEATURE FLAGS ---
   const [useRealTime, setUseRealTime] = useState(false);
   
+  // --- UI FEEDBACK ---
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
+  // --- MODALE ---
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
+  
+  // --- IMAGINE LOGIC ---
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
+
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // --- HELPERS ---
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  // --- MODIFICARE AICI: NU MAI ȘTERGEM POSTĂRILE ---
   const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      // setPosts([]); // <--- AM SCOS ASTA! Postările rămân vizibile.
+      setPosts([]); // Resetăm lista pentru claritate
       setError(null);
-      
       if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
       else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
       else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
   };
 
+  const toggleRemixFormat = (fmt: string) => {
+      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
+      else { setRemixFormats(prev => [...prev, fmt]); }
+  };
+
+  // --- EFFECTS ---
+
+  // 1. Notificări la Login
   useEffect(() => {
       const checkReminders = async () => {
           if (user) {
@@ -76,15 +94,18 @@ const SocialSparkApp: React.FC = () => {
       checkReminders();
   }, [user]);
 
+  // 2. Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
         const niche = brandProfile.industry;
         let templates: string[] = [`3 tips for ${niche}`, `How to start in ${niche}`];
-        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`];
+        if (lang === 'Romanian') templates = [`3 mituri despre ${niche}`, `Cum să începi cu ${niche}`, `Secrete din ${niche}`];
         setTopic(templates[Math.floor(Math.random() * templates.length)] || "");
     }
   }, [loading, brandProfile, appMode]); 
+
+  // --- CORE LOGIC ---
 
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
@@ -98,6 +119,7 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
+  // Gestionare Modal Imagini
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -112,15 +134,18 @@ const SocialSparkApp: React.FC = () => {
 
   const handleImageSelected = (url: string) => {
       if (activePostIdForImage) {
+          // Update Post existent
           setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
           updatePostInHistory(activePostIdForImage, { imageUrl: url });
       } else {
+          // Update Input Principal
           setAttachedImage(url);
       }
       setIsImageModalOpen(false);
       setActivePostIdForImage(null);
   };
 
+  // --- GENERATE ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { 
         setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
@@ -168,10 +193,12 @@ const SocialSparkApp: React.FC = () => {
           throw new Error("AI returned an empty response. Please try again.");
       }
 
+      // Determinare Tip
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
+      // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -183,11 +210,12 @@ const SocialSparkApp: React.FC = () => {
           type: p.type || 'post'
       }));
 
-      // Adăugăm la începutul listei, păstrând vechile postări
-      setPosts(prev => [...newPostsData, ...prev]);
+      // Actualizăm UI
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
+      // --- AUTO-SAVE ---
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
           
@@ -210,25 +238,9 @@ const SocialSparkApp: React.FC = () => {
   };
 
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
-  
-  // --- MODIFICARE: LOCK CU LIMITĂ ---
-  const handleToggleLock = async (id: string) => {
-      if (!user) return;
-      const p = posts.find(x => x.id === id);
-      if (p) {
-          const success = await togglePostLock(user.uid, id, p.isLocked || false);
-          if (success) {
-              setPosts(prev => prev.map(item => item.id === id ? { ...item, isLocked: !item.isLocked } : item));
-          }
-      }
-  };
-
+  const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
   const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); updatePostInHistory(id, { content: refined }); setRefiningPostId(null); };
-  const toggleRemixFormat = (fmt: string) => {
-      if (remixFormats.includes(fmt)) { if (remixFormats.length > 1) setRemixFormats(prev => prev.filter(f => f !== fmt)); } 
-      else { setRemixFormats(prev => [...prev, fmt]); }
-  };
 
   const activePost = posts[0];
   const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
@@ -290,17 +302,14 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
 
-                            {appMode === 'creator' && !isCampaignMode && (
-                                <section className="space-y-3">
-                                    <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-[10px] text-white">2</span> What is your Goal?</label>
-                                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                                        {OBJECTIVES.map((obj) => { const Icon = obj.icon; const isActive = objective === obj.id; return (<button key={obj.id} onClick={() => setObjective(obj.id)} className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-200 h-24 ${isActive ? 'bg-purple-500/10 border-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-[#161b22] border-gray-700 text-gray-400 hover:border-gray-600 hover:bg-gray-800'}`}><Icon size={20} className={`mb-2 ${isActive ? 'text-purple-400' : 'text-gray-500'}`} /><span className="text-[10px] font-bold uppercase tracking-wide text-center leading-tight mb-1">{obj.label}</span></button>) })}
-                                    </div>
-                                </section>
-                            )}
-
                             <section className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label><select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm"><{TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
+                                    {/* AICI AM CORECTAT EROAREA DE SINTAXĂ <{TONES... -> {TONES... */}
+                                    <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
+                                        {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                    </select>
+                                </div>
                                 <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label><select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">{PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
                             </section>
                             
