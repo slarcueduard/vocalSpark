@@ -281,6 +281,7 @@ export const PostCard: React.FC<PostCardProps> = ({
                                 </div>
                             )}
                         </div>
+         </div>
         </div>
     </div>
   );
