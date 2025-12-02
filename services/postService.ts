@@ -12,63 +12,125 @@ import {
 import { db } from './firebase';
 import { Post } from '../types';
 
-// 1. SAVE (SIMPLIFICAT - FĂRĂ LIMITĂ MOMENTAN PENTRU A GARANTA SALVAREA)
+// 1. SAVE (Cu Logica de Rotire "FIFO" - First In First Out, dar protejând Pinned)
 export const savePostToHistory = async (
     userId: string, 
     post: Post, 
     topic: string, 
-    limit: number = 50 // Păstrăm param dar nu îl folosim momentan ca să nu blocăm salvarea
+    limit: number = 20
 ): Promise<string | null> => {
   
-  if (!userId || !post.content) {
-      console.error("❌ Save aborted: Missing data");
-      return null;
-  }
+  if (!userId || !post.content) return null;
 
   try {
     const postsRef = collection(db, 'posts');
 
-    // PREPARARE DATE
-    // Ne asigurăm că nu există câmpuri undefined
+    // A. SALVĂM ÎNTÂI (Prioritate 0 - Siguranța Datelor)
     const docData = {
       userId,
       content: post.content || "",
       imageUrl: post.imageUrl || null,
-      // Dacă e undefined, punem string gol
       platform: post.adaptedContent ? Object.keys(post.adaptedContent)[0] || 'Generic' : 'Generic',
       adaptedContent: post.adaptedContent || {},
       topic: topic || 'Untitled',
       createdAt: serverTimestamp(),
       scheduledDate: null,
-      isLocked: false,
+      isLocked: false, // Default neblocat
       isPublished: false,
-      // CRITIC: Dacă nu vine tipul, punem 'single'
       generationType: post.generationType || 'single', 
       type: post.type || 'post'
     };
 
-    console.log("💾 Saving to Firestore:", docData.generationType);
-
-    // SALVARE DIRECTĂ
     const docRef = await addDoc(postsRef, docData);
-    
-    console.log("✅ Saved ID:", docRef.id);
+    console.log("✅ Post saved. ID:", docRef.id);
+
+    // B. CURĂȚENIE INTELIGENTĂ (Async)
+    // Nu blocăm thread-ul principal, facem asta în fundal
+    cleanUpVault(userId, limit);
+
     return docRef.id;
 
   } catch (e) {
-    console.error("❌ CRITICAL SAVE ERROR:", e);
+    console.error("❌ Save failed:", e);
     return null;
   }
 };
 
-// 2. UPDATE
+// Funcție separată de curățenie (nu o exportăm, e internă)
+async function cleanUpVault(userId: string, limit: number) {
+    try {
+        const postsRef = collection(db, 'posts');
+        // Luăm toate postările userului (fără sortare în DB ca să nu ceară index)
+        const q = query(postsRef, where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+
+        const allPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data(), ref: d.ref }));
+
+        // Filtrăm doar pe cele NEBLOCATE (Disposable)
+        // Cele blocate (isLocked == true) sunt imune la ștergere
+        // @ts-ignore
+        const disposablePosts = allPosts.filter(p => !p.isLocked);
+
+        // Le sortăm manual: Cele mai VECHI la început
+        disposablePosts.sort((a: any, b: any) => {
+            const timeA = a.createdAt?.seconds || 0;
+            const timeB = b.createdAt?.seconds || 0;
+            return timeA - timeB; // Ascending (Oldest first)
+        });
+
+        // Verificăm dacă depășim limita
+        // Notă: Limita se aplică la total, sau doar la cele neblocate? 
+        // De obicei: Total Posts = Locked + Unlocked. 
+        // Dacă Total > Limit, ștergem din Unlocked.
+        
+        const totalPostsCount = allPosts.length;
+        
+        if (totalPostsCount > limit) {
+            const numberToDelete = totalPostsCount - limit;
+            // Ștergem primele N cele mai vechi care nu sunt blocate
+            // Dacă nu avem destule neblocate, nu ștergem nimic (userul are doar locked items)
+            const toDelete = disposablePosts.slice(0, numberToDelete);
+            
+            for (const p of toDelete) {
+                await deleteDoc(p.ref);
+                console.log("🗑️ Auto-deleted old post:", p.id);
+            }
+        }
+
+    } catch (e) {
+        console.warn("Cleanup warning:", e);
+    }
+}
+
+// 2. TOGGLE LOCK (Cu limita de 5)
+export const togglePostLock = async (userId: string, postId: string, currentStatus: boolean): Promise<boolean> => {
+  try {
+      // Dacă vrea să blocheze (să dea Pin), verificăm dacă are deja 5
+      if (!currentStatus) { // !currentStatus înseamnă că vrea să devină true
+          const q = query(collection(db, 'posts'), where('userId', '==', userId), where('isLocked', '==', true));
+          const snapshot = await getDocs(q);
+          if (snapshot.size >= 5) {
+              alert("You can only pin up to 5 posts! Unpin another one first.");
+              return false; // Nu am făcut modificarea
+          }
+      }
+
+      await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus });
+      return true; // Succes
+  } catch (e) {
+      console.error("Lock failed:", e);
+      return false;
+  }
+};
+
+// ... Restul funcțiilor standard (Update, Fetch, Delete, Schedule) ...
+
 export const updatePostInHistory = async (postId: string, updates: Partial<Post>) => {
   if (!postId) return;
   try {
     const docRef = doc(db, 'posts', postId);
     const updateData: any = { ...updates };
-    delete updateData.id; 
-    delete updateData.isGeneratingImage;
+    delete updateData.id; delete updateData.isGeneratingImage;
     updateData.updatedAt = serverTimestamp();
     await updateDoc(docRef, updateData);
   } catch (e) { console.error(e); }
@@ -76,7 +138,6 @@ export const updatePostInHistory = async (postId: string, updates: Partial<Post>
 
 export const updatePostContent = async (postId: string, newContent: string) => updatePostInHistory(postId, { content: newContent });
 
-// 3. FETCH
 export const fetchUserHistory = async (userId: string): Promise<any[]> => {
   if (!userId) return [];
   try {
@@ -87,8 +148,8 @@ export const fetchUserHistory = async (userId: string): Promise<any[]> => {
 };
 
 export const deletePostFromHistory = async (postId: string) => { await deleteDoc(doc(db, 'posts', postId)); };
-export const togglePostLock = async (postId: string, currentStatus: boolean) => { await updateDoc(doc(db, 'posts', postId), { isLocked: !currentStatus }); };
 export const schedulePost = async (postId: string, date: Date) => { await updateDoc(doc(db, 'posts', postId), { scheduledDate: date, isPublished: false }); };
+export const markPostAsPublished = async (postId: string) => { await updateDoc(doc(db, 'posts', postId), { isPublished: true }); };
 export const checkDuePosts = async (userId: string) => {
     try {
       const now = new Date();
@@ -99,7 +160,6 @@ export const checkDuePosts = async (userId: string) => {
       return s.docs.map(d => ({id: d.id, ...d.data()}));
     } catch(e) { return []; }
 };
-export const markPostAsPublished = async (postId: string) => { await updateDoc(doc(db, 'posts', postId), { isPublished: true }); };
 export const createManualEvent = async (userId: string, title: string, date: Date, description: string) => {
     const dummy: Post = { id: 'manual', content: `${title}\n\n${description}`, adaptedContent: {}, isGeneratingImage: false, scheduledDate: date, isLocked: true, generationType: 'single', type: 'event' };
     return savePostToHistory(userId, dummy, title, 100); 
