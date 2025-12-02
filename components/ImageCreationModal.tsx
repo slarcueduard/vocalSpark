@@ -36,6 +36,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none');
   
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isImageLoading, setIsImageLoading] = useState(false); // State nou pentru încărcarea vizuală a imaginii
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [applyLogo, setApplyLogo] = useState(false);
@@ -59,6 +60,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     if (!canAfford) { setError(`Not enough credits.`); return; }
 
     setIsGenerating(true);
+    setIsImageLoading(true); // Începem loading-ul vizual
     setError(null);
     if (activeTab === 'upload') setResultImage(null);
 
@@ -76,8 +78,10 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
       if (activeTab === 'upload') setActiveTab('generate');
     } catch (err: any) {
       setError("Failed to generate image.");
+      setIsImageLoading(false);
     } finally {
       setIsGenerating(false);
+      // Nu oprim isImageLoading aici, îl oprim când <img onLoad /> se declanșează
     }
   };
 
@@ -89,7 +93,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     const objectUrl = URL.createObjectURL(file);
     setUploadedImageBlob(objectUrl);
     setResultImage(null);
-    setSelectedPhotoFilter('normal');
     setError(null);
   };
 
@@ -97,25 +100,15 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     const target = activeTab === 'upload' ? uploadedImageBlob : resultImage;
     if (!target) return;
 
-    // 1. FAST PATH (URL Direct pentru Standard sau Upload simplu)
     const needsFilter = activeTab === 'upload' && selectedPhotoFilter !== 'normal';
     const needsLogo = applyLogo && brandProfile?.logoUrl;
 
-    // Dacă e URL extern (Standard) și nu avem filtre, trimitem direct
-    if (typeof target === 'string' && target.startsWith('http') && !target.startsWith('blob:') && !needsLogo) {
-        onSelectImage(target);
-        onClose();
-        return;
-    }
-
-    // Dacă e Blob (Upload) și nu avem filtre, trimitem direct
     if (!needsFilter && !needsLogo) {
         onSelectImage(target);
         onClose();
         return;
     }
 
-    // 2. PROCESS PATH (Canvas)
     setIsProcessing(true);
     try {
         const img = new Image();
@@ -138,31 +131,25 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
-            if (needsFilter) {
-                ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
-            }
+            if (needsFilter) ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
             ctx.drawImage(img, 0, 0, w, h);
-
             if (needsLogo && brandProfile?.logoUrl) {
                 ctx.filter = 'none';
                 const logoImg = new Image();
                 logoImg.crossOrigin = "anonymous";
                 logoImg.src = brandProfile.logoUrl;
-                try {
-                    await new Promise((r) => { logoImg.onload = r; logoImg.onerror = () => r(null); });
-                    const logoW = w * 0.2;
-                    const scale = logoW / logoImg.width;
-                    const logoH = logoImg.height * scale;
-                    const pad = w * 0.05;
-                    ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5;
-                    ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
-                } catch (e) {}
+                await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
+                const logoW = w * 0.2;
+                const scale = logoW / logoImg.width;
+                const logoH = logoImg.height * scale;
+                const pad = w * 0.05;
+                ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5;
+                ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
             }
 
             canvas.toBlob((blob) => {
                 if (blob) {
-                    const newUrl = URL.createObjectURL(blob);
-                    onSelectImage(newUrl);
+                    onSelectImage(URL.createObjectURL(blob));
                     onClose();
                 }
                 setIsProcessing(false);
@@ -170,7 +157,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         }
     } catch (error) {
         console.error("Processing error:", error);
-        onSelectImage(target); // Fallback
+        onSelectImage(target);
         onClose();
         setIsProcessing(false);
     }
@@ -181,8 +168,9 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in">
-      <div className="w-full max-w-6xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] shadow-2xl">
+      <div className="w-full max-w-5xl bg-[#0f1115] border border-gray-800 rounded-2xl overflow-hidden flex flex-col md:flex-row h-[85vh] shadow-2xl">
         
+        {/* LEFT: Controls */}
         <div className="w-full md:w-1/2 p-6 flex flex-col bg-[#161b22] border-r border-gray-800 overflow-y-auto custom-scrollbar">
              <div className="flex justify-between items-center mb-6">
                 <button onClick={onClose} className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium"><ArrowLeft size={16} /> Back</button>
@@ -194,15 +182,15 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                  <button onClick={() => setActiveTab('generate')} className={`flex-1 py-2 text-sm font-medium rounded-lg flex items-center justify-center gap-2 ${activeTab === 'generate' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}><Sparkles size={14} /> Generate</button>
              </div>
 
-             {activeTab === 'generate' && (
+             {activeTab === 'generate' ? (
                  <>
                     <textarea value={prompt} onChange={e => setPrompt(e.target.value)} className="w-full h-24 bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-sm text-white mb-4 resize-none" placeholder="Describe image..." />
                     <div className="grid grid-cols-2 gap-3 mb-6">
-                        <div onClick={() => setModelType('standard')} className={`p-3 rounded-xl border-2 cursor-pointer ${modelType === 'standard' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-900'}`}>
+                        <div onClick={() => setModelType('standard')} className={`p-3 rounded-xl border-2 cursor-pointer transition ${modelType === 'standard' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-900'}`}>
                             <div className="flex justify-between mb-1"><Zap size={16} className="text-blue-400"/><span className="text-[10px] bg-gray-800 px-1.5 rounded text-gray-300">2 Cr</span></div>
                             <div className="font-bold text-sm text-white">Standard</div>
                         </div>
-                        <div onClick={() => setModelType('premium')} className={`p-3 rounded-xl border-2 cursor-pointer ${modelType === 'premium' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 bg-gray-900'}`}>
+                        <div onClick={() => setModelType('premium')} className={`p-3 rounded-xl border-2 cursor-pointer transition ${modelType === 'premium' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 bg-gray-900'}`}>
                             <div className="flex justify-between mb-1"><Crown size={16} className="text-purple-400"/><span className="text-[10px] bg-gray-800 px-1.5 rounded text-gray-300">20 Cr</span></div>
                             <div className="font-bold text-sm text-white">Premium</div>
                         </div>
@@ -216,12 +204,10 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                         </div>
                     </div>
                     <button onClick={handleGenerate} disabled={isGenerating} className="w-full py-3 bg-blue-600 rounded-xl text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
-                        {isGenerating ? "Waiting for AI..." : "Generate Image"}
+                        {isGenerating ? <><Loader className="animate-spin" size={16}/> Starting...</> : "Generate Image"}
                     </button>
                  </>
-             )}
-
-             {activeTab === 'upload' && (
+             ) : (
                  <>
                     {!uploadedImageBlob ? (
                         <div onClick={() => fileInputRef.current?.click()} className="h-48 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-gray-500">
@@ -233,7 +219,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                         <div className="animate-in fade-in">
                             <div className="flex justify-between items-center mb-4">
                                 <label className="text-xs font-bold text-gray-500 uppercase">Filters</label>
-                                <button onClick={() => { setUploadedImageBlob(null); fileInputRef.current!.value=''; }} className="text-xs text-red-400 flex items-center gap-1"><Trash size={12} /> Remove</button>
+                                <button onClick={() => { setUploadedImageBlob(null); fileInputRef.current!.value=''; }} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"><Trash size={12} /> Remove</button>
                             </div>
                             <div className="grid grid-cols-4 gap-2 mb-4">
                                 {PHOTO_FILTERS.map(f => (
@@ -244,44 +230,50 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                     )}
                  </>
              )}
-
              {brandProfile?.logoUrl && (
                  <div className="mt-6 flex items-center justify-between bg-gray-800/50 p-3 rounded-xl border border-gray-700">
                      <span className="text-xs text-gray-300 font-bold">Apply Brand Logo</span>
                      <input type="checkbox" checked={applyLogo} onChange={e => setApplyLogo(e.target.checked)} />
                  </div>
              )}
-             
              {error && <div className="mt-4 text-red-400 text-xs">{error}</div>}
         </div>
 
-        {/* RIGHT: Preview */}
+        {/* RIGHT: Preview (Cu Loader Vizual) */}
         <div className="w-full md:w-1/2 bg-black flex flex-col items-center justify-center p-6 relative">
-            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white"><X size={20}/></button>
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10"><X size={20}/></button>
             
-            {/* --- LOADING INDICATOR (AICI E SCHIMBAREA) --- */}
-            {isGenerating ? (
-                <div className="flex flex-col items-center gap-4 animate-pulse">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-blue-400 font-bold text-lg tracking-widest">CREATING VISUAL...</p>
+            {/* LOADER PENTRU IMAGINE */}
+            {isImageLoading && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
+                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-blue-400 font-bold animate-pulse tracking-widest">CREATING VISUAL...</p>
+                    <p className="text-xs text-gray-500 mt-2">Standard: 2s | Premium: 10s</p>
                 </div>
-            ) : previewSrc ? (
+            )}
+
+            {previewSrc ? (
                 <div className="flex flex-col items-center w-full gap-4 animate-in zoom-in-95">
                     <img 
                         src={previewSrc} 
                         alt="Preview" 
+                        onLoad={() => setIsImageLoading(false)} // Oprim loader-ul când imaginea s-a încărcat
+                        onError={() => setIsImageLoading(false)}
                         style={{ filter: activeTab === 'upload' ? activeFilterStyle : 'none' }} 
                         className="max-h-[400px] max-w-full rounded-lg shadow-2xl object-contain border border-gray-800" 
                     />
                     <div className="flex gap-2 w-full max-w-xs">
-                        <button onClick={handleUseImage} disabled={isProcessing} className="flex-1 bg-green-600 py-3 rounded-lg text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2">
+                        <button onClick={handleUseImage} disabled={isProcessing || isImageLoading} className="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded-lg text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition">
                             {isProcessing ? <Loader className="animate-spin" size={16}/> : "Use Image"}
                         </button>
-                        <a href={previewSrc} download="image.jpg" className="p-3 bg-gray-800 rounded-lg text-white border border-gray-700"><Download size={20}/></a>
                     </div>
                 </div>
             ) : (
-                <div className="text-gray-600 text-sm flex flex-col items-center"><Sparkles className="mb-2 opacity-50" /> Preview Area</div>
+                !isImageLoading && (
+                    <div className="text-gray-600 text-sm flex flex-col items-center">
+                        <Sparkles className="mb-2 opacity-50" /> Preview Area
+                    </div>
+                )
             )}
         </div>
       </div>
