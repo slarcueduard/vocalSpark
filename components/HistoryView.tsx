@@ -120,8 +120,16 @@ export function HistoryView() {
   };
 
   const handleToggleLock = async (id: string) => {
-      const p = posts.find(x => x.id === id);
-      if (p) await togglePostLock(id, p.isLocked || false);
+      if (!user) return;
+      const post = posts.find(p => p.id === id);
+      
+      // Folosim funcția nouă cu userId
+      if (post) {
+          const success = await togglePostLock(user.uid, id, post.isLocked || false);
+          if (success) {
+               setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
+          }
+      }
   };
   const handleUpdateContent = async (id: string, c: string) => { await updatePostContent(id, c); };
   const openImageModal = (id: string, c: string) => { setActivePostId(id); setActivePrompt(c); setIsImageModalOpen(true); };
