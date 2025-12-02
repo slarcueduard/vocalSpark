@@ -74,7 +74,42 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
         {/* Plans Grid */}
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            
+            {/* ... După div-ul cu grid-cols-3 (linia ~65) ... */}
+
+        {/* --- LTD SECTION (NOU) --- */}
+        <div className="mt-8 p-1 bg-gradient-to-r from-yellow-600 via-orange-500 to-red-500 rounded-2xl">
+            <div className="bg-[#161b22] rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                {/* Background Shine */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-orange-500/10 rounded-full blur-[80px] -z-10" />
+                
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Limited Time</span>
+                        <span className="text-orange-400 text-xs font-bold">Founding Member Offer</span>
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-2">Get Lifetime Access 🚀</h3>
+                    <p className="text-gray-400 text-sm">
+                        Pay once, use forever. Include <strong>Pro Plan features</strong> + Priority Support + Early access to new features.
+                    </p>
+                </div>
+
+                <div className="text-center md:text-right">
+                    <div className="flex items-baseline justify-center md:justify-end gap-1">
+                        <span className="text-gray-500 line-through text-sm">$297</span>
+                        <span className="text-3xl font-bold text-white">$97</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">One-time payment</p>
+                    <button 
+                        onClick={() => handleUpgrade('agency')} // Momentan ducem spre Agency sau facem un link separat Stripe
+                        className="px-8 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition shadow-lg shadow-orange-900/20"
+                    >
+                        Become a Founder
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {/* ... Înainte de Footer info ... */}
             <PricingCard 
               planKey="creator"
               icon={<Zap className="text-blue-400" />}
