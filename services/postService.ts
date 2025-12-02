@@ -12,91 +12,63 @@ import {
 import { db } from './firebase';
 import { Post } from '../types';
 
-const VAULT_LIMIT = 50; // Limită generoasă pentru siguranță
-
-// 1. SAVE (Salvarea "Blindată")
+// 1. SAVE (SIMPLIFICAT - FĂRĂ LIMITĂ MOMENTAN PENTRU A GARANTA SALVAREA)
 export const savePostToHistory = async (
     userId: string, 
     post: Post, 
     topic: string, 
-    limit: number = 20
+    limit: number = 50 // Păstrăm param dar nu îl folosim momentan ca să nu blocăm salvarea
 ): Promise<string | null> => {
-  console.log("💾 [Service] Attempting to save post...", { userId, type: post.generationType });
-
+  
   if (!userId || !post.content) {
-      console.error("❌ [Service] Save aborted: Missing data");
+      console.error("❌ Save aborted: Missing data");
       return null;
   }
 
   try {
     const postsRef = collection(db, 'posts');
 
-    // 1. PREGĂTIM DATELE (Curățăm orice undefined)
-    // Firebase urăște 'undefined', preferă 'null' sau string gol
+    // PREPARARE DATE
+    // Ne asigurăm că nu există câmpuri undefined
     const docData = {
       userId,
       content: post.content || "",
       imageUrl: post.imageUrl || null,
-      // Dacă adaptedContent e undefined, punem obiect gol
-      adaptedContent: post.adaptedContent || {}, 
+      // Dacă e undefined, punem string gol
       platform: post.adaptedContent ? Object.keys(post.adaptedContent)[0] || 'Generic' : 'Generic',
+      adaptedContent: post.adaptedContent || {},
       topic: topic || 'Untitled',
       createdAt: serverTimestamp(),
       scheduledDate: null,
       isLocked: false,
       isPublished: false,
-      // Asigurăm că avem tipul setat
+      // CRITIC: Dacă nu vine tipul, punem 'single'
       generationType: post.generationType || 'single', 
       type: post.type || 'post'
     };
 
-    // 2. SALVĂM DIRECT
+    console.log("💾 Saving to Firestore:", docData.generationType);
+
+    // SALVARE DIRECTĂ
     const docRef = await addDoc(postsRef, docData);
-    console.log("✅ [Service] Saved successfully! ID:", docRef.id);
-
-    // 3. CURĂȚENIE (Non-Blocking)
-    // Facem asta după salvare, într-un bloc try/catch separat
-    // Interogăm doar după userId (fără sortare complexă) pentru a evita erorile de index
-    try {
-        const q = query(postsRef, where('userId', '==', userId));
-        const snapshot = await getDocs(q);
-        
-        // Sortăm în memorie pentru a găsi pe cele vechi
-        if (snapshot.size > limit) {
-            const docs = snapshot.docs.map(d => ({ id: d.id, data: d.data(), ref: d.ref }));
-            // Sortăm manual: Cele mai noi primele
-            // @ts-ignore
-            docs.sort((a, b) => (b.data.createdAt?.seconds || 0) - (a.data.createdAt?.seconds || 0));
-
-            // Păstrăm doar primele 'limit' elemente, restul le ștergem
-            // Dar NU ștergem ce e Locked
-            const toDelete = docs.slice(limit).filter(doc => !doc.data.isLocked);
-            
-            for (const oldDoc of toDelete) {
-                await deleteDoc(oldDoc.ref);
-                console.log("🗑️ [Service] Auto-deleted old post:", oldDoc.id);
-            }
-        }
-    } catch (cleanupErr) {
-        console.warn("⚠️ [Service] Cleanup warning:", cleanupErr);
-    }
-
+    
+    console.log("✅ Saved ID:", docRef.id);
     return docRef.id;
 
   } catch (e) {
-    console.error("❌ [Service] CRITICAL SAVE ERROR:", e);
+    console.error("❌ CRITICAL SAVE ERROR:", e);
     return null;
   }
 };
 
-// ... Restul funcțiilor (Standard) ...
-
+// 2. UPDATE
 export const updatePostInHistory = async (postId: string, updates: Partial<Post>) => {
   if (!postId) return;
   try {
     const docRef = doc(db, 'posts', postId);
     const updateData: any = { ...updates };
-    delete updateData.id; delete updateData.isGeneratingImage;
+    delete updateData.id; 
+    delete updateData.isGeneratingImage;
     updateData.updatedAt = serverTimestamp();
     await updateDoc(docRef, updateData);
   } catch (e) { console.error(e); }
@@ -104,18 +76,14 @@ export const updatePostInHistory = async (postId: string, updates: Partial<Post>
 
 export const updatePostContent = async (postId: string, newContent: string) => updatePostInHistory(postId, { content: newContent });
 
+// 3. FETCH
 export const fetchUserHistory = async (userId: string): Promise<any[]> => {
   if (!userId) return [];
   try {
-    // QUERY SIMPLU: Doar userId. Fără orderBy, fără filtre complexe.
-    // Asta rezolvă problema "Nu apare nimic".
     const q = query(collection(db, 'posts'), where('userId', '==', userId));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  } catch (e) { 
-    console.error("Fetch error:", e);
-    return []; 
-  }
+  } catch (e) { return []; }
 };
 
 export const deletePostFromHistory = async (postId: string) => { await deleteDoc(doc(db, 'posts', postId)); };
