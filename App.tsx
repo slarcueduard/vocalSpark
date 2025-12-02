@@ -23,14 +23,10 @@ const SocialSparkApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // --- NAVIGARE ---
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
-
-  // --- MODURI DE LUCRU ---
   const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   
-  // --- INPUT STATES ---
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -40,33 +36,24 @@ const SocialSparkApp: React.FC = () => {
   
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
-  
-  // --- FEATURE FLAGS ---
   const [useRealTime, setUseRealTime] = useState(false);
-  
-  // --- UI FEEDBACK ---
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // --- MODALE ---
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
-  
-  // --- IMAGINE LOGIC ---
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
-
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // --- HELPERS ---
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
   const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      // setPosts([]); // Păstrăm postările la schimbarea tab-urilor
+      // Nu ștergem postările (UX bun)
       setError(null);
       if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
       else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
@@ -78,9 +65,6 @@ const SocialSparkApp: React.FC = () => {
       else { setRemixFormats(prev => [...prev, fmt]); }
   };
 
-  // --- EFFECTS ---
-
-  // 1. Notificări la Login
   useEffect(() => {
       const checkReminders = async () => {
           if (user) {
@@ -94,7 +78,6 @@ const SocialSparkApp: React.FC = () => {
       checkReminders();
   }, [user]);
 
-  // 2. Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
@@ -104,8 +87,6 @@ const SocialSparkApp: React.FC = () => {
         setTopic(templates[Math.floor(Math.random() * templates.length)] || "");
     }
   }, [loading, brandProfile, appMode]); 
-
-  // --- CORE LOGIC ---
 
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
@@ -119,7 +100,6 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
-  // Gestionare Modal Imagini
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -134,18 +114,32 @@ const SocialSparkApp: React.FC = () => {
 
   const handleImageSelected = (url: string) => {
       if (activePostIdForImage) {
-          // Update Post existent
           setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
           updatePostInHistory(activePostIdForImage, { imageUrl: url });
       } else {
-          // Update Input Principal
           setAttachedImage(url);
       }
       setIsImageModalOpen(false);
       setActivePostIdForImage(null);
   };
 
-  // --- GENERATE ---
+  // --- MANUAL SAVE TO VAULT (NOU) ---
+  const handleManualSave = async (post: Post) => {
+      if (!user) { alert("Please login to save."); return; }
+      
+      // Feedback vizual imediat
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, isSaved: true } : p));
+      
+      const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+      const savedId = await savePostToHistory(user.uid, post, topic, limit);
+      
+      if (savedId) {
+          // Actualizăm ID-ul cu cel real din DB
+          setPosts(prev => prev.map(p => p.id === post.id ? { ...p, id: savedId, isSaved: true } : p));
+          showVibe(); // Mesaj "Saved!"
+      }
+  };
+
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { 
         setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
@@ -193,12 +187,10 @@ const SocialSparkApp: React.FC = () => {
           throw new Error("AI returned an empty response. Please try again.");
       }
 
-      // Determinare Tip
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
-      // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -207,28 +199,16 @@ const SocialSparkApp: React.FC = () => {
           isGeneratingImage: false, 
           isLocked: false,
           generationType: genType,
-          type: p.type || 'post'
+          type: p.type || 'post',
+          isSaved: false // Default nesalvat
       }));
 
-      // Actualizăm UI
-      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
+      // --- FĂRĂ AUTO-SAVE ACUM ---
+      // Doar afișăm
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 20));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      
       showVibe();
-
-      // --- AUTO-SAVE ---
-      if (user) {
-          const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
-          
-          for (const postData of newPostsData) {
-              try {
-                  // Așteptăm salvarea pentru a avea ID-ul real
-                  const savedId = await savePostToHistory(user.uid, postData, topic, limit);
-                  if (savedId) {
-                      setPosts(curr => curr.map(p => p.id === postData.id ? { ...p, id: savedId } : p));
-                  }
-              } catch (saveErr) { console.error("Save Failed:", saveErr); }
-          }
-      }
 
     } catch (err: any) { 
         console.error("Generate Error:", err);
@@ -272,6 +252,7 @@ const SocialSparkApp: React.FC = () => {
                                 <button onClick={() => handleSwitchMode('remix')} className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
                             </div>
                         </header>
+                        
                         <div className="space-y-8">
                             <section className="space-y-3">
                                 <div className="flex items-center justify-between"><label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}</label>{attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}</div>
@@ -313,12 +294,7 @@ const SocialSparkApp: React.FC = () => {
                             )}
 
                             <section className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
-                                    {/* FIX SINTAXĂ AICI: Am scos < din fata acoladei */}
-                                    <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
-                                        {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                    </select>
-                                </div>
+                                <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label><select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm"><{TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
                                 <div className="space-y-2"><label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label><select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">{PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
                             </section>
                             
@@ -332,7 +308,32 @@ const SocialSparkApp: React.FC = () => {
                                 {posts.length > 0 && (
                                     <div className="space-y-6 mt-10 pt-10 border-t border-gray-800 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                         <div className="flex items-center justify-between"><h3 className="font-bold text-xl text-white">Generated Results</h3><span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{posts.length} variations</span></div>
-                                        {posts.map(post => <PostCard key={post.id} post={post} isRefining={refiningPostId === post.id} onGenerateImage={(id, content) => openImageModalForPost(id, content)} onAdaptPost={handleAdaptPost} onRefinePost={handleRefinePost} onDelete={handleDeletePost} onToggleLock={handleToggleLock} onManualEdit={(id, newContent) => { setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p)); updatePostInHistory(id, { content: newContent }); }} onSchedule={async (id, date) => { await schedulePost(id, date); setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p)); }} onMarkPublished={async (id) => { await markPostAsPublished(id); setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p)); }} />)}
+                                        {posts.map(post => (
+                                            <PostCard 
+                                                key={post.id} 
+                                                post={post} 
+                                                isRefining={refiningPostId === post.id} 
+                                                onGenerateImage={(id, content) => openImageModalForPost(id, content)} 
+                                                onAdaptPost={handleAdaptPost} 
+                                                onRefinePost={handleRefinePost} 
+                                                onDelete={handleDeletePost} 
+                                                onToggleLock={handleToggleLock} 
+                                                onManualEdit={(id, newContent) => {
+                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
+                                                    updatePostInHistory(id, { content: newContent });
+                                                }}
+                                                onSchedule={async (id, date) => {
+                                                    await schedulePost(id, date);
+                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
+                                                }}
+                                                onMarkPublished={async (id) => {
+                                                    await markPostAsPublished(id);
+                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
+                                                }}
+                                                // AICI ESTE FUNCȚIA NOUĂ
+                                                onSaveToVault={handleManualSave}
+                                            />
+                                        ))}
                                     </div>
                                 )}
                             </div>
