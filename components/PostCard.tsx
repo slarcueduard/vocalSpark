@@ -4,7 +4,7 @@ import {
     Instagram, Facebook, Linkedin, Twitter, Video, 
     Check, Copy, Trash2, Wand2, Download, 
     Image as ImageIcon, Share2, Smartphone, Lock, Unlock, Edit3, Save,
-    CalendarClock, CheckCircle, Bookmark, BookmarkCheck
+    CalendarClock, CheckCircle, Bookmark
 } from 'lucide-react';
 import { Loader } from './Loader';
 
@@ -19,9 +19,7 @@ interface PostCardProps {
   onManualEdit?: (postId: string, newContent: string) => void;
   onSchedule?: (postId: string, date: Date) => void;
   onMarkPublished?: (postId: string) => void;
-  
-  // PROP NOU: Funcția de salvare manuală
-  onSaveToVault?: (post: Post) => void;
+  onSaveToVault?: (post: Post) => void; // Prop Nou
 }
 
 export const PostCard: React.FC<PostCardProps> = ({ 
@@ -59,11 +57,8 @@ export const PostCard: React.FC<PostCardProps> = ({
   
   const handleSaveEdit = () => { if (onManualEdit) onManualEdit(post.id, editContent); setIsEditing(false); };
 
-  // --- LOGICA ETICHETĂ DINAMICĂ ---
   const getBadgeLabel = () => {
       if (activeTab !== 'Original') return `ADAPTED FOR ${activeTab.toUpperCase()}`;
-      
-      // Dacă suntem pe original, arătăm tipul generării
       switch (post.generationType) {
           case 'campaign': return '📅 CAMPAIGN POST';
           case 'remix': return '♻️ REMIXED CONTENT';
@@ -125,7 +120,7 @@ export const PostCard: React.FC<PostCardProps> = ({
   ];
 
   return (
-    <div className={`bg-[#161b22] border rounded-2xl overflow-hidden transition shadow-xl flex flex-col md:flex-row group relative ${post.isLocked ? 'border-yellow-500/30' : 'border-gray-800'}`}>
+    <div className={`bg-[#161b22] border rounded-2xl overflow-hidden transition shadow-xl flex flex-col md:flex-row group relative ${post.isLocked ? 'border-yellow-500/30 shadow-yellow-900/20' : 'border-gray-800 hover:border-gray-600'}`}>
         
         {/* Header Status Strip */}
         {post.isPublished && (
@@ -164,14 +159,11 @@ export const PostCard: React.FC<PostCardProps> = ({
         {/* B. CONȚINUT */}
         <div className="flex-1 p-6 flex flex-col">
             
-            {/* HEADER CARD: Labels & Actions */}
             <div className="flex justify-between items-start mb-4">
                 <div className="flex flex-col gap-2">
-                    {/* ETICHETA DINAMICĂ (SINGLE/CAMPAIGN/REMIX) */}
                     <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded border w-fit ${getBadgeColor()}`}>
                         {getBadgeLabel()}
                     </span>
-                    
                     {scheduledDateDisplay && (
                         <span className={`text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 ${post.isPublished ? 'bg-green-900/30 text-green-400' : 'bg-orange-900/30 text-orange-300'}`}>
                             {post.isPublished ? <CheckCircle size={10}/> : <CalendarClock size={10}/>}
@@ -190,12 +182,12 @@ export const PostCard: React.FC<PostCardProps> = ({
                         </>
                     )}
                     
-                    <button onClick={() => onToggleLock(post.id)} className={`p-2 transition ${post.isLocked ? 'text-yellow-400' : 'text-gray-600 hover:text-yellow-500'}`} title={post.isLocked ? "Pinned" : "Pin to Vault"}>
+                    <button onClick={() => onToggleLock(post.id)} className={`p-2 transition rounded-lg ${post.isLocked ? 'text-yellow-400 bg-yellow-400/10' : 'text-gray-600 hover:text-yellow-500'}`} title={post.isLocked ? "Pinned" : "Pin to Vault"}>
                         {post.isLocked ? <Lock size={16} fill="currentColor" /> : <Unlock size={16} />}
                     </button>
                     
                     {onManualEdit && activeTab === 'Original' && (
-                        <button onClick={() => isEditing ? handleSaveEdit() : setIsEditing(true)} className={`p-2 transition ${isEditing ? 'text-green-400' : 'text-gray-600 hover:text-blue-400'}`}>
+                        <button onClick={() => isEditing ? handleSaveEdit() : setIsEditing(true)} className={`p-2 transition rounded-lg ${isEditing ? 'text-green-400' : 'text-gray-600 hover:text-blue-400'}`}>
                             {isEditing ? <Save size={16} /> : <Edit3 size={16} />}
                         </button>
                     )}
@@ -204,7 +196,6 @@ export const PostCard: React.FC<PostCardProps> = ({
                 </div>
             </div>
             
-            {/* TEXT AREA */}
             <div className="flex-1 mb-6 relative min-h-[120px]">
                 {isEditing ? (
                     <textarea 
@@ -223,9 +214,7 @@ export const PostCard: React.FC<PostCardProps> = ({
 
             {/* FOOTER ACTIONS */}
             <div className="border-t border-gray-800 pt-4 space-y-4">
-                
-                {/* Row 1: Platforms */}
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
                     {platforms.map((p) => (
                         <button key={p.id} onClick={() => { setActiveTab(p.id); if (!post.adaptedContent[p.id]) onAdaptPost(post.id, p.id, post.content); }} className={`w-8 h-8 rounded-lg flex items-center justify-center border transition-all duration-200 ${activeTab === p.id ? 'bg-blue-600 text-white border-blue-500 shadow-lg' : !!post.adaptedContent[p.id] ? 'bg-gray-800 text-gray-300 border-gray-500' : 'bg-transparent text-gray-700 border-gray-800 hover:text-gray-400'}`}>
                             <p.icon size={16} />
@@ -233,19 +222,15 @@ export const PostCard: React.FC<PostCardProps> = ({
                     ))}
                 </div>
 
-                {/* Row 2: Main Buttons */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {/* COPY */}
                     <button onClick={handleCopy} className="py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-xs font-bold text-gray-300 flex items-center justify-center gap-2 transition-all active:scale-95">
                         {copied ? <Check size={14} className="text-green-400" /> : <Copy size={14} />} Copy
                     </button>
                     
-                    {/* SHARE */}
                     <button onClick={handleNativeShare} className="py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-xs font-bold text-gray-300 flex items-center justify-center gap-2 transition-all active:scale-95">
                         <Smartphone size={14} /> Share
                     </button>
 
-                    {/* REFINE */}
                     <div className="relative" ref={menuRef}>
                         <button onClick={() => setShowRefineMenu(!showRefineMenu)} className="w-full h-full py-2 border border-gray-700 rounded-lg flex items-center justify-center gap-2 text-xs font-bold transition-all bg-gray-800 text-gray-300 hover:bg-gray-700">
                             <Wand2 size={14} /> Refine
@@ -259,29 +244,30 @@ export const PostCard: React.FC<PostCardProps> = ({
                         )}
                     </div>
 
-                    {/* --- BUTONUL NOU DE SALVARE MANUALĂ --- */}
-             {onSaveToVault && (
+                    {/* SAVE BUTTON (MANUAL) */}
+                    {onSaveToVault && (
                         <div className="relative group/save">
                             <button 
                                 onClick={() => onSaveToVault(post)}
                                 disabled={post.isSaved}
-                                className={`py-2 border rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 w-full ${
+                                className={`w-full h-full py-2 border rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
                                     post.isSaved 
                                     ? 'bg-green-900/20 border-green-500/50 text-green-400 cursor-default' 
                                     : 'bg-blue-600 hover:bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-900/20'
                                 }`}
                             >
                                 {post.isSaved ? <CheckCircle size={14} /> : <Bookmark size={14} />}
-                                {post.isSaved ? 'Saved' : 'Add to Vault'}
+                                {post.isSaved ? 'Saved' : 'Save'}
                             </button>
-                            {/* HINT TOOLTIP */}
                             {!post.isSaved && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-gray-300 text-[10px] rounded border border-gray-700 opacity-0 group-hover/save:opacity-100 transition pointer-events-none whitespace-nowrap">
-                                    Save for later
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-gray-300 text-[10px] rounded border border-gray-700 opacity-0 group-hover/save:opacity-100 transition pointer-events-none whitespace-nowrap z-20">
+                                    Add to Vault
                                 </div>
                             )}
                         </div>
-         </div>
+                    )}
+                </div>
+            </div>
         </div>
     </div>
   );
