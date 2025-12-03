@@ -59,6 +59,22 @@ export default async function handler(req, res) {
           subscriptionStatus: 'active',
           credits: creditsToAdd, // Resetăm sau adăugăm (depinde de strategie, aici resetăm lunar)
           updatedAt: admin.firestore.FieldValue.serverTimestamp()
+         if (planType === 'founder') {
+          // Founder primește statut 'agency' pe viață sau un statut special 'founder'
+          // și credite lunare mari (sau nelimitate teoretic, dar punem o limită mare gen 10k)
+          await userRef.update({
+              subscriptionTier: 'agency', // Îi dăm acces full
+              subscriptionStatus: 'lifetime', // Marker special
+              credits: 99999, // Sau logică de reset lunar
+              isFounder: true
+          });
+      }
+      else if (planType === 'credits_500') {
+          // Adăugăm la existent, nu înlocuim!
+          await userRef.update({
+              credits: admin.firestore.FieldValue.increment(500)
+          });
+      }
       });
   }
 
