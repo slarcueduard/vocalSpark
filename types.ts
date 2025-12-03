@@ -17,11 +17,12 @@ export enum Tone {
   Urgent = 'Urgent'
 }
 
-export type AppMode = 'creator' | 'business';
+export type AppMode = 'creator' | 'business' | 'remix';
 export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
 export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion' | 'formal';
 export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'traffic';
-export type AppMode = 'creator' | 'business' | 'remix'; // <--- Adaugă 'remix'
+export type GenerationType = 'single' | 'campaign' | 'remix';
+
 export interface BrandProfile {
   industry: string;
   customIndustry?: string;
@@ -36,13 +37,6 @@ export interface BrandProfile {
   logoUrl?: string | null;
 }
 
-// ...
-// src/types.ts
-
-// ... enum-uri ...
-
-export type GenerationType = 'single' | 'campaign' | 'remix';
-
 export interface Post {
   id: string;
   content: string;
@@ -52,55 +46,34 @@ export interface Post {
   isLocked?: boolean;
   scheduledDate?: any;
   isPublished?: boolean;
-  
-  // Câmpuri noi
   generationType?: GenerationType; 
   type?: string; 
-  isSaved?: boolean; // <--- NOU: Pt a dezactiva butonul după salvare
+  isSaved?: boolean;
 }
-
-// ... restul ...
-// ...
 
 export interface UserProfile {
   uid: string;
   email: string | null;
   subscriptionTier: SubscriptionTier;
-  subscriptionStatus: 'active' | 'expired' | 'cancelled';
+  subscriptionStatus: 'active' | 'expired' | 'cancelled' | 'lifetime';
   trialStartDate?: any;
   credits: number; 
   imageCount?: number; 
   createdAt?: any;
+  isFounder?: boolean;
 }
 
+// --- PRICING CONFIGURATION ---
 export interface PlanConfig {
   id: SubscriptionTier;
   name: string;
   price: number;
   credits: number;
   label: string;
-  features: string[];
+  features: string[]; // Lista scurtă (ce se vede imediat)
+  detailedFeatures: string[]; // Lista extinsă (la expand)
   highlight?: boolean;
 }
-
-// ... restul codului ...
-
-export type GenerationType = 'single' | 'campaign' | 'remix'; // <--- NOU
-export interface Post {
-  id: string;
-  content: string;
-  imageUrl?: string | null;
-  isGeneratingImage?: boolean;
-  adaptedContent: Partial<Record<Platform, string>>;
-  isLocked?: boolean;
-  scheduledDate?: any;
-  isPublished?: boolean;
-  
-  // Câmpuri Critice
-  generationType?: GenerationType; // Trebuie să fie aici
-  type?: string;
-}
-
 
 export const PLANS: Record<SubscriptionTier, PlanConfig> = {
   trial: {
@@ -109,7 +82,8 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     price: 0,
     credits: 150,
     label: '5 Days Free',
-    features: ['150 Credits', 'Access to GPT-4o', 'Standard Images', '1 Brand Voice']
+    features: ['150 Credits', 'GPT-4o Experience', 'Standard Images', '1 Brand Voice'],
+    detailedFeatures: []
   },
   creator: {
     id: 'creator',
@@ -119,17 +93,24 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     label: 'Starter',
     features: [
       '600 Credits / mo',
-      'Standard AI Images (Fast)',
+      'Standard AI Images (Unlimited Speed)',
       'Platform Optimizer',
       '1 Brand Voice Profile',
-      'Standard GPT-4o Mini'
+      'GPT-4o Mini (Fast)'
+    ],
+    detailedFeatures: [
+      'Ideal for Side-Hustlers',
+      'Remix Content (Basic)',
+      'Standard Support',
+      'No Watermark',
+      'Cancel Anytime'
     ]
   },
   pro: {
     id: 'pro',
     name: 'Pro',
     price: 11.99,
-    credits: 2000, // ROI OPTIMIZAT (Scăzut de la 2500)
+    credits: 2000,
     label: 'Growth',
     highlight: true,
     features: [
@@ -138,6 +119,13 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       'Premium DALL-E 3 Images',
       '3 Brand Voice Profiles',
       'GPT-4o Intelligence'
+    ],
+    detailedFeatures: [
+      'Best for Influencers',
+      'Competitor Analysis',
+      'Advanced Remix Modes (Threads/Scripts)',
+      'Priority GPU Processing',
+      'New Features Early Access'
     ]
   },
   agency: {
@@ -152,6 +140,13 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       'Bulk Content Generation',
       'Unlimited Brand Voices',
       'Logo Injection'
+    ],
+    detailedFeatures: [
+      'Best for SMM & Agencies',
+      'Content Calendar Strategy',
+      'Commercial Rights Included',
+      'Dedicated Support Line',
+      'Team Features (Coming Soon)'
     ]
   }
 };
