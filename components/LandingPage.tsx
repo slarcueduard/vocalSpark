@@ -70,6 +70,11 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       {/* --- CORE FEATURES --- */}
       <section className="py-20 bg-[#161b22]/50 border-y border-gray-800">
         <div className="max-w-7xl mx-auto px-6">
+            <div className="text-center mb-16">
+                <h2 className="text-3xl font-bold text-white mb-4">The Power Suite</h2>
+                <p className="text-gray-400">Everything you need to dominate social media.</p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
                 <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="AI clones your unique tone and style instantly." />
                 <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn blogs into threads, scripts & posts." />
@@ -80,6 +85,50 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
+      {/* --- HOW IT WORKS (RESTAURAT) --- */}
+      <section className="py-24 px-6 bg-[#0a0c10]">
+          <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-16">
+                  <h2 className="text-3xl font-bold text-white mb-4">From Idea to Viral in 3 Steps</h2>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative">
+                  {/* Connecting Line (Desktop) */}
+                  <div className="hidden md:block absolute top-12 left-1/6 right-1/6 h-0.5 bg-gradient-to-r from-blue-900 via-purple-900 to-blue-900 -z-10" />
+
+                  {/* Step 1 */}
+                  <div className="flex flex-col items-center text-center">
+                      <div className="w-24 h-24 bg-[#1c1c2e] border border-gray-700 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative">
+                          <div className="absolute -top-3 -left-3 w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center font-bold text-white border border-[#0f1115]">1</div>
+                          <Fingerprint size={40} className="text-blue-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">Define Your Brand</h3>
+                      <p className="text-sm text-gray-400">Set your niche, language, and upload samples. The AI learns your "DNA".</p>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className="flex flex-col items-center text-center">
+                      <div className="w-24 h-24 bg-[#1c1c2e] border border-gray-700 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative">
+                          <div className="absolute -top-3 -left-3 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center font-bold text-white border border-[#0f1115]">2</div>
+                          <Zap size={40} className="text-purple-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">Generate with Intent</h3>
+                      <p className="text-sm text-gray-400">Choose a goal (Sales, Viral, Educational). Get text + visuals perfectly adapted.</p>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className="flex flex-col items-center text-center">
+                      <div className="w-24 h-24 bg-[#1c1c2e] border border-gray-700 rounded-2xl flex items-center justify-center mb-6 shadow-lg relative">
+                          <div className="absolute -top-3 -left-3 w-8 h-8 bg-green-600 rounded-full flex items-center justify-center font-bold text-white border border-[#0f1115]">3</div>
+                          <ImageIcon size={40} className="text-green-400" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">Publish & Scale</h3>
+                      <p className="text-sm text-gray-400">Copy the optimized text, download the HD image, and post to grow your audience.</p>
+                  </div>
+              </div>
+          </div>
+      </section>
+
       {/* --- PRICING SECTION --- */}
       <section className="w-full max-w-7xl mx-auto py-24 px-6">
             <div className="text-center mb-16">
@@ -87,7 +136,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 <p className="text-gray-400">Lock in early-bird rates. Prices increase soon.</p>
             </div>
 
-            {/* 1. LIFETIME DEAL BANNER (AICI E SCHIMBAREA MAJORĂ) */}
+            {/* 1. LIFETIME DEAL BANNER */}
             <div className="max-w-4xl mx-auto mb-16 p-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
                 <div className="bg-[#161b22] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] -z-10" />
@@ -115,7 +164,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
             </div>
 
-            {/* 2. MONTHLY SUBSCRIPTIONS (DOAR 3 CARDURI ACUM) */}
+            {/* 2. MONTHLY SUBSCRIPTIONS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 
                 {/* CREATOR */}
@@ -172,6 +221,20 @@ function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: st
     )
 }
 
+function Step({ number, title, desc }: { number: number, title: string, desc: string }) {
+    return (
+        <div className="flex gap-4 items-start relative z-10">
+            <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center shrink-0 text-sm font-bold text-white">
+                {number}
+            </div>
+            <div>
+                <h4 className="text-sm font-bold text-white">{title}</h4>
+                <p className="text-xs text-gray-400 mt-1">{desc}</p>
+            </div>
+        </div>
+    )
+}
+
 function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlight }: any) {
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -185,7 +248,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
         }`}>
             {isPopular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg">
-                    Most Popular
+                    Best Value
                 </div>
             )}
 
@@ -208,7 +271,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 ))}
             </div>
 
-            {/* BUTTON EXTEND (View Details) */}
+            {/* EXTENDED DETAILS */}
             {isExpanded && (
                 <div className="space-y-3 mb-6 pt-4 border-t border-gray-700/50 animate-in fade-in slide-in-from-top-2">
                     {plan.detailedFeatures.map((feature: string, idx: number) => (
