@@ -1,8 +1,8 @@
 import Stripe from 'stripe';
 import admin from 'firebase-admin';
-import { buffer } from 'micro'; // IMPORTANT: Stripe are nevoie de body crud
+import { buffer } from 'micro';
 
-// Inițializare Firebase (dacă nu e deja init)
+// 1. Inițializare Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -12,10 +12,11 @@ if (!admin.apps.length) {
     }),
   });
 }
+
 const db = admin.firestore();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Configurare Vercel să NU parseze body-ul automat (pt semnătură)
+// 2. Configurare Vercel (Body Parser oprit pt semnătură)
 export const config = {
   api: {
     bodyParser: false,
@@ -23,7 +24,10 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).end();
+  if (req.method !== 'POST') {
+      res.setHeader('Allow', 'POST');
+      return res.status(405).end('Method Not Allowed');
+  }
 
   const buf = await buffer(req);
   const sig = req.headers['stripe-signature'];
@@ -32,53 +36,73 @@ export default async function handler(req, res) {
   let event;
 
   try {
-    // Verificăm că cererea vine chiar de la Stripe
     event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
   } catch (err) {
-    console.error(`Webhook Error: ${err.message}`);
+    console.error(`⚠️  Webhook Signature Error: ${err.message}`);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // --- GESTIONAREA EVENIMENTELOR ---
+  // 3. Gestionarea Evenimentelor
   if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+      
+      // Datele trimise de noi din create-checkout.js
       const userId = session.metadata.firebaseUserId;
       const planType = session.metadata.planType;
 
-      console.log(`Payment success for user: ${userId}, plan: ${planType}`);
+      if (!userId || !planType) {
+          console.error("Missing metadata in Stripe Session");
+          return res.status(200).json({ received: true }); // Returnăm 200 ca să nu reîncerce Stripe la infinit
+      }
 
-      // Definim creditele per plan
-      let creditsToAdd = 600; // Creator
-      if (planType === 'pro') creditsToAdd = 2500;
-      if (planType === 'agency') creditsToAdd = 7000;
-
-      // Actualizăm Firebase
+      console.log(`💰 Payment success: User ${userId} -> ${planType}`);
       const userRef = db.collection('users').doc(userId);
-      await userRef.update({
-          subscriptionTier: planType,
-          subscriptionStatus: 'active',
-          credits: creditsToAdd, // Resetăm sau adăugăm (depinde de strategie, aici resetăm lunar)
-          updatedAt: admin.firestore.FieldValue.serverTimestamp()
-         if (planType === 'founder') {
-          // Founder primește statut 'agency' pe viață sau un statut special 'founder'
-          // și credite lunare mari (sau nelimitate teoretic, dar punem o limită mare gen 10k)
-          await userRef.update({
-              subscriptionTier: 'agency', // Îi dăm acces full
-              subscriptionStatus: 'lifetime', // Marker special
-              credits: 99999, // Sau logică de reset lunar
-              isFounder: true
-          });
+
+      try {
+          // --- CAZ 1: FOUNDER (LIFETIME DEAL) ---
+          if (planType === 'founder') {
+              await userRef.update({
+                  subscriptionTier: 'agency', // Primește acces full (Agency features)
+                  subscriptionStatus: 'lifetime',
+                  credits: 99999, // Credite practic nelimitate (sau un număr imens)
+                  isFounder: true,
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+          } 
+          // --- CAZ 2: CREDITE EXTRA (TOP-UP) ---
+          else if (planType.startsWith('credits_')) {
+              // Extragem suma (ex: credits_500 -> 500)
+              const amountStr = planType.split('_')[1]; 
+              const amount = parseInt(amountStr) || 0;
+
+              // Folosim 'increment' pentru a ADĂUGA la ce are deja, nu înlocuim
+              await userRef.update({
+                  credits: admin.firestore.FieldValue.increment(amount),
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+          } 
+          // --- CAZ 3: ABONAMENTE NORMALE (Creator, Pro, Agency) ---
+          else {
+              let creditsToAdd = 600;
+              if (planType === 'pro') creditsToAdd = 2000;
+              if (planType === 'agency') creditsToAdd = 7000;
+
+              await userRef.update({
+                  subscriptionTier: planType,
+                  subscriptionStatus: 'active',
+                  credits: creditsToAdd, // La abonament lunar, resetăm creditele la valoarea planului
+                  updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+          }
+          
+          console.log("✅ Firebase updated successfully.");
+
+      } catch (dbError) {
+          console.error("❌ Database Update Failed:", dbError);
+          return res.status(500).send("Database Error");
       }
-      else if (planType === 'credits_500') {
-          // Adăugăm la existent, nu înlocuim!
-          await userRef.update({
-              credits: admin.firestore.FieldValue.increment(500)
-          });
-      }
-      });
   }
 
-  // Putem adăuga logică și pentru 'invoice.payment_succeeded' pentru reînnoiri lunare
-
+  // Răspundem rapid lui Stripe că am primit mesajul
   res.status(200).json({ received: true });
 }
