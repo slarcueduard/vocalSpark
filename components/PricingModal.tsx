@@ -128,12 +128,15 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
                         <span className="text-3xl font-bold text-white">$97</span>
                     </div>
                     <p className="text-[10px] text-gray-500 mb-3 uppercase tracking-wide">One-time payment</p>
-                    <button 
-                        onClick={() => handleUpgrade('agency')} // HACK: Folosim Agency ca placeholder pt LTD momentan
-                        className="w-full px-4 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition shadow-lg flex items-center justify-center gap-2"
-                    >
-                        Become a Founder
-                    </button>
+                // ... în interiorul componentei
+    <button 
+        // Folosim handleUpgrade cu un ID special 'founder'
+        onClick={() => handleUpgrade('founder' as any)} 
+        className="px-8 py-3 bg-white text-black font-bold rounded-lg hover:bg-gray-200 transition shadow-lg shadow-orange-900/20"
+    >
+        Become a Founder
+    </button>
+
                 </div>
             </div>
           </div>
