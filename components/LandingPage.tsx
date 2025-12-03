@@ -1,13 +1,86 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, Image as ImageIcon, LayoutTemplate, Repeat, Database, Calendar, ChevronDown, ChevronUp, Layers, MousePointerClick, History } from 'lucide-react';
-import { GoogleIcon } from './Icons'; 
-import { PLANS } from '../types';
+import { 
+  Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, 
+  Image as ImageIcon, LayoutTemplate, Repeat, Database, 
+  Calendar, ChevronDown, ChevronUp, Layers, History, 
+  MousePointerClick, Play 
+} from 'lucide-react';
+
+// --- MOCK DATA & TYPES (Integrare locala pentru a evita erorile de import) ---
+
+const PLANS = {
+  creator: {
+    name: "Creator",
+    price: 19,
+    features: ["1 Brand Voice", "Basic Text Gen", "Standard Images", "500 Credits/mo"]
+  },
+  pro: {
+    name: "Pro",
+    price: 49,
+    features: ["Unlimited Voices", "Remix Mode", "Visual-Text Sync", "2000 Credits/mo"]
+  },
+  agency: {
+    name: "Agency",
+    price: 199,
+    features: ["5 Workspaces", "API Access", "White-labeling", "Unlimited Credits"]
+  }
+};
+
+// Detalii extra conform documentatiei tale
+const PLAN_EXTENSIONS: any = {
+    creator: {
+        deepDive: [
+            "Voice DNA (1 Brand Identity)",
+            "Visual-Text Sync (Basic)",
+            "Remix Mode (Limited Credits)",
+            "Standard Flux Images",
+            "Content Vault (Auto-Save)",
+            "Single Post Generation"
+        ],
+        competitor: "Better than Canva Pro ($15) because we write the strategy, not just design. Smarter than generic ChatGPT."
+    },
+    pro: {
+        deepDive: [
+            "Unlimited Voice DNA Profiles",
+            "Real-Time Data (Perplexity Integration)",
+            "Premium DALL-E 3 Images",
+            "Smart Contextual Memory (Pinning)",
+            "Priority Remix Mode (Unlimited)",
+            "Advanced Analytics"
+        ],
+        competitor: "Much cheaper than Jasper ($49) + Midjourney ($30). You get the full Repurposing suite included."
+    },
+    agency: {
+        deepDive: [
+            "Strategic Content Calendar",
+            "Team Collaboration (5 Seats)",
+            "White-label Reporting",
+            "Custom API Integrations",
+            "Dedicated Account Manager",
+            "Multi-Brand Workspaces"
+        ],
+        competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
+    }
+};
+
+// Componenta Simpla pentru Iconita Google (svg inline)
+const GoogleIcon = ({ className }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+  </svg>
+);
+
+// --- MAIN COMPONENT ---
 
 interface LandingPageProps {
   onLogin: () => void;
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
+  // State pentru Toggle-ul din How It Works
   const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
 
   return (
@@ -88,7 +161,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
-     {/* --- HOW IT WORKS (UPDATED: SCENARIOS) --- */}
+      {/* --- HOW IT WORKS (SCENARIOS: NEW vs VAULT) --- */}
       <section className="py-24 px-6 bg-[#0a0c10]">
           <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
@@ -170,72 +243,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                               icon={<ImageIcon size={32} className="text-purple-400" />} 
                               title="High-End Production" 
                               desc="Generates DALL-E 3 visuals with perfectly synced text overlays ready for 4K screens."
-                              color="purple"
-                           />
-                        </>
-                      )}
-
-                  </div>
-              </div>
-          </div>
-      </section>
-
-              {/* DYNAMIC STEPS CONTAINER */}
-              <div className="relative mt-16">
-                  {/* Background Line (Desktop only) */}
-                  <div className="hidden md:block absolute top-12 left-20 right-20 h-0.5 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 -z-10" />
-
-                  <div className="flex flex-col md:flex-row justify-between gap-8 md:gap-4 relative">
-                      
-                      {activeScenario === 'new' ? (
-                        <>
-                           <StepCard 
-                              number={1} 
-                              icon={<Fingerprint size={32} className="text-blue-400" />} 
-                              title="Define Brand Identity" 
-                              desc="Input your niche & tone. The AI builds your 'Voice DNA' so content feels human."
-                              color="blue"
-                           />
-                           <StepArrow />
-                           <StepCard 
-                              number={2} 
-                              icon={<Zap size={32} className="text-blue-400" />} 
-                              title="Generate with Sync" 
-                              desc="Create text AND visuals together. No more mismatched captions and images."
-                              color="blue"
-                           />
-                           <StepArrow />
-                           <StepCard 
-                              number={3} 
-                              icon={<Database size={32} className="text-blue-400" />} 
-                              title="Auto-Save to Vault" 
-                              desc="Publish and automatically save to your Vault for future remixing."
-                              color="blue"
-                           />
-                        </>
-                      ) : (
-                        <>
-                           <StepCard 
-                              number={1} 
-                              icon={<History size={32} className="text-purple-400" />} 
-                              title="Contextual Awareness" 
-                              desc="The AI reads your last 3 posts from the Vault to avoid repetition."
-                              color="purple"
-                           />
-                           <StepArrow color="purple" />
-                           <StepCard 
-                              number={2} 
-                              icon={<Repeat size={32} className="text-purple-400" />} 
-                              title="Remix Mode" 
-                              desc="Turn a past viral hit into a Thread, Script, or Newsletter in 1 click."
-                              color="purple"
-                           />
-                           <StepArrow color="purple" />
-                           <StepCard 
-                              number={3} 
-                              icon={<ImageIcon size={32} className="text-purple-400" />} 
-                              title="Fresh Visuals" 
-                              desc="Generates new HD images (Flux/DALL-E) to match the repurposed text."
                               color="purple"
                            />
                         </>
@@ -329,46 +336,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
 // --- SUB-COMPONENTS & HELPERS ---
 
-/**
- * PLAN_EXTENSIONS
- * Aici sunt mapate feature-urile detaliate extrase din documentul tool-ului.
- */
-const PLAN_EXTENSIONS: any = {
-    creator: {
-        deepDive: [
-            "Voice DNA (1 Brand Identity)",
-            "Visual-Text Sync (Context aware)",
-            "Remix Mode (Limited Credits)",
-            "Standard Flux Images",
-            "Content Vault (Auto-Save)",
-            "Single Post Generation"
-        ],
-        competitor: "Better than Canva Pro ($15) because we write the strategy, not just design. Smarter than generic ChatGPT."
-    },
-    pro: {
-        deepDive: [
-            "Unlimited Voice DNA Profiles",
-            "Real-Time Data (Perplexity Integration)",
-            "Premium DALL-E 3 Images",
-            "Smart Contextual Memory (Pinning)",
-            "Priority Remix Mode (Unlimited)",
-            "Advanced Analytics"
-        ],
-        competitor: "Much cheaper than Jasper ($49) + Midjourney ($30). You get the full Repurposing suite included."
-    },
-    agency: {
-        deepDive: [
-            "Strategic Content Calendar",
-            "Team Collaboration (5 Seats)",
-            "White-label Reporting",
-            "Custom API Integrations",
-            "Dedicated Account Manager",
-            "Multi-Brand Workspaces"
-        ],
-        competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
-    }
-};
-
 function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: string }) {
     return (
         <div className="bg-[#0f1115] p-6 rounded-xl border border-gray-800 hover:border-gray-600 transition duration-300 h-full flex flex-col">
@@ -413,7 +380,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
     // Extragem datele specifice din PLAN_EXTENSIONS bazat pe tipul planului
     const extraDetails = PLAN_EXTENSIONS[planType] || { deepDive: [], competitor: "" };
     
-    // Daca planul vine cu 'detailedFeatures' din prop, le folosim, altfel folosim deepDive
+    // Folosim lista de deepDive
     const featuresList = extraDetails.deepDive;
 
     return (
@@ -440,7 +407,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
-            {/* Listam feature-urile principale (presupunem ca vin in 'plan.features') */}
+            {/* Listam feature-urile principale */}
             <div className="space-y-3 mb-6">
                 {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
