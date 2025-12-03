@@ -11,7 +11,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   return (
     <div className="min-h-screen bg-[#0f1115] text-white flex flex-col font-sans selection:bg-blue-500/30">
       
-      {/* --- NAVIGARE --- */}
+      {/* --- NAVIGATION --- */}
       <nav className="w-full px-6 py-6 flex justify-between items-center max-w-7xl mx-auto sticky top-0 z-50 bg-[#0f1115]/80 backdrop-blur-md border-b border-gray-800/50">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
@@ -67,7 +67,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
-      {/* --- CORE FEATURES (Actuale din Tool) --- */}
+      {/* --- CORE FEATURES --- */}
       <section className="py-20 bg-[#161b22]/50 border-y border-gray-800">
         <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
@@ -105,7 +105,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
-      {/* --- HOW IT WORKS (WORKFLOW) --- */}
+      {/* --- HOW IT WORKS --- */}
       <section className="py-24 px-6 bg-[#0a0c10]">
           <div className="max-w-6xl mx-auto">
               <div className="text-center mb-16">
@@ -123,9 +123,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                       </h3>
                       
                       <div className="space-y-6 relative">
-                          {/* Line */}
                           <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gray-800 -z-10"></div>
-
                           <Step number={1} title="Define Brand" desc="Fill in your Niche & Tone in Brand Identity." />
                           <Step number={2} title="Auto-Suggest" desc="The AI suggests topics based on your Niche." />
                           <Step number={3} title="Generate & Save" desc="Get Text + Visuals. Auto-saved to Vault." />
@@ -140,9 +138,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                       </h3>
                       
                       <div className="space-y-6 relative">
-                          {/* Line */}
                           <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gray-800 -z-10"></div>
-
                           <Step number={1} title="Remix Content" desc="Paste a YouTube transcript or Blog link." />
                           <Step number={2} title="Multi-Format" desc="AI creates LinkedIn + Twitter + TikTok posts at once." />
                           <Step number={3} title="Schedule" desc="Pick visuals from Vault and plan for the week." />
@@ -162,7 +158,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 
-                {/* FREE / FOUNDER */}
                 <PricingCardLanding 
                     title="Founder Free"
                     price="0"
@@ -178,7 +173,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     onAction={onLogin}
                 />
 
-                {/* CREATOR */}
                 <PricingCardLanding 
                     title={PLANS.creator.name}
                     price={PLANS.creator.price.toString()}
@@ -195,7 +189,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     highlight
                 />
 
-                {/* PRO (Canva Competitor) */}
                 <PricingCardLanding 
                     title={PLANS.pro.name}
                     price={PLANS.pro.price.toString()}
@@ -212,7 +205,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     isPopular
                 />
 
-                {/* AGENCY */}
                 <PricingCardLanding 
                     title={PLANS.agency.name}
                     price={PLANS.agency.price.toString()}
@@ -289,15 +281,9 @@ function PricingCardLanding({ title, price, desc, features, btnLabel, onAction, 
                 <h3 className="text-lg font-bold text-white">{title}</h3>
                 <p className="text-gray-400 text-xs mt-1">{desc}</p>
             </div>
-          // ... în interiorul PricingCardLanding ...
-            <div className="mb-6 flex items-baseline gap-1">
-                <span className="text-4xl font-bold text-white">${plan.price}</span> {/* Aici era € */}
-                <span className="text-gray-500">/mo</span>
-            </div>
-// ...
 
             <div className="mb-6 flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-white">€{price}</span>
+                <span className="text-3xl font-bold text-white">${price}</span>
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
