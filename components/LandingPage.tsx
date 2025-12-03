@@ -1,5 +1,5 @@
-import React from 'react';
-import { Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, Image as ImageIcon, LayoutTemplate, Repeat, Database, Calendar, Crown, Users } from 'lucide-react';
+import React, { useState } from 'react';
+import { Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, Image as ImageIcon, LayoutTemplate, Repeat, Database, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
 import { GoogleIcon } from './Icons'; 
 import { PLANS } from '../types';
 
@@ -25,7 +25,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 onClick={onLogin}
                 className="px-5 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-gray-200 transition"
             >
-                Join Founders
+                Start Free Trial
             </button>
         </div>
       </nav>
@@ -49,173 +49,104 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           </h1>
 
           <p className="text-lg text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Stop using generic AI. Use a workspace that knows your brand, generates strategy, and visuals in seconds. 
-            <strong>Better than Canva. Smarter than ChatGPT.</strong>
+            The only AI Workspace that <strong>learns your voice</strong>, creates <strong>viral visuals</strong>, and uses <strong>real-time data</strong>.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col items-center gap-3">
               <button 
                 onClick={onLogin}
                 className="group relative px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg flex items-center gap-3 transition-all shadow-xl shadow-blue-900/30 hover:scale-105"
               >
                 <GoogleIcon className="w-6 h-6 bg-white rounded-full p-1" />
-                <span>Get Founder Access</span>
+                <span>Start 5-Day PRO Trial</span>
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
+              <p className="text-xs text-gray-500">Includes 1000 Credits + GPT-4o. No credit card required.</p>
           </div>
-          <p className="text-xs text-gray-600 mt-4">Limited spots for Freemium Founder Tier.</p>
         </div>
       </section>
 
       {/* --- CORE FEATURES --- */}
       <section className="py-20 bg-[#161b22]/50 border-y border-gray-800">
         <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16">
-                <h2 className="text-3xl font-bold text-white mb-4">The Power Suite</h2>
-                <p className="text-gray-400">Everything you need to dominate social media.</p>
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                <FeatureCard 
-                    icon={<Fingerprint className="text-purple-400" />}
-                    title="Brand Identity (Voice DNA)"
-                    desc="Don't prompt every time. Save your Niche, Tone, and Audience once. AI applies it to every post automatically."
-                />
-                <FeatureCard 
-                    icon={<Repeat className="text-green-400" />}
-                    title="Remix Mode"
-                    desc="The ultimate repurposing tool. Paste a blog or transcript, and turn it into 5 LinkedIn posts, Threads, or TikTok scripts instantly."
-                />
-                <FeatureCard 
-                    icon={<LayoutTemplate className="text-blue-400" />}
-                    title="Campaign Mode"
-                    desc="Plan a week of content in one click. Generate cohesive sequences (Teaser -> Value -> Sales) automatically."
-                />
-                <FeatureCard 
-                    icon={<Database className="text-orange-400" />}
-                    title="Content Vault"
-                    desc="Your permanent library. Auto-saves every generation. Lock your favorites, edit later, and build your asset base."
-                />
-                <FeatureCard 
-                    icon={<Globe className="text-cyan-400" />}
-                    title="Real-Time Data"
-                    desc="Connected to the live internet via Perplexity. Create content about today's news, not history."
-                />
+                <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="AI clones your unique tone and style instantly." />
+                <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn blogs into threads, scripts & posts." />
+                <FeatureCard icon={<LayoutTemplate className="text-blue-400" />} title="Campaigns" desc="Generate a full week of content in 1 click." />
+                <FeatureCard icon={<Database className="text-orange-400" />} title="Content Vault" desc="Auto-save, organize, and edit your viral hits." />
+                <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Write about today's news using live internet access." />
             </div>
         </div>
       </section>
 
-      {/* --- HOW IT WORKS --- */}
-      <section className="py-24 px-6 bg-[#0a0c10]">
-          <div className="max-w-6xl mx-auto">
-              <div className="text-center mb-16">
-                  <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
-                  <p className="text-gray-400">Two ways to create. Same viral result.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-                  
-                  {/* SCENARIUL 1: FROM SCRATCH */}
-                  <div className="relative p-8 rounded-3xl border border-gray-800 bg-[#0f1115] hover:border-gray-700 transition group">
-                      <div className="absolute -top-4 -left-4 bg-blue-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">New User</div>
-                      <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                          <Sparkles size={20} className="text-blue-500"/> Starting from Scratch
-                      </h3>
-                      
-                      <div className="space-y-6 relative">
-                          <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gray-800 -z-10"></div>
-                          <Step number={1} title="Define Brand" desc="Fill in your Niche & Tone in Brand Identity." />
-                          <Step number={2} title="Auto-Suggest" desc="The AI suggests topics based on your Niche." />
-                          <Step number={3} title="Generate & Save" desc="Get Text + Visuals. Auto-saved to Vault." />
-                      </div>
-                  </div>
-
-                  {/* SCENARIUL 2: PRO FLOW */}
-                  <div className="relative p-8 rounded-3xl border border-gray-800 bg-[#0f1115] hover:border-gray-700 transition group">
-                      <div className="absolute -top-4 -right-4 bg-purple-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Pro Workflow</div>
-                      <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 justify-end">
-                           Automated Growth <Zap size={20} className="text-purple-500"/>
-                      </h3>
-                      
-                      <div className="space-y-6 relative">
-                          <div className="absolute left-[15px] top-2 bottom-2 w-0.5 bg-gray-800 -z-10"></div>
-                          <Step number={1} title="Remix Content" desc="Paste a YouTube transcript or Blog link." />
-                          <Step number={2} title="Multi-Format" desc="AI creates LinkedIn + Twitter + TikTok posts at once." />
-                          <Step number={3} title="Schedule" desc="Pick visuals from Vault and plan for the week." />
-                      </div>
-                  </div>
-
-              </div>
-          </div>
-      </section>
-
       {/* --- PRICING SECTION --- */}
-      <section className="w-full max-w-7xl mx-auto py-20 px-6">
+      <section className="w-full max-w-7xl mx-auto py-24 px-6">
             <div className="text-center mb-16">
-                <h2 className="text-3xl font-bold text-white mb-4">Founder Pricing</h2>
-                <p className="text-gray-400">Lock in early-bird rates. Prices increase soon.</p>
+                <h2 className="text-3xl font-bold text-white mb-4">Simple, Transparent Pricing</h2>
+                <p className="text-gray-400">Start for free. Upgrade when you scale.</p>
             </div>
 
+            {/* 1. LTD OFFER (BANNER) */}
+            <div className="max-w-4xl mx-auto mb-16 p-1 bg-gradient-to-r from-orange-600 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
+                <div className="bg-[#161b22] rounded-xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] -z-10" />
+                    
+                    <div className="flex-1 text-center md:text-left">
+                        <div className="inline-block bg-orange-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 animate-pulse">
+                            Only 25 Spots Left
+                        </div>
+                        <h3 className="text-2xl font-bold text-white mb-2">Founding Member - Lifetime Deal</h3>
+                        <p className="text-gray-400 text-sm max-w-md">
+                            Get <strong>Lifetime Access</strong> to the Pro Plan features without monthly fees. 
+                            One payment of <strong>$97</strong>. Forever.
+                        </p>
+                    </div>
+
+                    <div className="text-center">
+                        <div className="flex items-center gap-2 justify-center md:justify-end mb-1">
+                             <span className="text-gray-500 line-through decoration-red-500 decoration-2">$297</span>
+                             <span className="text-4xl font-bold text-white">$97</span>
+                        </div>
+                        <button onClick={onLogin} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition shadow-lg">
+                            Secure Lifetime Access
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. SUBSCRIPTION GRID */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 
+                {/* TRIAL CARD */}
                 <PricingCardLanding 
-                    title="Founder Free"
-                    price="0"
-                    desc="For early adopters."
-                    features={[
-                        "300 Credits / mo (Reset)",
-                        "Access to GPT-4o Mini",
-                        "Standard Images",
-                        "1 Brand Profile",
-                        "Limited Vault (20 items)"
-                    ]}
-                    btnLabel="Join Free"
+                    plan={PLANS.trial}
+                    desc="Taste the power."
+                    btnLabel="Start 5-Day Trial"
                     onAction={onLogin}
                 />
 
+                {/* CREATOR */}
                 <PricingCardLanding 
-                    title={PLANS.creator.name}
-                    price={PLANS.creator.price.toString()}
+                    plan={PLANS.creator}
                     desc="Side-hustlers."
-                    features={[
-                        "600 Credits / mo",
-                        "GPT-4o Mini (Fast)",
-                        "5 Premium Images",
-                        "Platform Optimizer",
-                        "Buy extra credits"
-                    ]}
                     btnLabel="Start Creator"
                     onAction={onLogin}
                     highlight
                 />
 
+                {/* PRO */}
                 <PricingCardLanding 
-                    title={PLANS.pro.name}
-                    price={PLANS.pro.price.toString()}
+                    plan={PLANS.pro}
                     desc="Influencers & Brands."
-                    features={[
-                        "2,000 Credits / mo",
-                        "Full GPT-4o Intelligence",
-                        "Real-Time News (Perplexity)",
-                        "40+ Premium DALL-E Images",
-                        "Remix Mode Unlocked"
-                    ]}
                     btnLabel="Go Pro"
                     onAction={onLogin}
                     isPopular
                 />
 
+                {/* AGENCY */}
                 <PricingCardLanding 
-                    title={PLANS.agency.name}
-                    price={PLANS.agency.price.toString()}
+                    plan={PLANS.agency}
                     desc="Scale & Volume."
-                    features={[
-                        "7,000 Credits / mo",
-                        "Unlimited Brand Voices",
-                        "Bulk Generation",
-                        "Prioritized Support",
-                        "Calendar Strategy"
-                    ]}
                     btnLabel="Scale Now"
                     onAction={onLogin}
                 />
@@ -239,7 +170,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: string }) {
     return (
         <div className="bg-[#0f1115] p-6 rounded-xl border border-gray-800 hover:border-gray-600 transition duration-300 h-full flex flex-col">
-            <div className="w-10 h-10 bg-gray-800/50 rounded-lg flex items-center justify-center mb-4">
+            <div className="w-10 h-10 bg-gray-800/50 rounded-lg flex items-center justify-center mb-4 text-white">
                 {icon}
             </div>
             <h3 className="text-base font-bold text-white mb-2">{title}</h3>
@@ -262,7 +193,9 @@ function Step({ number, title, desc }: { number: number, title: string, desc: st
     )
 }
 
-function PricingCardLanding({ title, price, desc, features, btnLabel, onAction, isPopular, highlight }: any) {
+function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlight }: any) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
     return (
         <div className={`relative p-6 rounded-2xl border flex flex-col h-full ${
             isPopular 
@@ -278,23 +211,44 @@ function PricingCardLanding({ title, price, desc, features, btnLabel, onAction, 
             )}
 
             <div className="mb-4">
-                <h3 className="text-lg font-bold text-white">{title}</h3>
+                <h3 className="text-lg font-bold text-white">{plan.name}</h3>
                 <p className="text-gray-400 text-xs mt-1">{desc}</p>
             </div>
 
             <div className="mb-6 flex items-baseline gap-1">
-                <span className="text-3xl font-bold text-white">${price}</span>
+                <span className="text-3xl font-bold text-white">${plan.price}</span>
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
-            <div className="space-y-3 mb-8 flex-1">
-                {features.map((feature: string, idx: number) => (
+            {/* Standard Features */}
+            <div className="space-y-3 mb-4 flex-1">
+                {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
                         <Check size={14} className={`mt-0.5 ${isPopular ? 'text-purple-400' : 'text-blue-500'}`} />
                         <span className="text-gray-300 text-xs">{feature}</span>
                     </div>
                 ))}
             </div>
+
+            {/* Extended Features (Toggle) */}
+            {isExpanded && (
+                <div className="space-y-3 mb-4 pt-4 border-t border-gray-700/50 animate-in fade-in slide-in-from-top-2">
+                    {plan.detailedFeatures.map((feature: string, idx: number) => (
+                        <div key={idx} className="flex items-start gap-2">
+                            <div className="mt-1.5 w-1 h-1 rounded-full bg-gray-500 shrink-0"></div>
+                            <span className="text-gray-400 text-xs">{feature}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <button 
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-white mb-4 transition"
+            >
+                {isExpanded ? 'Hide details' : 'View full benefits'} 
+                {isExpanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
+            </button>
 
             <button 
                 onClick={onAction}
