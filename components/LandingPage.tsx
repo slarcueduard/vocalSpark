@@ -49,7 +49,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           </h1>
 
           <p className="text-lg text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            The only AI Workspace that <strong>learns your voice</strong>, creates <strong>viral visuals</strong>, and uses <strong>real-time data</strong>.
+            Stop using generic AI. Use a workspace that knows your brand, generates strategy, and visuals in seconds. 
+            <strong>Better than Canva. Smarter than ChatGPT.</strong>
           </p>
 
           <div className="flex flex-col items-center gap-3">
@@ -74,7 +75,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn blogs into threads, scripts & posts." />
                 <FeatureCard icon={<LayoutTemplate className="text-blue-400" />} title="Campaigns" desc="Generate a full week of content in 1 click." />
                 <FeatureCard icon={<Database className="text-orange-400" />} title="Content Vault" desc="Auto-save, organize, and edit your viral hits." />
-                <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Write about today's news using live internet access." />
+                <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Write about today's news, not history." />
             </div>
         </div>
       </section>
@@ -82,17 +83,17 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       {/* --- PRICING SECTION --- */}
       <section className="w-full max-w-7xl mx-auto py-24 px-6">
             <div className="text-center mb-16">
-                <h2 className="text-3xl font-bold text-white mb-4">Simple, Transparent Pricing</h2>
-                <p className="text-gray-400">Start for free. Upgrade when you scale.</p>
+                <h2 className="text-3xl font-bold text-white mb-4">Founder Pricing</h2>
+                <p className="text-gray-400">Lock in early-bird rates. Prices increase soon.</p>
             </div>
 
-            {/* 1. LTD OFFER (BANNER) */}
-            <div className="max-w-4xl mx-auto mb-16 p-1 bg-gradient-to-r from-orange-600 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
-                <div className="bg-[#161b22] rounded-xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
+            {/* 1. LIFETIME DEAL BANNER (AICI E SCHIMBAREA MAJORĂ) */}
+            <div className="max-w-4xl mx-auto mb-16 p-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
+                <div className="bg-[#161b22] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] -z-10" />
                     
                     <div className="flex-1 text-center md:text-left">
-                        <div className="inline-block bg-orange-500 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 animate-pulse">
+                        <div className="inline-block bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 animate-pulse">
                             Only 25 Spots Left
                         </div>
                         <h3 className="text-2xl font-bold text-white mb-2">Founding Member - Lifetime Deal</h3>
@@ -104,49 +105,41 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
                     <div className="text-center">
                         <div className="flex items-center gap-2 justify-center md:justify-end mb-1">
-                             <span className="text-gray-500 line-through decoration-red-500 decoration-2">$297</span>
+                             <span className="text-gray-500 line-through decoration-red-500 decoration-2 text-lg">$297</span>
                              <span className="text-4xl font-bold text-white">$97</span>
                         </div>
                         <button onClick={onLogin} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition shadow-lg">
-                            Secure Lifetime Access
+                            Login to Claim Deal
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* 2. SUBSCRIPTION GRID */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* 2. MONTHLY SUBSCRIPTIONS (DOAR 3 CARDURI ACUM) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                 
-                {/* TRIAL CARD */}
-                <PricingCardLanding 
-                    plan={PLANS.trial}
-                    desc="Taste the power."
-                    btnLabel="Start 5-Day Trial"
-                    onAction={onLogin}
-                />
-
                 {/* CREATOR */}
                 <PricingCardLanding 
                     plan={PLANS.creator}
-                    desc="Side-hustlers."
+                    desc="Side-hustlers & Beginners."
                     btnLabel="Start Creator"
                     onAction={onLogin}
-                    highlight
                 />
 
                 {/* PRO */}
                 <PricingCardLanding 
                     plan={PLANS.pro}
-                    desc="Influencers & Brands."
+                    desc="Influencers & Growing Brands."
                     btnLabel="Go Pro"
                     onAction={onLogin}
+                    highlight
                     isPopular
                 />
 
                 {/* AGENCY */}
                 <PricingCardLanding 
                     plan={PLANS.agency}
-                    desc="Scale & Volume."
+                    desc="Scale & Volume Management."
                     btnLabel="Scale Now"
                     onAction={onLogin}
                 />
@@ -179,34 +172,20 @@ function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: st
     )
 }
 
-function Step({ number, title, desc }: { number: number, title: string, desc: string }) {
-    return (
-        <div className="flex gap-4 items-start relative z-10">
-            <div className="w-8 h-8 rounded-full bg-gray-800 border border-gray-600 flex items-center justify-center shrink-0 text-sm font-bold text-white">
-                {number}
-            </div>
-            <div>
-                <h4 className="text-sm font-bold text-white">{title}</h4>
-                <p className="text-xs text-gray-400 mt-1">{desc}</p>
-            </div>
-        </div>
-    )
-}
-
 function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlight }: any) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <div className={`relative p-6 rounded-2xl border flex flex-col h-full ${
+        <div className={`relative p-6 rounded-2xl border flex flex-col h-full transition-all duration-300 ${
             isPopular 
             ? 'bg-[#161b22] border-purple-500/50 shadow-2xl shadow-purple-900/20 scale-105 z-10' 
             : highlight 
                 ? 'bg-[#0f1115] border-blue-500/30 shadow-lg'
-                : 'bg-[#0f1115] border-gray-800 opacity-80 hover:opacity-100 transition'
+                : 'bg-[#0f1115] border-gray-800 opacity-80 hover:opacity-100'
         }`}>
             {isPopular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg">
-                    Best Value
+                    Most Popular
                 </div>
             )}
 
@@ -220,8 +199,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
-            {/* Standard Features */}
-            <div className="space-y-3 mb-4 flex-1">
+            <div className="space-y-3 mb-8 flex-1">
                 {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
                         <Check size={14} className={`mt-0.5 ${isPopular ? 'text-purple-400' : 'text-blue-500'}`} />
@@ -230,9 +208,9 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 ))}
             </div>
 
-            {/* Extended Features (Toggle) */}
+            {/* BUTTON EXTEND (View Details) */}
             {isExpanded && (
-                <div className="space-y-3 mb-4 pt-4 border-t border-gray-700/50 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-3 mb-6 pt-4 border-t border-gray-700/50 animate-in fade-in slide-in-from-top-2">
                     {plan.detailedFeatures.map((feature: string, idx: number) => (
                         <div key={idx} className="flex items-start gap-2">
                             <div className="mt-1.5 w-1 h-1 rounded-full bg-gray-500 shrink-0"></div>
@@ -244,7 +222,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
 
             <button 
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-white mb-4 transition"
+                className="flex items-center justify-center gap-1 text-xs text-gray-500 hover:text-white mb-4 transition w-full"
             >
                 {isExpanded ? 'Hide details' : 'View full benefits'} 
                 {isExpanded ? <ChevronUp size={12}/> : <ChevronDown size={12}/>}
