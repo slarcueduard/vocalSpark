@@ -63,27 +63,38 @@ export interface UserProfile {
   isFounder?: boolean;
 }
 
-// --- PRICING CONFIGURATION ---
+// --- CONFIGURATION & PLANS ---
 export interface PlanConfig {
   id: SubscriptionTier;
   name: string;
   price: number;
   credits: number;
   label: string;
-  features: string[]; // Lista scurtă (ce se vede imediat)
-  detailedFeatures: string[]; // Lista extinsă (la expand)
+  features: string[];
+  detailedFeatures: string[]; // Pentru butonul Extend
   highlight?: boolean;
 }
 
 export const PLANS: Record<SubscriptionTier, PlanConfig> = {
   trial: {
     id: 'trial',
-    name: 'Free Trial',
+    name: 'Pro Trial', // Nume nou
     price: 0,
-    credits: 150,
-    label: '5 Days Free',
-    features: ['150 Credits', 'GPT-4o Experience', 'Standard Images', '1 Brand Voice'],
-    detailedFeatures: []
+    credits: 1000, // Upgrade masiv la 1000
+    label: '5 Days Full Access',
+    features: [
+        '1,000 Credits (5 Days)', 
+        'Full GPT-4o Intelligence', 
+        'Premium DALL-E 3 Images', 
+        'Remix Mode Unlocked',
+        'Real-Time Data'
+    ],
+    detailedFeatures: [
+        'No Credit Card Required',
+        'Test all Agency features',
+        'Auto-cancel after 5 days',
+        'One-time use per user'
+    ]
   },
   creator: {
     id: 'creator',
@@ -93,16 +104,16 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     label: 'Starter',
     features: [
       '600 Credits / mo',
-      'Standard AI Images (Unlimited Speed)',
+      'Standard AI Images (Fast)',
       'Platform Optimizer',
       '1 Brand Voice Profile',
-      'GPT-4o Mini (Fast)'
+      'GPT-4o Mini (Standard)'
     ],
     detailedFeatures: [
-      'Ideal for Side-Hustlers',
-      'Remix Content (Basic)',
-      'Standard Support',
+      'Ideal for solopreneurs',
       'No Watermark',
+      'Basic Remixing',
+      'Email Support',
       'Cancel Anytime'
     ]
   },
@@ -118,14 +129,14 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       'Real-Time News (Perplexity)',
       'Premium DALL-E 3 Images',
       '3 Brand Voice Profiles',
-      'GPT-4o Intelligence'
+      'GPT-4o Intelligence (Max)'
     ],
     detailedFeatures: [
-      'Best for Influencers',
       'Competitor Analysis',
-      'Advanced Remix Modes (Threads/Scripts)',
+      'Advanced Remix Formats',
       'Priority GPU Processing',
-      'New Features Early Access'
+      'Unlimited History Vault',
+      'Early Access to Features'
     ]
   },
   agency: {
@@ -142,11 +153,11 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       'Logo Injection'
     ],
     detailedFeatures: [
-      'Best for SMM & Agencies',
-      'Content Calendar Strategy',
+      'Strategic Content Calendar',
       'Commercial Rights Included',
-      'Dedicated Support Line',
-      'Team Features (Coming Soon)'
+      'Dedicated Account Manager',
+      'Team Collaboration (Soon)',
+      'API Access (Request)'
     ]
   }
 };
