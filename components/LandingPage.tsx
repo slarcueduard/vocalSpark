@@ -88,12 +88,12 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
-      {/* --- HOW IT WORKS (SCENARIOS) --- */}
+     {/* --- HOW IT WORKS (UPDATED: SCENARIOS) --- */}
       <section className="py-24 px-6 bg-[#0a0c10]">
           <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
                   <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
-                  <p className="text-gray-400 mb-8">Choose your workflow.</p>
+                  <p className="text-gray-400 mb-8">Choose your workflow level.</p>
                   
                   {/* SCENARIO TOGGLE */}
                   <div className="inline-flex bg-[#1c1c2e] p-1 rounded-full border border-gray-700">
@@ -101,16 +101,84 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                         onClick={() => setActiveScenario('new')}
                         className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${activeScenario === 'new' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                       >
-                        Start from Scratch
+                        Standard Generation
                       </button>
                       <button 
                         onClick={() => setActiveScenario('existing')}
-                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${activeScenario === 'existing' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${activeScenario === 'existing' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                       >
-                        Remix Existing Content
+                        <Sparkles size={14} /> Premium Remix Flow
                       </button>
                   </div>
               </div>
+
+              {/* DYNAMIC STEPS CONTAINER */}
+              <div className="relative mt-16">
+                  {/* Background Line (Desktop only) */}
+                  <div className="hidden md:block absolute top-12 left-20 right-20 h-0.5 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 -z-10" />
+
+                  <div className="flex flex-col md:flex-row justify-between gap-8 md:gap-4 relative">
+                      
+                      {activeScenario === 'new' ? (
+                        /* SCENARIUL 1: STANDARD (User Nou) */
+                        <>
+                           <StepCard 
+                              number={1} 
+                              icon={<Fingerprint size={32} className="text-blue-400" />} 
+                              title="Define Brand Identity" 
+                              desc="Input your niche & tone. The AI builds your 'Voice DNA' so content feels human."
+                              color="blue"
+                           />
+                           <StepArrow />
+                           <StepCard 
+                              number={2} 
+                              icon={<Zap size={32} className="text-blue-400" />} 
+                              title="Generate Strategy" 
+                              desc="Select a goal (Viral/Sales). The AI writes the copy and creates standard visuals."
+                              color="blue"
+                           />
+                           <StepArrow />
+                           <StepCard 
+                              number={3} 
+                              icon={<Database size={32} className="text-blue-400" />} 
+                              title="Publish & Auto-Save" 
+                              desc="Post to socials. The content is automatically saved to your Vault for later."
+                              color="blue"
+                           />
+                        </>
+                      ) : (
+                        /* SCENARIUL 2: PREMIUM / VAULT (Power User) */
+                        <>
+                           <StepCard 
+                              number={1} 
+                              icon={<History size={32} className="text-purple-400" />} 
+                              title="Select from Vault" 
+                              desc="Pick a past high-performer. The AI analyzes *why* it worked using your Brand Voice history."
+                              color="purple"
+                           />
+                           <StepArrow color="purple" />
+                           <StepCard 
+                              number={2} 
+                              icon={<Repeat size={32} className="text-purple-400" />} 
+                              title="Omnichannel Remix" 
+                              desc="Instantly turn that 1 post into a Thread, Script, and Newsletter using GPT-4o."
+                              color="purple"
+                           />
+                           <StepArrow color="purple" />
+                           <StepCard 
+                              number={3} 
+                              icon={<ImageIcon size={32} className="text-purple-400" />} 
+                              title="High-End Production" 
+                              desc="Generates DALL-E 3 visuals with perfectly synced text overlays ready for 4K screens."
+                              color="purple"
+                           />
+                        </>
+                      )}
+
+                  </div>
+              </div>
+          </div>
+      </section>
 
               {/* DYNAMIC STEPS CONTAINER */}
               <div className="relative mt-16">
