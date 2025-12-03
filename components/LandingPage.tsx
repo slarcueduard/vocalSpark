@@ -3,10 +3,10 @@ import {
   Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, 
   Image as ImageIcon, LayoutTemplate, Repeat, Database, 
   Calendar, ChevronDown, ChevronUp, Layers, History, 
-  MousePointerClick, Play 
+  MousePointerClick, Play, Lock // Am adaugat Lock icon
 } from 'lucide-react';
 
-// --- MOCK DATA & TYPES (Integrare locala pentru a evita erorile de import) ---
+// --- MOCK DATA & TYPES ---
 
 const PLANS = {
   creator: {
@@ -26,29 +26,38 @@ const PLANS = {
   }
 };
 
-// Detalii extra conform documentatiei tale
+// Aici definim si ce este INCLUS, si ce LIPSESTE (unavailable)
 const PLAN_EXTENSIONS: any = {
     creator: {
         deepDive: [
-            "Voice DNA (1 Brand Identity)",
-            "Visual-Text Sync (Basic)",
-            "Remix Mode (Limited Credits)",
+            "Voice DNA (1 Profile)",
             "Standard Flux Images",
             "Content Vault (Auto-Save)",
             "Single Post Generation"
         ],
-        competitor: "Better than Canva Pro ($15) because we write the strategy, not just design. Smarter than generic ChatGPT."
+        // NOUTATE: Lista de feature-uri care lipsesc
+        unavailable: [
+            { name: "Remix Mode", upgradeTo: "Pro" },
+            { name: "Visual-Text Sync", upgradeTo: "Pro" },
+            { name: "Real-Time Data (News)", upgradeTo: "Pro" },
+            { name: "DALL-E 3 HD Images", upgradeTo: "Pro" }
+        ],
+        competitor: "Better than Canva Pro ($15) because we write the strategy, not just design."
     },
     pro: {
         deepDive: [
-            "Unlimited Voice DNA Profiles",
-            "Real-Time Data (Perplexity Integration)",
+            "Unlimited Voice DNA",
+            "Real-Time Data (Perplexity)",
             "Premium DALL-E 3 Images",
-            "Smart Contextual Memory (Pinning)",
-            "Priority Remix Mode (Unlimited)",
-            "Advanced Analytics"
+            "Smart Contextual Memory",
+            "Priority Remix Mode"
         ],
-        competitor: "Much cheaper than Jasper ($49) + Midjourney ($30). You get the full Repurposing suite included."
+        unavailable: [
+            { name: "White-label Reporting", upgradeTo: "Agency" },
+            { name: "API Access", upgradeTo: "Agency" },
+            { name: "Team Collaboration", upgradeTo: "Agency" }
+        ],
+        competitor: "Much cheaper than Jasper ($49) + Midjourney ($30). You get the full suite."
     },
     agency: {
         deepDive: [
@@ -56,14 +65,14 @@ const PLAN_EXTENSIONS: any = {
             "Team Collaboration (5 Seats)",
             "White-label Reporting",
             "Custom API Integrations",
-            "Dedicated Account Manager",
-            "Multi-Brand Workspaces"
+            "Dedicated Account Manager"
         ],
+        unavailable: [], // Agency are totul
         competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
     }
 };
 
-// Componenta Simpla pentru Iconita Google (svg inline)
+// Componenta Simpla pentru Iconita Google
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -80,7 +89,6 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
-  // State pentru Toggle-ul din How It Works
   const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
 
   return (
@@ -161,7 +169,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
-      {/* --- HOW IT WORKS (SCENARIOS: NEW vs VAULT) --- */}
+      {/* --- HOW IT WORKS --- */}
       <section className="py-24 px-6 bg-[#0a0c10]">
           <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
@@ -187,13 +195,11 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
               {/* DYNAMIC STEPS CONTAINER */}
               <div className="relative mt-16">
-                  {/* Background Line (Desktop only) */}
                   <div className="hidden md:block absolute top-12 left-20 right-20 h-0.5 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 -z-10" />
 
                   <div className="flex flex-col md:flex-row justify-between gap-8 md:gap-4 relative">
                       
                       {activeScenario === 'new' ? (
-                        /* SCENARIUL 1: STANDARD (User Nou) */
                         <>
                            <StepCard 
                               number={1} 
@@ -220,7 +226,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                            />
                         </>
                       ) : (
-                        /* SCENARIUL 2: PREMIUM / VAULT (Power User) */
                         <>
                            <StepCard 
                               number={1} 
@@ -260,11 +265,10 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 <p className="text-gray-400">Choose the power you need. Upgrade anytime.</p>
             </div>
 
-            {/* 1. LIFETIME DEAL BANNER */}
+            {/* LIFETIME DEAL */}
             <div className="max-w-4xl mx-auto mb-16 p-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
                 <div className="bg-[#161b22] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] -z-10" />
-                    
                     <div className="flex-1 text-center md:text-left">
                         <div className="inline-block bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 animate-pulse">
                             Founding Member Offer
@@ -275,7 +279,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                             One payment of <strong>$97</strong>. Keep it forever.
                         </p>
                     </div>
-
                     <div className="text-center">
                         <div className="flex items-center gap-2 justify-center md:justify-end mb-1">
                              <span className="text-gray-500 line-through decoration-red-500 decoration-2 text-lg">$297</span>
@@ -288,10 +291,9 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
             </div>
 
-            {/* 2. MONTHLY SUBSCRIPTIONS */}
+            {/* MONTHLY SUBSCRIPTIONS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                 
-                {/* CREATOR */}
                 <PricingCardLanding 
                     plan={PLANS.creator}
                     desc="For Side-hustlers & Solopreneurs."
@@ -300,7 +302,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     planType="creator"
                 />
 
-                {/* PRO */}
                 <PricingCardLanding 
                     plan={PLANS.pro}
                     desc="For Influencers & Growing Brands."
@@ -311,7 +312,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     planType="pro"
                 />
 
-                {/* AGENCY */}
                 <PricingCardLanding 
                     plan={PLANS.agency}
                     desc="For Scale & Client Management."
@@ -334,7 +334,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   );
 }
 
-// --- SUB-COMPONENTS & HELPERS ---
+// --- SUB-COMPONENTS ---
 
 function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: string }) {
     return (
@@ -377,11 +377,11 @@ function StepArrow({ color }: { color?: string }) {
 function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlight, planType }: any) {
     const [isExpanded, setIsExpanded] = useState(false);
     
-    // Extragem datele specifice din PLAN_EXTENSIONS bazat pe tipul planului
-    const extraDetails = PLAN_EXTENSIONS[planType] || { deepDive: [], competitor: "" };
+    // Extragem datele: features incluse (deepDive) si cele excluse (unavailable)
+    const extraDetails = PLAN_EXTENSIONS[planType] || { deepDive: [], unavailable: [], competitor: "" };
     
-    // Folosim lista de deepDive
-    const featuresList = extraDetails.deepDive;
+    const includedFeatures = extraDetails.deepDive || [];
+    const unavailableFeatures = extraDetails.unavailable || [];
 
     return (
         <div className={`relative p-6 rounded-2xl border flex flex-col transition-all duration-300 ${
@@ -407,7 +407,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
-            {/* Listam feature-urile principale */}
+            {/* Listam feature-urile principale (Incluse) */}
             <div className="space-y-3 mb-6">
                 {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
@@ -418,14 +418,14 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
             </div>
 
             {/* EXTENDED DETAILS (TOGGLE) */}
-            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[600px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0'}`}>
+            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0'}`}>
                 <div className="pt-4 border-t border-gray-800 space-y-4">
                     
-                    {/* Deep Dive Features */}
+                    {/* Feature-uri INCLUSE detaliat */}
                     <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Detailed Features</p>
-                        <ul className="space-y-2">
-                            {featuresList.map((feature: string, idx: number) => (
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Deep Dive</p>
+                        <ul className="space-y-2 mb-4">
+                            {includedFeatures.map((feature: string, idx: number) => (
                                 <li key={idx} className="flex items-start gap-2">
                                     <div className="mt-1.5 w-1 h-1 rounded-full bg-gray-500 shrink-0"></div>
                                     <span className="text-gray-400 text-xs">{feature}</span>
@@ -434,8 +434,26 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                         </ul>
                     </div>
 
+                    {/* Feature-uri UNAVAILABLE (Disabled) - NOU */}
+                    {unavailableFeatures.length > 0 && (
+                        <div>
+                             <p className="text-[10px] font-bold text-red-900/70 uppercase tracking-wider mb-2">Missing in this plan</p>
+                             <ul className="space-y-2">
+                                {unavailableFeatures.map((item: any, idx: number) => (
+                                    <li key={idx} className="flex items-start gap-2 text-gray-600 opacity-60">
+                                        <Lock size={12} className="mt-0.5 shrink-0" />
+                                        <div className="flex flex-col">
+                                            <span className="text-xs line-through decoration-gray-700">{item.name}</span>
+                                            <span className="text-[10px] text-purple-500/50 font-medium">Upgrade to {item.upgradeTo}</span>
+                                        </div>
+                                    </li>
+                                ))}
+                             </ul>
+                        </div>
+                    )}
+
                     {/* Competitor Comparison */}
-                    <div className="bg-gray-800/30 p-3 rounded-lg border border-gray-700/50">
+                    <div className="bg-gray-800/30 p-3 rounded-lg border border-gray-700/50 mt-4">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
                              <Layers size={10} /> VS Competitors
                         </p>
