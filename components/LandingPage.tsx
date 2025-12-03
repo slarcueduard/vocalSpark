@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, Image as ImageIcon, LayoutTemplate, Repeat, Database, Calendar, ChevronDown, ChevronUp, Layers, MousePointerClick, History } from 'lucide-react';
 import { GoogleIcon } from './Icons'; 
-// Presupunem ca PLANS e importat corect. Daca lipsesc proprietati, le gestionam mai jos.
 import { PLANS } from '../types';
 
 interface LandingPageProps {
@@ -9,7 +8,6 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
-  // State pentru How It Works (Scenario Toggle)
   const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
 
   return (
@@ -44,17 +42,18 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
             </span>
-            v1.5: Real-Time & Remix Mode
+            New: Visual-Text Sync & Remix Mode
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-tight">
-            Create Viral Content. <br />
+            Stop Sounding Like AI. <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">Clone Your Brand Voice.</span>
           </h1>
 
           <p className="text-lg text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-            Stop using generic AI. Use a workspace that knows your brand, generates strategy, and visuals in seconds. 
-            <strong>Better than Canva. Smarter than ChatGPT.</strong>
+            The only workspace that remembers your brand DNA and repurposes your best content in seconds.
+            <br className="hidden md:block" />
+            <strong>Better than Canva. Smarter than generic ChatGPT.</strong>
           </p>
 
           <div className="flex flex-col items-center gap-3">
@@ -66,7 +65,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 <span>Start 5-Day PRO Trial</span>
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
-              <p className="text-xs text-gray-500">Includes 1000 Credits + GPT-4o. No credit card required.</p>
+              <p className="text-xs text-gray-500">Includes 1000 Credits + Voice DNA. No credit card required.</p>
           </div>
         </div>
       </section>
@@ -75,26 +74,26 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <section className="py-20 bg-[#161b22]/50 border-y border-gray-800">
         <div className="max-w-7xl mx-auto px-6">
             <div className="text-center mb-16">
-                <h2 className="text-3xl font-bold text-white mb-4">The Power Suite</h2>
-                <p className="text-gray-400">Everything you need to dominate social media.</p>
+                <h2 className="text-3xl font-bold text-white mb-4">The Coherent Workspace</h2>
+                <p className="text-gray-400">Solves the biggest problem with AI: Consistency.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="AI clones your unique tone and style instantly." />
-                <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn blogs into threads, scripts & posts." />
-                <FeatureCard icon={<LayoutTemplate className="text-blue-400" />} title="Campaigns" desc="Generate a full week of content in 1 click." />
-                <FeatureCard icon={<Database className="text-orange-400" />} title="Content Vault" desc="Auto-save, organize, and edit your viral hits." />
-                <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Write about today's news, not history." />
+                <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="We clone your tone so you never sound like a robot." />
+                <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn 1 blog into 10 LinkedIn posts instantly." />
+                <FeatureCard icon={<ImageIcon className="text-pink-400" />} title="Visual-Text Sync" desc="Text on images finally matches your caption context." />
+                <FeatureCard icon={<Database className="text-orange-400" />} title="Content Vault" desc="Auto-save & organize your winning posts." />
+                <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Pro: Search the live web for trending topics." />
             </div>
         </div>
       </section>
 
-      {/* --- HOW IT WORKS (UPDATED: SCENARIOS) --- */}
+      {/* --- HOW IT WORKS (SCENARIOS) --- */}
       <section className="py-24 px-6 bg-[#0a0c10]">
           <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
                   <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
-                  <p className="text-gray-400 mb-8">Choose your starting point.</p>
+                  <p className="text-gray-400 mb-8">Choose your workflow.</p>
                   
                   {/* SCENARIO TOGGLE */}
                   <div className="inline-flex bg-[#1c1c2e] p-1 rounded-full border border-gray-700">
@@ -108,7 +107,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                         onClick={() => setActiveScenario('existing')}
                         className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${activeScenario === 'existing' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                       >
-                        Using Vault & Voice
+                        Remix Existing Content
                       </button>
                   </div>
               </div>
@@ -126,23 +125,23 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                               number={1} 
                               icon={<Fingerprint size={32} className="text-blue-400" />} 
                               title="Define Brand Identity" 
-                              desc="Input your niche, tone of voice, and target audience. The AI builds your profile."
+                              desc="Input your niche & tone. The AI builds your 'Voice DNA' so content feels human."
                               color="blue"
                            />
                            <StepArrow />
                            <StepCard 
                               number={2} 
                               icon={<Zap size={32} className="text-blue-400" />} 
-                              title="Generate Strategy" 
-                              desc="Select a goal (Viral/Sales). The AI writes the copy and creates the visuals."
+                              title="Generate with Sync" 
+                              desc="Create text AND visuals together. No more mismatched captions and images."
                               color="blue"
                            />
                            <StepArrow />
                            <StepCard 
                               number={3} 
-                              icon={<ImageIcon size={32} className="text-blue-400" />} 
-                              title="Publish & Learn" 
-                              desc="Post directly. The system learns from performance to improve next time."
+                              icon={<Database size={32} className="text-blue-400" />} 
+                              title="Auto-Save to Vault" 
+                              desc="Publish and automatically save to your Vault for future remixing."
                               color="blue"
                            />
                         </>
@@ -150,25 +149,25 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                         <>
                            <StepCard 
                               number={1} 
-                              icon={<Database size={32} className="text-purple-400" />} 
-                              title="Access Content Vault" 
-                              desc="Your brand voice is already saved. Select a top-performing past post."
+                              icon={<History size={32} className="text-purple-400" />} 
+                              title="Contextual Awareness" 
+                              desc="The AI reads your last 3 posts from the Vault to avoid repetition."
                               color="purple"
                            />
                            <StepArrow color="purple" />
                            <StepCard 
                               number={2} 
                               icon={<Repeat size={32} className="text-purple-400" />} 
-                              title="Remix & Repurpose" 
-                              desc="Use 'Remix Mode' to turn that post into a Thread, LinkedIn article, or Script."
+                              title="Remix Mode" 
+                              desc="Turn a past viral hit into a Thread, Script, or Newsletter in 1 click."
                               color="purple"
                            />
                            <StepArrow color="purple" />
                            <StepCard 
                               number={3} 
-                              icon={<Calendar size={32} className="text-purple-400" />} 
-                              title="Auto-Schedule" 
-                              desc="Queue the new content for the whole week with one click."
+                              icon={<ImageIcon size={32} className="text-purple-400" />} 
+                              title="Fresh Visuals" 
+                              desc="Generates new HD images (Flux/DALL-E) to match the repurposed text."
                               color="purple"
                            />
                         </>
@@ -182,8 +181,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       {/* --- PRICING SECTION --- */}
       <section className="w-full max-w-7xl mx-auto py-24 px-6">
             <div className="text-center mb-16">
-                <h2 className="text-3xl font-bold text-white mb-4">Founder Pricing</h2>
-                <p className="text-gray-400">Lock in early-bird rates. Compare plans below.</p>
+                <h2 className="text-3xl font-bold text-white mb-4">Transparent Pricing</h2>
+                <p className="text-gray-400">Choose the power you need. Upgrade anytime.</p>
             </div>
 
             {/* 1. LIFETIME DEAL BANNER */}
@@ -193,12 +192,12 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     
                     <div className="flex-1 text-center md:text-left">
                         <div className="inline-block bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 animate-pulse">
-                            Only 25 Spots Left
+                            Founding Member Offer
                         </div>
-                        <h3 className="text-2xl font-bold text-white mb-2">Founding Member - Lifetime Deal</h3>
+                        <h3 className="text-2xl font-bold text-white mb-2">Lifetime Access Deal</h3>
                         <p className="text-gray-400 text-sm max-w-md">
-                            Get <strong>Lifetime Access</strong> to the Pro Plan features without monthly fees. 
-                            One payment of <strong>$97</strong>. Forever.
+                            Get <strong>Lifetime Pro Features</strong> (Remix Mode, Voice DNA, Visual-Text Sync). 
+                            One payment of <strong>$97</strong>. Keep it forever.
                         </p>
                     </div>
 
@@ -208,7 +207,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                              <span className="text-4xl font-bold text-white">$97</span>
                         </div>
                         <button onClick={onLogin} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition shadow-lg">
-                            Login to Claim Deal
+                            Get Lifetime Deal
                         </button>
                     </div>
                 </div>
@@ -220,7 +219,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 {/* CREATOR */}
                 <PricingCardLanding 
                     plan={PLANS.creator}
-                    desc="Side-hustlers & Beginners."
+                    desc="For Side-hustlers & Solopreneurs."
                     btnLabel="Start Creator"
                     onAction={onLogin}
                     planType="creator"
@@ -229,7 +228,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 {/* PRO */}
                 <PricingCardLanding 
                     plan={PLANS.pro}
-                    desc="Influencers & Growing Brands."
+                    desc="For Influencers & Growing Brands."
                     btnLabel="Go Pro"
                     onAction={onLogin}
                     highlight
@@ -240,7 +239,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 {/* AGENCY */}
                 <PricingCardLanding 
                     plan={PLANS.agency}
-                    desc="Scale & Volume Management."
+                    desc="For Scale & Client Management."
                     btnLabel="Scale Now"
                     onAction={onLogin}
                     planType="agency"
@@ -254,7 +253,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
              <Sparkles className="text-blue-600" size={16} />
              <span className="font-bold text-white">Social Spark AI</span>
         </div>
-        <p className="text-xs text-gray-600">&copy; 2024 Velocity Automation AI. All rights reserved.</p>
+        <p className="text-xs text-gray-600">&copy; 2024 Social Spark AI. All rights reserved.</p>
       </footer>
     </div>
   );
@@ -262,18 +261,42 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
 // --- SUB-COMPONENTS & HELPERS ---
 
-// Simulam datele extra pentru "Expand" daca nu sunt in PLANS
+/**
+ * PLAN_EXTENSIONS
+ * Aici sunt mapate feature-urile detaliate extrase din documentul tool-ului.
+ */
 const PLAN_EXTENSIONS: any = {
     creator: {
-        deepDive: ["Basic Text Generation", "Standard Image Models", "3 Brand Voices", "Email Support"],
-        competitor: "Better value than ChatGPT Plus ($20) because we include specialized Image Generation."
+        deepDive: [
+            "Voice DNA (1 Brand Identity)",
+            "Visual-Text Sync (Context aware)",
+            "Remix Mode (Limited Credits)",
+            "Standard Flux Images",
+            "Content Vault (Auto-Save)",
+            "Single Post Generation"
+        ],
+        competitor: "Better than Canva Pro ($15) because we write the strategy, not just design. Smarter than generic ChatGPT."
     },
     pro: {
-        deepDive: ["GPT-4o Advanced Mode", "HD Flux/Midjourney Models", "Unlimited Brand Voices", "Priority Support", "Remix Existing Content"],
-        competitor: "Cheaper than paying for Jasper ($59) + Midjourney ($30) separately."
+        deepDive: [
+            "Unlimited Voice DNA Profiles",
+            "Real-Time Data (Perplexity Integration)",
+            "Premium DALL-E 3 Images",
+            "Smart Contextual Memory (Pinning)",
+            "Priority Remix Mode (Unlimited)",
+            "Advanced Analytics"
+        ],
+        competitor: "Much cheaper than Jasper ($49) + Midjourney ($30). You get the full Repurposing suite included."
     },
     agency: {
-        deepDive: ["API Access", "White-label Reports", "Team Collaboration (5 Seats)", "Dedicated Acct. Manager", "Custom Integrations"],
+        deepDive: [
+            "Strategic Content Calendar",
+            "Team Collaboration (5 Seats)",
+            "White-label Reporting",
+            "Custom API Integrations",
+            "Dedicated Account Manager",
+            "Multi-Brand Workspaces"
+        ],
         competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
     }
 };
@@ -290,7 +313,6 @@ function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: st
     )
 }
 
-// Componenta noua pentru Pasii din How It Works
 function StepCard({ number, icon, title, desc, color }: any) {
     const borderColor = color === 'purple' ? 'border-purple-500/30' : 'border-blue-500/30';
     const numBg = color === 'purple' ? 'bg-purple-600' : 'bg-blue-600';
@@ -309,7 +331,6 @@ function StepCard({ number, icon, title, desc, color }: any) {
     );
 }
 
-// Componenta noua pentru Sageata dintre pasi
 function StepArrow({ color }: { color?: string }) {
     return (
         <div className="hidden md:flex items-center justify-center text-gray-600 pt-8 animate-pulse">
@@ -321,10 +342,11 @@ function StepArrow({ color }: { color?: string }) {
 function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlight, planType }: any) {
     const [isExpanded, setIsExpanded] = useState(false);
     
-    // Fallback daca datele nu vin din prop-ul 'plan'
+    // Extragem datele specifice din PLAN_EXTENSIONS bazat pe tipul planului
     const extraDetails = PLAN_EXTENSIONS[planType] || { deepDive: [], competitor: "" };
-    // Combinam feature-urile de baza cu cele din "detailedFeatures" (daca exista in plan) sau fallback
-    const featuresList = plan.detailedFeatures || extraDetails.deepDive;
+    
+    // Daca planul vine cu 'detailedFeatures' din prop, le folosim, altfel folosim deepDive
+    const featuresList = extraDetails.deepDive;
 
     return (
         <div className={`relative p-6 rounded-2xl border flex flex-col transition-all duration-300 ${
@@ -350,6 +372,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
+            {/* Listam feature-urile principale (presupunem ca vin in 'plan.features') */}
             <div className="space-y-3 mb-6">
                 {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
@@ -360,7 +383,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
             </div>
 
             {/* EXTENDED DETAILS (TOGGLE) */}
-            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0'}`}>
+            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[600px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0'}`}>
                 <div className="pt-4 border-t border-gray-800 space-y-4">
                     
                     {/* Deep Dive Features */}
