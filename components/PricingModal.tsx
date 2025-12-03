@@ -18,7 +18,6 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
   if (!isOpen) return null;
 
- // ...
   const handleUpgrade = async (tier: SubscriptionTier | 'founder') => {
     setLoadingTier(tier);
     try {
@@ -36,29 +35,46 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
             body: JSON.stringify({ planId: tier })
         });
 
-        // Citim răspunsul serverului (poate fi eroare)
-        const data = await response.json();
-        
+        // --- MODIFICARE PENTRU DEBUGGING ROBUST ---
+        // 1. Citim răspunsul ca text simplu mai întâi, NU ca JSON direct.
+        // Asta previne eroarea "Unexpected token 'A'..." când serverul trimite HTML de eroare.
+        const responseText = await response.text();
+        console.log("Raw Server Response for Checkout:", responseText); // Vedem în consolă exact ce a trimis serverul
+
+        let data;
+        try {
+            // 2. Încercăm să transformăm textul în JSON
+            data = JSON.parse(responseText);
+        } catch (jsonError) {
+            // Dacă eșuează parsarea JSON, înseamnă că serverul a trimis HTML sau text simplu (crash grav).
+            console.error("Could not parse JSON response. Raw text:", responseText);
+            // Aruncăm o eroare care să apară în alert-ul de jos. 
+            // Folosim substring pentru a nu umple ecranul dacă e un HTML uriaș.
+            throw new Error(`Critical Server Error (Not JSON response): \n${responseText.substring(0, 200)}... (check console logs for full details)`);
+        }
+
+        // 3. Dacă am ajuns aici, avem JSON valid. Verificăm dacă serverul a semnalat o eroare logică (ex: Stripe key missing).
         if (!response.ok) {
-            // AICI ESTE FIX-UL: Afișăm eroarea reală de la server
             throw new Error(data.error || `Server error: ${response.status}`);
         }
         
+        // 4. Succes - avem URL-ul de Stripe
         if (data.url) {
             window.location.href = data.url;
         } else {
-            throw new Error("No checkout URL returned");
+            throw new Error("No checkout URL returned in the server response.");
         }
+        // -------------------------------------------
 
     } catch (error: any) {
         console.error("Checkout Error:", error);
         // Afișăm eroarea exactă utilizatorului (pt debugging)
-        alert(`Payment Failed: ${error.message}`); 
+        // Acum va afișa și mesajele "Critical Server Error" generate mai sus.
+        alert(`Payment Failed: \n${error.message}`); 
     } finally {
         setLoadingTier(null);
     }
   };
-  // ...
 
   const toggleDetails = (tierId: string) => {
       if (expandedTier === tierId) setExpandedTier(null);
