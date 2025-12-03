@@ -18,12 +18,15 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
 
   if (!isOpen) return null;
 
+ // ...
   const handleUpgrade = async (tier: SubscriptionTier | 'founder') => {
     setLoadingTier(tier);
     try {
         const token = await user?.getIdToken();
         if (!token) { alert("Please log in first."); return; }
         
+        console.log("Initiating checkout for:", tier);
+
         const response = await fetch('/api/create-checkout', {
             method: 'POST',
             headers: {
@@ -33,17 +36,29 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
             body: JSON.stringify({ planId: tier })
         });
 
+        // Citim răspunsul serverului (poate fi eroare)
         const data = await response.json();
-        if (data.url) window.location.href = data.url;
-        else alert(`Error: ${data.error}`);
+        
+        if (!response.ok) {
+            // AICI ESTE FIX-UL: Afișăm eroarea reală de la server
+            throw new Error(data.error || `Server error: ${response.status}`);
+        }
+        
+        if (data.url) {
+            window.location.href = data.url;
+        } else {
+            throw new Error("No checkout URL returned");
+        }
 
-    } catch (error) {
-        console.error(error);
-        alert("Connection error.");
+    } catch (error: any) {
+        console.error("Checkout Error:", error);
+        // Afișăm eroarea exactă utilizatorului (pt debugging)
+        alert(`Payment Failed: ${error.message}`); 
     } finally {
         setLoadingTier(null);
     }
   };
+  // ...
 
   const toggleDetails = (tierId: string) => {
       if (expandedTier === tierId) setExpandedTier(null);
