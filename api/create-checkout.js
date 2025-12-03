@@ -20,7 +20,6 @@ export default async function handler(req, res) {
     const { planId } = req.body; // 'creator', 'pro', sau 'agency'
 
     // 2. Alegem prețul corect din variabilele de mediu
-    // ...
     let priceId;
     let mode = 'subscription'; // Default
 
@@ -43,11 +42,9 @@ export default async function handler(req, res) {
             
         default: throw new Error("Invalid plan");
     }
+    // --- AM ȘTERS ACOLADA ÎN PLUS CARE ERA AICI ---
 
-// ...
-    }
-
-    // 3. Creăm sesiunea Stripe
+    // 3. Creăm sesiunea Stripe (Acum este corect în interiorul blocului TRY)
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [
@@ -56,7 +53,7 @@ export default async function handler(req, res) {
           quantity: 1,
         },
       ],
-    mode: mode, // Folosim variabila dinamică
+      mode: mode, // Folosim variabila dinamică
       success_url: `${process.env.CLIENT_URL}?payment=success`,
       cancel_url: `${process.env.CLIENT_URL}?payment=cancelled`,
       // CRITIC: Aici trimitem ID-ul userului către Stripe ca să știm cui dăm creditele
@@ -71,6 +68,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error("Stripe Error:", error);
+    // Dacă e o eroare de la Stripe, o vom vedea clar acum
     return res.status(500).json({ error: error.message });
   }
 }
