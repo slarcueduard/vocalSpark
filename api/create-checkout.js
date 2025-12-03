@@ -20,12 +20,31 @@ export default async function handler(req, res) {
     const { planId } = req.body; // 'creator', 'pro', sau 'agency'
 
     // 2. Alegem prețul corect din variabilele de mediu
+    // ...
     let priceId;
+    let mode = 'subscription'; // Default
+
     switch (planId) {
         case 'creator': priceId = process.env.STRIPE_PRICE_CREATOR; break;
         case 'pro': priceId = process.env.STRIPE_PRICE_PRO; break;
         case 'agency': priceId = process.env.STRIPE_PRICE_AGENCY; break;
-        default: throw new Error("Invalid plan selected");
+        
+        // NOU: Lifetime Deal
+        case 'founder': 
+            priceId = process.env.STRIPE_PRICE_FOUNDER; 
+            mode = 'payment'; // One-time payment!
+            break;
+
+        // NOU: Credite
+        case 'credits_500':
+            priceId = process.env.STRIPE_PRICE_CREDITS_500;
+            mode = 'payment';
+            break;
+            
+        default: throw new Error("Invalid plan");
+    }
+
+// ...
     }
 
     // 3. Creăm sesiunea Stripe
@@ -37,7 +56,7 @@ export default async function handler(req, res) {
           quantity: 1,
         },
       ],
-      mode: 'subscription', // Abonament recurent
+    mode: mode, // Folosim variabila dinamică
       success_url: `${process.env.CLIENT_URL}?payment=success`,
       cancel_url: `${process.env.CLIENT_URL}?payment=cancelled`,
       // CRITIC: Aici trimitem ID-ul userului către Stripe ca să știm cui dăm creditele
