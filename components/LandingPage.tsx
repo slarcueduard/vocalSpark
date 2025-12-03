@@ -289,6 +289,12 @@ function PricingCardLanding({ title, price, desc, features, btnLabel, onAction, 
                 <h3 className="text-lg font-bold text-white">{title}</h3>
                 <p className="text-gray-400 text-xs mt-1">{desc}</p>
             </div>
+          // ... în interiorul PricingCardLanding ...
+            <div className="mb-6 flex items-baseline gap-1">
+                <span className="text-4xl font-bold text-white">${plan.price}</span> {/* Aici era € */}
+                <span className="text-gray-500">/mo</span>
+            </div>
+// ...
 
             <div className="mb-6 flex items-baseline gap-1">
                 <span className="text-3xl font-bold text-white">€{price}</span>
