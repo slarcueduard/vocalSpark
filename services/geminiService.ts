@@ -195,12 +195,6 @@ export async function refinePostContent(content: string, type: RefinementType): 
     } catch(e) { return content; }
 }
 
-export async function analyzeBrandVoice(sampleText: string): Promise<string> {
-    try {
-        const data = await safeFetch('/api/generate-text', { prompt: `Analyze tone: "${sampleText}"` });
-        return data.output;
-    } catch(e) { return ""; }
-}
 // --- BRAND ANALYSIS SERVICE ---
 
 export const analyzeBrandVoice = async (content: string) => {
