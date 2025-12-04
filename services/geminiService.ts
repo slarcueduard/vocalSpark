@@ -201,3 +201,55 @@ export async function analyzeBrandVoice(sampleText: string): Promise<string> {
         return data.output;
     } catch(e) { return ""; }
 }
+// --- BRAND ANALYSIS SERVICE ---
+
+export const analyzeBrandVoice = async (content: string) => {
+  if (!content || content.length < 10) {
+    throw new Error("Content is too short to analyze. Please paste at least one full post or bio.");
+  }
+
+  // Prompt special pentru analiză inversă (Reverse Engineering)
+  const prompt = `
+    You are an expert Brand Strategist. Analyze the following content sample from a creator/brand.
+    
+    CONTENT SAMPLE:
+    "${content.slice(0, 1000)}"
+
+    Your task is to extract their "Brand DNA" into a structured format.
+    Return ONLY a raw JSON object (no markdown, no code blocks) with this specific structure:
+    {
+      "niche": "The specific industry or topic (max 3 words)",
+      "audience": "The target demographic (max 5 words)",
+      "tone_score": A number 0-100 (0 = Very Casual/Funny, 100 = Very Formal/Corporate),
+      "emoji_score": A number 0-100 (0 = No emojis, 100 = Heavy emoji usage),
+      "length_score": A number 0-100 (0 = Short/Punchy, 100 = Long/Storytelling),
+      "voice_description": "A 2-sentence summary of their writing style, vocabulary, and vibe."
+    }
+  `;
+
+  try {
+    // Apelăm instanța modelului (asumând că 'model' e exportat sau accesibil aici, 
+    // dacă nu, folosește genAI.getGenerativeModel({ model: "gemini-pro" }))
+    // NOTA: Asigura-te ca ai importat 'model' sau il re-initialiezi aici.
+    
+    const result = await model.generateContent(prompt); 
+    const response = await result.response;
+    const text = response.text();
+    
+    // Curățăm JSON-ul (uneori AI-ul pune ```json ... ```)
+    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    return JSON.parse(cleanedText);
+  } catch (error) {
+    console.error("Error analyzing brand voice:", error);
+    // Fallback în caz de eroare, ca să nu crape aplicația
+    return {
+      niche: "General",
+      audience: "General Audience",
+      tone_score: 50,
+      emoji_score: 50,
+      length_score: 50,
+      voice_description: "Professional yet accessible."
+    };
+  }
+};
