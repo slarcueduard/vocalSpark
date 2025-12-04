@@ -3,7 +3,8 @@ import {
   Sparkles, Check, Zap, Globe, Fingerprint, 
   Image as ImageIcon, Repeat, Database, 
   Layers, Lock, Copy, Wand2, UserCheck,
-  Search, Share, PenTool, Smartphone, Rocket
+  Search, Share, PenTool, Smartphone, Rocket,
+  ChevronDown, ChevronUp // <--- Am adaugat importurile care lipseau
 } from 'lucide-react';
 
 // --- DATA & TYPES: ROI-FOCUSED PRICING ---
