@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { 
   Sparkles, Check, Zap, Globe, Fingerprint, 
   Image as ImageIcon, Repeat, Database, 
-  Layers, Lock, Copy, Wand2, UserCheck,
-  Search, Share, PenTool, Smartphone, Rocket,
-  ChevronDown, ChevronUp // <--- Am adaugat importurile care lipseau
+  Layers, Lock, Wand2, UserCheck,
+  Search, Smartphone, ChevronDown, ChevronUp
 } from 'lucide-react';
 
-// --- DATA & TYPES: ROI-FOCUSED PRICING ---
+// --- DATA & CONFIGURATION ---
 
 const PLANS = {
   creator: {
@@ -45,7 +44,6 @@ const PLANS = {
   }
 };
 
-// Detalii extinse (Deep Dive) - Bazat pe analiza LLM si ROI
 const PLAN_EXTENSIONS: any = {
     creator: {
         deepDive: [
@@ -55,7 +53,6 @@ const PLAN_EXTENSIONS: any = {
             "Unlimited Auto-Save to Vault",
             "Mobile PWA Experience"
         ],
-        // Ce lipseste (Upsell la Pro)
         unavailable: [
             { name: "Real-Time Data (Live News)", upgradeTo: "Pro" },
             { name: "Premium DALL-E 3 Images", upgradeTo: "Pro" },
@@ -72,7 +69,6 @@ const PLAN_EXTENSIONS: any = {
             "Vault: 10 Active Locked Posts",
             "2 Distinct Brand Voices"
         ],
-        // Ce lipseste (Upsell la Agency)
         unavailable: [
             { name: "Campaign Mode (Strategic Calendar)", upgradeTo: "Agency" },
             { name: "Visual-Text Sync", upgradeTo: "Agency" },
@@ -88,12 +84,12 @@ const PLAN_EXTENSIONS: any = {
             "Vault: 50 Active Locked Posts",
             "3 Distinct Brand Voices"
         ],
-        unavailable: [], // Agency features
+        unavailable: [],
         competitor: "A fraction of the cost of a social media agency ($2k+)."
     }
 };
 
-// Componenta Simpla pentru Iconita Google
+// Componenta Iconita Google
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -110,7 +106,6 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
-  // State pentru Toggle-ul din How It Works
   const [activeScenario, setActiveScenario] = useState<'standard' | 'premium'>('standard');
 
   return (
@@ -166,7 +161,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
               >
                 <GoogleIcon className="w-6 h-6 bg-white rounded-full p-1" />
                 <span>Start 5-Day PRO Trial</span>
-                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
               <p className="text-xs text-gray-500">Includes 150 Credits. No credit card required.</p>
           </div>
@@ -223,7 +217,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-4 relative">
                       
                       {activeScenario === 'standard' ? (
-                        /* SCENARIUL 1: STANDARD (CREATOR - SPEED) */
+                        /* SCENARIUL 1: STANDARD (CREATOR) */
                         <>
                            <StepCard 
                               number={1} 
@@ -262,7 +256,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                            />
                         </>
                       ) : (
-                        /* SCENARIUL 2: PREMIUM (PRO - QUALITY) */
+                        /* SCENARIUL 2: PREMIUM (PRO) */
                         <>
                            <StepCard 
                               number={1} 
@@ -345,7 +339,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             {/* 2. MONTHLY SUBSCRIPTIONS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                 
-                {/* CREATOR */}
                 <PricingCardLanding 
                     plan={PLANS.creator}
                     desc="For Speed & Volume."
@@ -354,7 +347,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     planType="creator"
                 />
 
-                {/* PRO */}
                 <PricingCardLanding 
                     plan={PLANS.pro}
                     desc="For Quality & Consistency."
@@ -365,7 +357,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     planType="pro"
                 />
 
-                {/* AGENCY */}
                 <PricingCardLanding 
                     plan={PLANS.agency}
                     desc="For Strategy & Scale."
@@ -452,7 +443,6 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
-            {/* Listam feature-urile principale - Simplu si Clar */}
             <div className="space-y-3 mb-6">
                 {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
@@ -462,7 +452,6 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 ))}
             </div>
 
-            {/* EXTENDED DETAILS (TOGGLE) */}
             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0'}`}>
                 <div className="pt-4 border-t border-gray-800 space-y-4">
                     
