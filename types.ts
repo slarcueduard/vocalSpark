@@ -24,17 +24,15 @@ export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'tr
 export type GenerationType = 'single' | 'campaign' | 'remix';
 
 export interface BrandProfile {
+  name: string;
   industry: string;
-  customIndustry?: string;
-  description: string;
-  voiceDNA: string; 
+  targetAudience: string;
   language: string;
-  websiteUrl?: string;
-  socialUrl?: string;
-  examplePosts?: string;
-  fixedHashtags?: string;
-  brandColors?: string[]; 
-  logoUrl?: string | null;
+  voiceDNA: string; // Aici stocăm analiza AI (Ton, Stil etc.)
+  // Opțional, poți adăuga și astea pentru viitor, dar nu e obligatoriu acum:
+  // toneScore?: number;
+  // logoUrl?: string;
+  // brandColors?: string[];
 }
 
 export interface Post {
