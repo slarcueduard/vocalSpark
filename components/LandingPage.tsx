@@ -1,95 +1,98 @@
 import React, { useState } from 'react';
 import { 
-  Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, 
-  Image as ImageIcon, LayoutTemplate, Repeat, Database, 
-  Calendar, ChevronDown, ChevronUp, Layers, History, 
-  MousePointerClick, Play, Lock, Copy, Wand2, UserCheck,
-  Search, Share, FileText, PenTool
+  Sparkles, Check, Zap, Globe, Fingerprint, 
+  Image as ImageIcon, Repeat, Database, 
+  Layers, Lock, Copy, Wand2, UserCheck,
+  Search, Share, PenTool, Smartphone, Rocket
 } from 'lucide-react';
 
-// --- DATA & TYPES: SOCIAL SPARK MVP FEATURES ---
+// --- DATA & TYPES: ROI-FOCUSED PRICING ---
 
 const PLANS = {
   creator: {
     name: "Creator",
     price: 4.99,
     features: [
-      "1 Voice DNA (Brand Identity)", // Esential MVP
-      "Smart Text Generation",        // Single Post
-      "Standard Images (Flux)",       // Cost-Eficient
-      "Basic Remix Mode"              // Killer Feature (Limitat)
+      "Model: GPT-4o Mini (Fast)",
+      "600 Credits / mo",
+      "1 Voice DNA Profile",
+      "Standard Images (Flux)",
+      "Smart Mobile PWA"
     ]
   },
   pro: {
     name: "Pro",
     price: 12.99,
     features: [
-      "Real-Time Data (Live News)",   // Perplexity Integration
-      "Premium Images (DALL-E 3)",    // High-End Visuals
-      "Visual-Text Sync",             // Priority Feature
-      "Unlimited Remix Mode"          // Unlocked
+      "Model: GPT-4o (Smartest)",
+      "2,000 Credits / mo",
+      "2 Voice DNA Profiles",
+      "Real-Time Data (Perplexity)",
+      "Premium Images (DALL-E 3)"
     ]
   },
   agency: {
     name: "Agency",
     price: 29.99,
     features: [
-      "Strategic Content Calendar",   // Planificare
-      "Bulk Content Export",          // Volum
-      "Commercial License",           // Legal
-      "Priority Support"
+      "Model: GPT-4o (Smartest)",
+      "7,000 Credits / mo",
+      "3 Voice DNA Profiles",
+      "Campaign Mode (Calendar)",
+      "Visual-Text Sync"
     ]
   }
 };
 
-// Detalii extinse (Deep Dive) - Sursa: Documentatie MVP
+// Detalii extinse (Deep Dive) - Bazat pe analiza LLM si ROI
 const PLAN_EXTENSIONS: any = {
     creator: {
         deepDive: [
-            "1 Brand Tone (Voice DNA)",
-            "Single Post Creation",
-            "Auto-Save to Vault",
-            "Remix Mode (5 Credits/mo)",
-            "Standard Flux Model (Square)"
+            "Brand Identity Injection (1 Profile)",
+            "Single Post Generation (Viral/Sales)",
+            "Standard Flux Visuals (Instant)",
+            "Unlimited Auto-Save to Vault",
+            "Mobile PWA Experience"
         ],
         // Ce lipseste (Upsell la Pro)
         unavailable: [
-            { name: "Visual-Text Sync", upgradeTo: "Pro" },
-            { name: "Live Trend Hunter", upgradeTo: "Pro" },
-            { name: "DALL-E 3 HD Images", upgradeTo: "Pro" },
-            { name: "Contextual Awareness", upgradeTo: "Pro" }
+            { name: "Real-Time Data (Live News)", upgradeTo: "Pro" },
+            { name: "Premium DALL-E 3 Images", upgradeTo: "Pro" },
+            { name: "Remix Mode (Repurposing)", upgradeTo: "Pro" },
+            { name: "Pinned Vault Posts", upgradeTo: "Pro" }
         ],
-        competitor: "Better than Canva Pro ($15) because we ensure Brand Consistency, not just design templates."
+        competitor: "Perfect for volume. Smarter than generic ChatGPT due to Voice DNA."
     },
     pro: {
         deepDive: [
-            "Unlimited Remixing (Repurposing)",
-            "Contextual Memory (Reads Vault history)",
-            "Live News Integration (Perplexity)",
-            "Visual-Text Sync (Text matches Image)",
-            "DALL-E 3 Quality (All Ratios)"
+            "Multi-Mode Engine: Remix Mode ♻️",
+            "Real-Time Data 🌍 (Live Internet Access)",
+            "Hybrid Visuals: Flux + DALL-E 3",
+            "Vault: 10 Active Locked Posts",
+            "2 Distinct Brand Voices"
         ],
         // Ce lipseste (Upsell la Agency)
         unavailable: [
-            { name: "Strategic Calendar", upgradeTo: "Agency" },
-            { name: "Bulk Export", upgradeTo: "Agency" }
+            { name: "Campaign Mode (Strategic Calendar)", upgradeTo: "Agency" },
+            { name: "Visual-Text Sync", upgradeTo: "Agency" },
+            { name: "Bulk Content Export", upgradeTo: "Agency" }
         ],
-        competitor: "Cheaper than Jasper ($49) + Midjourney ($30). Includes full Repurposing capabilities."
+        competitor: "Replaces Jasper ($49) + Midjourney ($30). Best ROI for creators."
     },
     agency: {
         deepDive: [
-            "Full Content Calendar View",
-            "Batch Export (PDF/CSV)",
-            "High-Volume Generation Limits",
-            "Commercial Use Rights",
-            "Dedicated Account Manager"
+            "Campaign Mode 🚀 (Full Editorial Calendar)",
+            "Visual-Text Sync (Perfect Overlays)",
+            "Bulk Content Export",
+            "Vault: 50 Active Locked Posts",
+            "3 Distinct Brand Voices"
         ],
-        unavailable: [], // Agency are totul
-        competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
+        unavailable: [], // Agency features
+        competitor: "A fraction of the cost of a social media agency ($2k+)."
     }
 };
 
-// Componenta Simpla pentru Iconita Google (svg inline)
+// Componenta Simpla pentru Iconita Google
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -164,7 +167,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 <span>Start 5-Day PRO Trial</span>
                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
               </button>
-              <p className="text-xs text-gray-500">Includes 1000 Credits + Voice DNA. No credit card required.</p>
+              <p className="text-xs text-gray-500">Includes 150 Credits. No credit card required.</p>
           </div>
         </div>
       </section>
@@ -178,11 +181,11 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-                <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="We clone your tone so you never sound like a robot." />
-                <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn 1 blog into 10 LinkedIn posts instantly." />
-                <FeatureCard icon={<ImageIcon className="text-pink-400" />} title="Visual-Text Sync" desc="Text on images finally matches your caption context." />
-                <FeatureCard icon={<Database className="text-orange-400" />} title="Content Vault" desc="Auto-save & organize your winning posts." />
-                <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Pro: Search the live web for trending topics." />
+                <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="Brand Identity Injection to stop generic content." />
+                <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn 1 blog into 10 posts. The Repurposing Engine." />
+                <FeatureCard icon={<ImageIcon className="text-pink-400" />} title="Hybrid Visuals" desc="Flux for speed, DALL-E 3 for high-end quality." />
+                <FeatureCard icon={<Database className="text-orange-400" />} title="The Vault" desc="Auto-Save, Organize & Lock your winning posts." />
+                <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Pro: Search the live web for news & trends." />
             </div>
         </div>
       </section>
@@ -192,7 +195,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
           <div className="max-w-7xl mx-auto">
               <div className="text-center mb-12">
                   <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
-                  <p className="text-gray-400 mb-8">See how fast you can go from Idea to Viral.</p>
+                  <p className="text-gray-400 mb-8">From Idea to Viral in 5 Steps.</p>
                   
                   {/* SCENARIO TOGGLE */}
                   <div className="inline-flex bg-[#1c1c2e] p-1 rounded-full border border-gray-700">
@@ -219,88 +222,80 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-4 relative">
                       
                       {activeScenario === 'standard' ? (
-                        /* SCENARIUL 1: STANDARD (BASIC CREATOR) - 5 PASI */
+                        /* SCENARIUL 1: STANDARD (CREATOR - SPEED) */
                         <>
                            <StepCard 
                               number={1} 
                               icon={<Fingerprint size={28} className="text-blue-400" />} 
-                              title="Define DNA" 
-                              desc="Input your niche & tone. AI learns who you are."
+                              title="Voice DNA" 
+                              desc="Input your niche & tone. AI injects your identity."
                               color="blue"
                            />
-                           <StepArrow />
                            <StepCard 
                               number={2} 
                               icon={<Zap size={28} className="text-blue-400" />} 
-                              title="Input Idea" 
-                              desc="Tell AI what's on your mind simply."
+                              title="Idea Input" 
+                              desc="Tell AI what's on your mind. Use GPT-4o Mini."
                               color="blue"
                            />
-                           <StepArrow />
                            <StepCard 
                               number={3} 
-                              icon={<PenTool size={28} className="text-blue-400" />} 
+                              icon={<ImageIcon size={28} className="text-blue-400" />} 
                               title="Generate" 
-                              desc="Get caption + Standard Flux Image instantly."
+                              desc="Get copy + Standard Flux Image instantly."
                               color="blue"
                            />
-                           <StepArrow />
                            <StepCard 
                               number={4} 
-                              icon={<Copy size={28} className="text-blue-400" />} 
-                              title="Publish" 
-                              desc="Copy text & download image to post."
+                              icon={<Smartphone size={28} className="text-blue-400" />} 
+                              title="Smart Share" 
+                              desc="Copy text & image to preferred social app."
                               color="blue"
                            />
-                           <StepArrow />
                            <StepCard 
                               number={5} 
                               icon={<Database size={28} className="text-blue-400" />} 
-                              title="Vault" 
-                              desc="Content auto-saves for future use."
+                              title="Vault Save" 
+                              desc="Content auto-saves for future reference."
                               color="blue"
                            />
                         </>
                       ) : (
-                        /* SCENARIUL 2: PREMIUM (PRO / INFLUENCER) - 5 PASI */
+                        /* SCENARIUL 2: PREMIUM (PRO - QUALITY) */
                         <>
                            <StepCard 
                               number={1} 
                               icon={<UserCheck size={28} className="text-purple-400" />} 
                               title="Clone Style" 
-                              desc="Or pick an influencer style from the library."
+                              desc="Use one of your 3 Voice Profiles or copy an influencer."
                               color="purple"
                            />
-                           <StepArrow color="purple" />
                            <StepCard 
                               number={2} 
                               icon={<Search size={28} className="text-purple-400" />} 
                               title="Live Data" 
-                              desc="AI finds real-time news to make it relevant."
+                              desc="AI searches the web for real-time news context."
                               color="purple"
                            />
-                           <StepArrow color="purple" />
                            <StepCard 
                               number={3} 
                               icon={<Wand2 size={28} className="text-purple-400" />} 
-                              title="Pro Visuals" 
-                              desc="Generates DALL-E 3 with perfectly synced text."
+                              title="Pro Gen" 
+                              desc="Generate with GPT-4o + DALL-E 3 Premium."
                               color="purple"
                            />
-                           <StepArrow color="purple" />
                            <StepCard 
                               number={4} 
                               icon={<Repeat size={28} className="text-purple-400" />} 
-                              title="Remix" 
+                              title="Remix Mode" 
                               desc="Turn that post into a Thread or Script instantly."
                               color="purple"
                            />
-                           <StepArrow color="purple" />
                            <StepCard 
                               number={5} 
-                              icon={<Share size={28} className="text-purple-400" />} 
-                              title="Scale" 
-                              desc="Export to all platforms & save to Vault."
+                              icon={<Lock size={28} className="text-purple-400" />} 
+                              title="Vault Pin" 
+                              desc="Lock winning posts so they are never deleted."
                               color="purple"
                            />
                         </>
@@ -314,8 +309,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       {/* --- PRICING SECTION --- */}
       <section className="w-full max-w-7xl mx-auto py-24 px-6">
             <div className="text-center mb-16">
-                <h2 className="text-3xl font-bold text-white mb-4">Transparent Pricing</h2>
-                <p className="text-gray-400">Starts small. Scales with you.</p>
+                <h2 className="text-3xl font-bold text-white mb-4">Transparent ROI Pricing</h2>
+                <p className="text-gray-400">Hybrid Model: Subscription + Credits to protect quality.</p>
             </div>
 
             {/* 1. LIFETIME DEAL BANNER */}
@@ -352,7 +347,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 {/* CREATOR */}
                 <PricingCardLanding 
                     plan={PLANS.creator}
-                    desc="For Side-hustlers & Solopreneurs."
+                    desc="For Speed & Volume."
                     btnLabel="Start Creator"
                     onAction={onLogin}
                     planType="creator"
@@ -361,7 +356,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 {/* PRO */}
                 <PricingCardLanding 
                     plan={PLANS.pro}
-                    desc="For Influencers & Growing Brands."
+                    desc="For Quality & Consistency."
                     btnLabel="Go Pro"
                     onAction={onLogin}
                     highlight
@@ -372,7 +367,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 {/* AGENCY */}
                 <PricingCardLanding 
                     plan={PLANS.agency}
-                    desc="For Volume & Strategy."
+                    desc="For Strategy & Scale."
                     btnLabel="Scale Now"
                     onAction={onLogin}
                     planType="agency"
@@ -412,22 +407,14 @@ function StepCard({ number, icon, title, desc, color }: any) {
 
     return (
         <div className="flex flex-col items-center text-center flex-1 z-10 px-1">
-            <div className={`w-16 h-16 md:w-20 md:h-20 bg-[#1c1c2e] border ${borderColor} rounded-2xl flex items-center justify-center mb-4 shadow-xl relative transition-transform hover:-translate-y-1 duration-300`}>
-                <div className={`absolute -top-2 -left-2 w-6 h-6 ${numBg} rounded-full flex items-center justify-center font-bold text-xs text-white border border-[#0f1115] shadow-lg`}>
+            <div className={`w-14 h-14 md:w-16 md:h-16 bg-[#1c1c2e] border ${borderColor} rounded-2xl flex items-center justify-center mb-3 shadow-xl relative transition-transform hover:-translate-y-1 duration-300`}>
+                <div className={`absolute -top-2 -left-2 w-5 h-5 ${numBg} rounded-full flex items-center justify-center font-bold text-[10px] text-white border border-[#0f1115] shadow-lg`}>
                     {number}
                 </div>
                 {icon}
             </div>
-            <h3 className="text-sm md:text-base font-bold text-white mb-1">{title}</h3>
-            <p className="text-[10px] md:text-xs text-gray-400 leading-tight">{desc}</p>
-        </div>
-    );
-}
-
-function StepArrow({ color }: { color?: string }) {
-    return (
-        <div className="hidden md:flex items-center justify-center text-gray-600 pt-6 animate-pulse -ml-3 -mr-3 z-0">
-            <ArrowRight size={16} className={color === 'purple' ? 'text-purple-900' : 'text-blue-900'} />
+            <h3 className="text-sm font-bold text-white mb-1">{title}</h3>
+            <p className="text-[10px] text-gray-400 leading-tight">{desc}</p>
         </div>
     );
 }
@@ -450,7 +437,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
         }`}>
             {isPopular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-lg">
-                    Best Value
+                    Best ROI
                 </div>
             )}
 
