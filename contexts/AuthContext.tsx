@@ -1,167 +1,177 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
-  signInWithPopup, 
-  signOut, 
   onAuthStateChanged, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
   User 
 } from 'firebase/auth';
 import { 
   doc, 
+  getDoc, 
   setDoc, 
-  serverTimestamp, 
-  onSnapshot,
-  updateDoc 
+  updateDoc, 
+  serverTimestamp 
 } from 'firebase/firestore';
-import { auth, googleProvider, db } from '../services/firebase';
-import { UserProfile, BrandProfile, PLANS } from '../types';
+import { auth, db } from '../config/firebase'; // Asigura-te ca ai config-ul corect
+import { BrandProfile, UserProfile } from '../types';
 
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
-  brandProfile: BrandProfile | null; // <--- LIPSEA
+  brandProfile: BrandProfile | null;
   loading: boolean;
-  daysRemaining: number;
-  credits: number;
-  isTrialExpired: boolean;
   signIn: () => Promise<void>;
   logout: () => Promise<void>;
+  saveBrandProfile: (profile: BrandProfile) => Promise<void>; // Functia critica
   checkCredits: (cost: number) => boolean;
-  saveBrandProfile: (profile: BrandProfile) => Promise<void>; // <--- LIPSEA
+  isTrialExpired: boolean;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null); // State pt Brand
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [daysRemaining, setDaysRemaining] = useState(0);
-  const [credits, setCredits] = useState(0);
-  const [isTrialExpired, setIsTrialExpired] = useState(false);
 
+  // 1. ASCULTAM SCHIMBARILE DE LOGIN/LOGOUT
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       
       if (currentUser) {
-        const userRef = doc(db, 'users', currentUser.uid);
-
-        const unsubscribeSnapshot = onSnapshot(userRef, async (docSnap) => {
-          if (!docSnap.exists()) {
-            // User Nou
-            try {
-              const newProfile: any = {
-                uid: currentUser.uid,
-                email: currentUser.email,
-                subscriptionTier: 'trial',
-                subscriptionStatus: 'active',
-                createdAt: serverTimestamp(),
-                credits: PLANS.trial.credits,
-                imageCount: 0 
-              };
-              await setDoc(userRef, newProfile);
-            } catch (err) {
-              console.error("Error creating user profile:", err);
-            }
-          } else {
-            // User Existent
-            const data = docSnap.data();
-            
-            // 1. Setăm Profilul General
-            setUserProfile(data as UserProfile);
-            setCredits(data.credits !== undefined ? data.credits : 0);
-
-            // 2. Setăm Brand Profile (dacă există)
-            if (data.brandProfile) {
-                setBrandProfile(data.brandProfile as BrandProfile);
-            } else {
-                setBrandProfile(null);
-            }
-
-            // 3. Calcul Trial
-            if (data.subscriptionTier === 'trial' && data.createdAt) {
-               // @ts-ignore
-               const startDate = data.createdAt?.toDate ? data.createdAt.toDate() : new Date();
-               const now = new Date();
-               const diffTime = Math.abs(now.getTime() - startDate.getTime());
-               const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-               
-               const remaining = 5 - diffDays;
-               setDaysRemaining(remaining > 0 ? remaining : 0);
-               setIsTrialExpired(remaining <= 0);
-            } else {
-               setDaysRemaining(30); 
-               setIsTrialExpired(false);
-            }
-          }
-          setLoading(false);
-        });
-
-        return () => unsubscribeSnapshot();
+        // Daca userul e logat, incercam sa luam datele din DB
+        await fetchUserData(currentUser.uid);
       } else {
+        // Daca nu e logat, resetam tot
         setUserProfile(null);
         setBrandProfile(null);
-        setCredits(0);
-        setLoading(false);
       }
+      setLoading(false);
     });
 
-    return unsubscribeAuth;
+    return unsubscribe;
   }, []);
 
-  const signIn = async () => {
+  // 2. FETCH DATA DIN FIREBASE (Profil + Brand)
+  const fetchUserData = async (uid: string) => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      // a) Luam User Profile (Credite, Plan)
+      const userRef = doc(db, 'users', uid);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        setUserProfile(userSnap.data() as UserProfile);
+      } else {
+        // User nou: Cream profil default
+        const newProfile: UserProfile = {
+          uid,
+          email: auth.currentUser?.email || '',
+          credits: 150, // Trial
+          subscriptionTier: 'creator',
+          createdAt: new Date().toISOString()
+        };
+        await setDoc(userRef, newProfile);
+        setUserProfile(newProfile);
+      }
+
+      // b) Luam Brand Profile (Voice DNA, Setari) - ASTA E IMPORTANT PENTRU PERSISTENTA
+      const brandRef = doc(db, 'brands', uid);
+      const brandSnap = await getDoc(brandRef);
+
+      if (brandSnap.exists()) {
+        setBrandProfile(brandSnap.data() as BrandProfile);
+      } else {
+        // Brand default gol
+        setBrandProfile({
+          name: 'My Brand',
+          industry: '',
+          targetAudience: '',
+          voiceDNA: '',
+          language: 'English'
+        });
+      }
+
     } catch (error) {
-      console.error("Login failed", error);
+      console.error("Error fetching user data:", error);
     }
   };
 
+  // 3. LOG IN
+  const signIn = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error("Error signing in", error);
+    }
+  };
+
+  // 4. LOG OUT
   const logout = async () => {
-    await signOut(auth);
-    setUser(null);
-    setUserProfile(null);
-    setBrandProfile(null);
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Error signing out", error);
+    }
   };
 
+  // 5. SAVE BRAND PROFILE (Functia care face butonul sa mearga)
+  const saveBrandProfile = async (newProfile: BrandProfile) => {
+    if (!user) return;
+
+    try {
+      // Salvam local (pentru viteza UI)
+      setBrandProfile(newProfile);
+
+      // Salvam in Firebase (pentru persistenta la refresh/logout)
+      const brandRef = doc(db, 'brands', user.uid);
+      await setDoc(brandRef, {
+        ...newProfile,
+        updatedAt: serverTimestamp()
+      }, { merge: true }); // 'merge: true' e important sa nu stergem alte campuri
+      
+      console.log("Brand saved to Firebase successfully!");
+    } catch (error) {
+      console.error("Error saving brand:", error);
+      throw error; // Aruncam eroarea ca sa o prinda componenta si sa opreasca loaderul
+    }
+  };
+
+  // 6. MANAGEMENT CREDITE
   const checkCredits = (cost: number) => {
-    if (isTrialExpired) return false;
-    return credits >= cost;
+    if (!userProfile) return false;
+    if (userProfile.credits >= cost) {
+      // Scadem creditele local si in DB
+      const newCredits = userProfile.credits - cost;
+      setUserProfile({ ...userProfile, credits: newCredits });
+      
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        updateDoc(userRef, { credits: newCredits });
+      }
+      return true;
+    }
+    return false;
   };
 
-  // --- FUNCTIA DE SALVARE (NOUĂ) ---
-  const saveBrandProfile = async (profile: BrandProfile) => {
-      if (!user) return;
-      const userRef = doc(db, 'users', user.uid);
-      
-      // Salvăm obiectul brandProfile în documentul userului
-      await updateDoc(userRef, {
-          brandProfile: profile
-      });
-      
-      // State-ul se va actualiza automat datorită lui onSnapshot de mai sus
-  };
+  const isTrialExpired = (userProfile?.credits || 0) <= 0;
 
   return (
     <AuthContext.Provider value={{ 
       user, 
-      userProfile,
+      userProfile, 
       brandProfile, 
       loading, 
-      daysRemaining, 
-      credits,
-      isTrialExpired,
       signIn, 
-      logout,
+      logout, 
+      saveBrandProfile, 
       checkCredits,
-      saveBrandProfile // Exportăm funcția
+      isTrialExpired
     }}>
       {children}
     </AuthContext.Provider>
