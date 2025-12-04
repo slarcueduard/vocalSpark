@@ -1,81 +1,82 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   X, Sparkles, Link as LinkIcon, 
-  Upload, Hash, Palette, Check, RefreshCw 
+  Upload, Hash, Palette, Check, RefreshCw, 
+  User, UserCheck, Copy
 } from 'lucide-react';
 import { BrandProfile } from '../types';
 import { analyzeBrandVoice } from '../services/geminiService';
 
-
 interface BrandProfileModalProps {
-  // Aici pastram prop-urile vechi ca sa nu se strice App.tsx
   currentProfile: BrandProfile | null;
   onSave: (profile: BrandProfile) => Promise<void>;
   onClose: () => void;
-  // isOpen nu e nevoie in App.tsx pentru ca faci condition rendering {isOpen && ...}
 }
 
 type Tab = 'core' | 'visuals' | 'strategy';
+type AnalysisMode = 'personal' | 'influencer';
 
 export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProfileModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('core');
   const [isSaving, setIsSaving] = useState(false);
   
   // State pentru Magic Analyzer
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('personal');
   const [urlInput, setUrlInput] = useState('');
+  const [textInput, setTextInput] = useState(''); // Aici userul da paste la postarile influencerului
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // -- STATE-URILE BRANDULUI (Initializate din currentProfile) --
+  // -- STATE-URILE BRANDULUI --
   const [voiceDNA, setVoiceDNA] = useState(currentProfile?.voiceDNA || '');
   const [industry, setIndustry] = useState(currentProfile?.industry || '');
   const [language, setLanguage] = useState(currentProfile?.language || 'English');
   const [targetAudience, setTargetAudience] = useState(currentProfile?.targetAudience || '');
   
-  // Mock Visuals & Strategy (pentru demo, daca nu exista in BrandProfile)
+  // Mock Visuals & Strategy
   const [brandColors, setBrandColors] = useState(['#3B82F6', '#8B5CF6', '#FFFFFF']);
   const [hashtags, setHashtags] = useState('#MyBrand #MyNiche');
 
-  // Sliders State (Voice DNA Visualizer)
+  // Sliders State
   const [sliders, setSliders] = useState({
-    tone: 50,   // 0 = Casual, 100 = Formal
-    emoji: 50,  // 0 = Minimal, 100 = Heavy
-    length: 50  // 0 = Short/Punchy, 100 = Storytelling
+    tone: 50,
+    emoji: 50,
+    length: 50
   });
 
-  // Simulare Analiză AI (Magic Brand Analyzer)
- // Înlocuiește vechiul handleAnalyze cu acesta:
+  // --- LOGICA DE ANALIZA ---
   const handleAnalyze = async () => {
-    // 1. Validare simplă
-    const textToAnalyze = textInput || urlInput;
-    if (!textToAnalyze) {
-        alert("Please paste a URL or some text to analyze.");
+    // Pentru testul actual, ne bazam pe TEXT input (copy-paste)
+    // URL-ul e doar vizual momentan, pana avem backend
+    const contentToAnalyze = textInput || urlInput;
+
+    if (!contentToAnalyze || contentToAnalyze.length < 10) {
+        alert("Please paste some posts (text) from the influencer/brand you want to analyze.");
         return;
     }
 
     setIsAnalyzing(true);
     
     try {
-        // 2. Apelăm AI-ul (Gemini)
-        const analysis = await analyzeBrandVoice(textToAnalyze);
+        // Apelam serviciul Gemini cu modul selectat
+        const analysis = await analyzeBrandVoice(contentToAnalyze, analysisMode);
         
-        // 3. Populăm Sliderele cu datele reale de la AI
+        // Populăm UI-ul cu datele reale de la AI
         setSliders({
             tone: analysis.tone_score,
             emoji: analysis.emoji_score,
             length: analysis.length_score
         });
 
-        // 4. Populăm câmpurile de text
         setIndustry(analysis.niche);
         setTargetAudience(analysis.audience);
         
-        // Voice DNA devine descrierea generată de AI + valorile sliderelor
-        // Asta ajută AI-ul la generarea postărilor viitoare să știe exact setările
-        setVoiceDNA(analysis.voice_description);
+        // Construim descrierea Voice DNA
+        const prefix = analysisMode === 'influencer' ? "Style Cloned: " : "Brand Voice: ";
+        setVoiceDNA(`${prefix}${analysis.voice_description}`);
 
     } catch (error) {
         console.error("Analysis failed", error);
-        alert("Could not analyze text. Please try pasting a longer sample.");
+        alert("Could not analyze text. Please try pasting more content.");
     } finally {
         setIsAnalyzing(false);
     }
@@ -84,10 +85,10 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   const handleSave = async () => {
       setIsSaving(true);
       const updatedProfile: BrandProfile = {
-          name: currentProfile?.name || 'My Brand', // Fallback
+          name: currentProfile?.name || 'My Brand',
           industry,
           targetAudience,
-          voiceDNA, // Aici se salveaza textul rezultat din analiza sau slidere
+          voiceDNA,
           language
       };
 
@@ -131,46 +132,67 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         {/* --- CONTENT SCROLLABLE --- */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           
-          {/* === TAB 1: CORE IDENTITY (UPDATED WITH WIZARD) === */}
+          {/* === TAB 1: CORE IDENTITY === */}
           {activeTab === 'core' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               
               {/* MAGIC ANALYZER SECTION */}
-              <div className="bg-[#161b22] border border-blue-900/30 rounded-xl p-5 relative overflow-hidden">
-                 <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+              <div className={`border rounded-xl p-5 relative overflow-hidden transition-colors duration-300 ${analysisMode === 'influencer' ? 'bg-[#1a1625] border-purple-500/30' : 'bg-[#161b22] border-blue-900/30'}`}>
+                 <div className={`absolute top-0 left-0 w-1 h-full ${analysisMode === 'influencer' ? 'bg-purple-600' : 'bg-blue-600'}`}></div>
+                 
+                 {/* MODE TOGGLE */}
+                 <div className="flex bg-black/20 p-1 rounded-lg w-max mb-4">
+                    <button 
+                        onClick={() => setAnalysisMode('personal')}
+                        className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'personal' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        <User size={12} /> Analyze Me
+                    </button>
+                    <button 
+                        onClick={() => setAnalysisMode('influencer')}
+                        className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'influencer' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        <UserCheck size={12} /> Clone Influencer
+                    </button>
+                 </div>
+
                  <div className="mb-4">
-                    <h3 className="text-blue-400 font-bold text-sm flex items-center gap-2">
-                        <Sparkles size={14} /> MAGIC BRAND ANALYZER
+                    <h3 className={`font-bold text-sm flex items-center gap-2 ${analysisMode === 'influencer' ? 'text-purple-400' : 'text-blue-400'}`}>
+                        <Sparkles size={14} /> {analysisMode === 'influencer' ? 'INFLUENCER CLONING TOOL' : 'MAGIC BRAND ANALYZER'}
                     </h3>
                     <p className="text-xs text-gray-400 mt-1">
-                        Paste your URL or sample text. The AI will extract your Tone, Audience, and Style automatically.
+                        {analysisMode === 'influencer' 
+                            ? "Paste posts from LinkedIn/Twitter/Instagram. We'll extract their hook style, sentence length, and tone."
+                            : "Paste your website text or bio. We'll extract your natural tone and audience."
+                        }
                     </p>
                  </div>
 
-                 {/* INPUTS: URL + TEXT */}
+                 {/* INPUTS */}
                  <div className="space-y-3">
-                    {/* URL Input */}
                     <div className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                             <LinkIcon size={14} />
                         </div>
                         <input 
                             type="text" 
-                            placeholder="Paste your LinkedIn, Blog, or Website URL..."
+                            placeholder={analysisMode === 'influencer' ? "Paste Influencer's Social URL (Optional)" : "Paste your Website URL..."}
                             className="w-full bg-[#0f1115] border border-gray-700 rounded-lg py-2.5 pl-9 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition"
                             value={urlInput}
                             onChange={(e) => setUrlInput(e.target.value)}
                         />
                     </div>
 
-                    <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider">OR</div>
+                    <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider">AND / OR</div>
 
-                    {/* Text Area (Voice DNA Manual) */}
                     <textarea 
-                        placeholder="Paste bio, best performing captions, or describe your voice manually..."
-                        className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[80px] focus:outline-none focus:border-blue-500 transition resize-none"
-                        value={voiceDNA}
-                        onChange={(e) => setVoiceDNA(e.target.value)}
+                        placeholder={analysisMode === 'influencer' 
+                            ? "Paste 1-3 examples of their best posts here. The more text, the better the clone." 
+                            : "Paste your bio, mission statement, or past captions..."
+                        }
+                        className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono"
+                        value={textInput}
+                        onChange={(e) => setTextInput(e.target.value)}
                     />
                  </div>
 
@@ -178,27 +200,32 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                  <button 
                     onClick={handleAnalyze}
                     disabled={isAnalyzing}
-                    className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg transition shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2"
+                    className={`w-full mt-4 text-white font-bold py-2.5 rounded-lg transition shadow-lg flex items-center justify-center gap-2 ${
+                        analysisMode === 'influencer' 
+                        ? 'bg-purple-600 hover:bg-purple-500 shadow-purple-900/20' 
+                        : 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/20'
+                    }`}
                  >
                     {isAnalyzing ? (
                         <>
-                           <RefreshCw size={16} className="animate-spin" /> Analyzing DNA...
+                           <RefreshCw size={16} className="animate-spin" /> {analysisMode === 'influencer' ? 'Extracting Style...' : 'Analyzing DNA...'}
                         </>
                     ) : (
                         <>
-                           <Sparkles size={16} /> Analyze & Auto-Fill Everything
+                           {analysisMode === 'influencer' ? <Copy size={16} /> : <Sparkles size={16} />} 
+                           {analysisMode === 'influencer' ? 'Extract & Clone Style' : 'Analyze & Auto-Fill'}
                         </>
                     )}
                  </button>
               </div>
 
-              {/* VOICE DNA SLIDERS (NEW FEATURE - VISUALIZER) */}
+              {/* VOICE DNA VISUALIZER */}
               <div>
-                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Voice DNA Profile</h3>
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">
+                      {analysisMode === 'influencer' ? 'Extracted Style Profile' : 'Voice DNA Profile'}
+                  </h3>
                   
                   <div className="bg-[#161b22] border border-gray-800 rounded-xl p-6 space-y-6">
-                      
-                      {/* Slider 1: Tone */}
                       <SliderControl 
                         label="Tone" 
                         leftLabel="Casual / Witty" 
@@ -206,8 +233,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         value={sliders.tone}
                         onChange={(val: number) => setSliders({...sliders, tone: val})}
                       />
-
-                      {/* Slider 2: Emojis */}
                       <SliderControl 
                         label="Emoji Usage" 
                         leftLabel="Minimal 📄" 
@@ -215,20 +240,17 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         value={sliders.emoji}
                         onChange={(val: number) => setSliders({...sliders, emoji: val})}
                       />
-
-                      {/* Slider 3: Length */}
                       <SliderControl 
-                        label="Content Structure" 
+                        label="Structure" 
                         leftLabel="Short & Punchy" 
                         rightLabel="Long Storytelling" 
                         value={sliders.length}
                         onChange={(val: number) => setSliders({...sliders, length: val})}
                       />
-
                   </div>
               </div>
 
-              {/* MANUAL OVERRIDES (Inputs Standard) */}
+              {/* MANUAL OVERRIDES */}
               <div className="grid grid-cols-2 gap-4">
                   <div>
                       <label className="text-xs text-gray-400 block mb-1.5">Language</label>
@@ -247,17 +269,17 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                       <label className="text-xs text-gray-400 block mb-1.5">Niche / Industry</label>
                       <input 
                         type="text" 
-                        placeholder="e.g. Crypto, Fashion"
                         value={industry}
                         onChange={(e) => setIndustry(e.target.value)}
                         className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
                       />
                   </div>
                   <div className="col-span-2">
-                       <label className="text-xs text-gray-400 block mb-1.5">Target Audience</label>
+                       <label className="text-xs text-gray-400 block mb-1.5">
+                           {analysisMode === 'influencer' ? 'Detected Audience' : 'Target Audience'}
+                       </label>
                        <input 
                         type="text"
-                        placeholder="e.g. Busy moms, Startup Founders"
                         value={targetAudience}
                         onChange={(e) => setTargetAudience(e.target.value)}
                         className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
@@ -302,14 +324,11 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                 <div className="mt-1.5 text-center">
                                     <span className="text-[10px] text-gray-400 bg-[#1c1c2e] px-1.5 py-0.5 rounded uppercase">{color}</span>
                                 </div>
-                                {/* Edit overlay */}
                                 <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
                                     <Palette size={16} className="text-white" />
                                 </div>
                             </div>
                         ))}
-                        
-                        {/* Add Color Button */}
                         <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-500 hover:border-gray-500 hover:text-gray-300 transition cursor-pointer">
                             <span className="text-xl font-light">+</span>
                         </div>
@@ -356,7 +375,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-blue-900/20 flex items-center gap-2 transition disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isSaving ? <RefreshCw className="animate-spin" size={16}/> : <Check size={16} />} 
-            {isSaving ? 'Saving...' : 'Save Brand'}
+            {isSaving ? 'Save Brand' : 'Save Brand'}
           </button>
         </div>
 
