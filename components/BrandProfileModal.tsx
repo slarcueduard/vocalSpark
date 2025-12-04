@@ -4,6 +4,8 @@ import {
   Upload, Hash, Palette, Check, RefreshCw 
 } from 'lucide-react';
 import { BrandProfile } from '../types';
+import { analyzeBrandVoice } from '../services/geminiService';
+
 
 interface BrandProfileModalProps {
   // Aici pastram prop-urile vechi ca sa nu se strice App.tsx
@@ -41,25 +43,42 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   });
 
   // Simulare Analiză AI (Magic Brand Analyzer)
-  const handleAnalyze = () => {
+ // Înlocuiește vechiul handleAnalyze cu acesta:
+  const handleAnalyze = async () => {
+    // 1. Validare simplă
+    const textToAnalyze = textInput || urlInput;
+    if (!textToAnalyze) {
+        alert("Please paste a URL or some text to analyze.");
+        return;
+    }
+
     setIsAnalyzing(true);
     
-    // Simulam un request la backend care dureaza 1.5 secunde
-    setTimeout(() => {
-      setIsAnalyzing(false);
-      
-      // LOGICA MOCK: Setam sliderele bazat pe ce a "gasit" AI-ul
-      setSliders({
-        tone: 75,
-        emoji: 30,
-        length: 65
-      });
+    try {
+        // 2. Apelăm AI-ul (Gemini)
+        const analysis = await analyzeBrandVoice(textToAnalyze);
+        
+        // 3. Populăm Sliderele cu datele reale de la AI
+        setSliders({
+            tone: analysis.tone_score,
+            emoji: analysis.emoji_score,
+            length: analysis.length_score
+        });
 
-      // Auto-fill Inputs daca sunt goale
-      if (!industry) setIndustry("Tech / SaaS");
-      if (!targetAudience) setTargetAudience("Entrepreneurs and Marketers");
-      if (!voiceDNA) setVoiceDNA(`Analyzed Tone from ${urlInput}: Professional, authoritative, concise.`);
-    }, 1500);
+        // 4. Populăm câmpurile de text
+        setIndustry(analysis.niche);
+        setTargetAudience(analysis.audience);
+        
+        // Voice DNA devine descrierea generată de AI + valorile sliderelor
+        // Asta ajută AI-ul la generarea postărilor viitoare să știe exact setările
+        setVoiceDNA(analysis.voice_description);
+
+    } catch (error) {
+        console.error("Analysis failed", error);
+        alert("Could not analyze text. Please try pasting a longer sample.");
+    } finally {
+        setIsAnalyzing(false);
+    }
   };
 
   const handleSave = async () => {
