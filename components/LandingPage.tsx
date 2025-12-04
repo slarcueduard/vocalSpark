@@ -3,39 +3,37 @@ import {
   Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, 
   Image as ImageIcon, LayoutTemplate, Repeat, Database, 
   Calendar, ChevronDown, ChevronUp, Layers, History, 
-  MousePointerClick, Play, Lock 
+  MousePointerClick, Play, Lock, Copy, Wand2, UserCheck
 } from 'lucide-react';
-
-// --- MOCK DATA & TYPES ---
 
 // --- DATA & TYPES: SOCIAL SPARK SPECIFIC FEATURES ---
 
 const PLANS = {
   creator: {
     name: "Creator",
-    price: 19,
+    price: 4.99,
     features: [
-      "1 Voice DNA Profile",           // Specific: Brand Voice
-      "Smart Caption Writer",          // Specific: Text Gen
-      "Flux Standard Visuals",         // Specific: Image Model
+      "1 Voice DNA Profile",           
+      "Smart Caption Writer",          
+      "Flux Standard Visuals",         
       "500 AI Credits/mo"
     ]
   },
   pro: {
     name: "Pro",
-    price: 49,
+    price: 12.99,
     features: [
-      "Unlimited Voice DNA",           // Scale
-      "Omnichannel Remix Mode",        // Killer Feature
-      "Visual-Text Sync",              // Unique Selling Point
+      "Unlimited Voice DNA",           
+      "Omnichannel Remix Mode",        
+      "Visual-Text Sync",              
       "2000 AI Credits/mo"
     ]
   },
   agency: {
     name: "Agency",
-    price: 199,
+    price: 29.99,
     features: [
-      "5 Client Workspaces",           // Specific Agency needs
+      "5 Client Workspaces",           
       "Team Collaboration",
       "White-Label Reports",
       "Unlimited AI Credits"
@@ -50,33 +48,32 @@ const PLAN_EXTENSIONS: any = {
             "1 Brand Identity (Tone & Niche)",
             "Single Post Generation (Text + Image)",
             "The Vault (30-Day History)",
-            "Standard Flux Model (1:1 Ratio)",
+            "Standard Flux Model (Square)",
             "Auto-Hashtag Suggestions"
         ],
         // Ce pierde userul daca ramane la Creator (Upsell la Pro)
         unavailable: [
             { name: "Remix Mode (Repurposing)", upgradeTo: "Pro" },
             { name: "Visual-Text Sync (Text on Image)", upgradeTo: "Pro" },
-            { name: "Live Trend Hunter (Real-Time Data)", upgradeTo: "Pro" },
+            { name: "Clone Influencer Style", upgradeTo: "Pro" },
             { name: "DALL-E 3 HD Models", upgradeTo: "Pro" }
         ],
-        competitor: "Smarter than ChatGPT Plus ($20) because we include Brand Voice & Image Gen in one flow."
+        competitor: "Insane value. Cheaper than a coffee ($5) for a full AI brand manager."
     },
     pro: {
         deepDive: [
             "Unlimited Voice DNA Profiles",
-            "Contextual Memory (Reads past Vault posts)",
-            "Live Trend Hunter (Perplexity Integration)",
+            "Clone Influencer Styles",
+            "Omnichannel Remix Mode (Threads/Scripts)",
             "DALL-E 3 HD Visuals (All Aspect Ratios)",
             "Priority Processing Speed"
         ],
         // Ce pierde userul Pro (Upsell la Agency)
         unavailable: [
             { name: "Multi-Client Workspaces", upgradeTo: "Agency" },
-            { name: "API Access", upgradeTo: "Agency" },
             { name: "White-Label Sharing", upgradeTo: "Agency" }
         ],
-        competitor: "Cheaper than Jasper ($49) + Midjourney ($30) combined. You get the full Repurposing suite."
+        competitor: "Beats Jasper ($49/mo) and Canva ($15/mo) on price and strategy."
     },
     agency: {
         deepDive: [
@@ -88,7 +85,7 @@ const PLAN_EXTENSIONS: any = {
             "Bulk Content Export"
         ],
         unavailable: [], // Agency are totul
-        competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
+        competitor: "Stop paying $2k+ for agencies. Do it yourself for $30."
     }
 };
 
@@ -110,7 +107,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onLogin }: LandingPageProps) {
   // State pentru Toggle-ul din How It Works
-  const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
+  const [activeScenario, setActiveScenario] = useState<'standard' | 'premium'>('standard');
 
   return (
     <div className="min-h-screen bg-[#0f1115] text-white flex flex-col font-sans selection:bg-blue-500/30">
@@ -190,26 +187,26 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
-      {/* --- HOW IT WORKS (SCENARIOS: NEW vs VAULT) --- */}
+      {/* --- HOW IT WORKS (UPDATED: STANDARD vs PREMIUM FLOW) --- */}
       <section className="py-24 px-6 bg-[#0a0c10]">
           <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
                   <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
-                  <p className="text-gray-400 mb-8">Choose your workflow level.</p>
+                  <p className="text-gray-400 mb-8">See how fast you can go from Idea to Viral.</p>
                   
                   {/* SCENARIO TOGGLE */}
                   <div className="inline-flex bg-[#1c1c2e] p-1 rounded-full border border-gray-700">
                       <button 
-                        onClick={() => setActiveScenario('new')}
-                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${activeScenario === 'new' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        onClick={() => setActiveScenario('standard')}
+                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${activeScenario === 'standard' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                       >
-                        Standard Generation
+                        Standard Flow
                       </button>
                       <button 
-                        onClick={() => setActiveScenario('existing')}
-                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${activeScenario === 'existing' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
+                        onClick={() => setActiveScenario('premium')}
+                        className={`px-6 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${activeScenario === 'premium' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
                       >
-                        <Sparkles size={14} /> Premium Remix Flow
+                        <Sparkles size={14} /> Premium Flow
                       </button>
                   </div>
               </div>
@@ -221,57 +218,57 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
                   <div className="flex flex-col md:flex-row justify-between gap-8 md:gap-4 relative">
                       
-                      {activeScenario === 'new' ? (
-                        /* SCENARIUL 1: STANDARD (User Nou) */
+                      {activeScenario === 'standard' ? (
+                        /* SCENARIUL 1: STANDARD (BASIC CREATOR) */
                         <>
                            <StepCard 
                               number={1} 
                               icon={<Fingerprint size={32} className="text-blue-400" />} 
-                              title="Define Brand Identity" 
-                              desc={<span>Input your niche & tone. The AI builds your <strong>Voice DNA</strong> so content feels human.</span>}
+                              title="Define Voice DNA" 
+                              desc={<span>Input your niche & tone. The AI learns who you are in seconds.</span>}
                               color="blue"
                            />
                            <StepArrow />
                            <StepCard 
                               number={2} 
                               icon={<Zap size={32} className="text-blue-400" />} 
-                              title="Generate Strategy" 
-                              desc={<span>Select a goal (Viral/Sales). The AI writes the copy and creates <strong>Standard Visuals</strong>.</span>}
+                              title="Generate Content" 
+                              desc={<span>Tell AI what's on your mind. Get a caption + <strong>Standard Flux Image</strong> instantly.</span>}
                               color="blue"
                            />
                            <StepArrow />
                            <StepCard 
                               number={3} 
-                              icon={<Database size={32} className="text-blue-400" />} 
-                              title="Publish & Auto-Save" 
-                              desc={<span>Post to socials. The content is automatically saved to your <strong>Vault</strong> for later.</span>}
+                              icon={<Copy size={32} className="text-blue-400" />} 
+                              title="Publish & Save" 
+                              desc={<span>Copy/Paste to socials. Content is <strong>auto-saved to Vault</strong> for later.</span>}
                               color="blue"
                            />
                         </>
                       ) : (
-                        /* SCENARIUL 2: PREMIUM / VAULT (Power User) */
+                        /* SCENARIUL 2: PREMIUM (PRO / INFLUENCER) */
                         <>
                            <StepCard 
                               number={1} 
-                              icon={<History size={32} className="text-purple-400" />} 
-                              title="Select from Vault" 
-                              desc={<span>Pick a past high-performer. The AI analyzes <strong>why it worked</strong> using your Brand Voice.</span>}
+                              icon={<UserCheck size={32} className="text-purple-400" />} 
+                              title="Clone Style" 
+                              desc={<span>Define your Voice DNA or <strong>copy an influencer's style</strong> with one click.</span>}
                               color="purple"
                            />
                            <StepArrow color="purple" />
                            <StepCard 
                               number={2} 
-                              icon={<Repeat size={32} className="text-purple-400" />} 
-                              title="Omnichannel Remix" 
-                              desc={<span>Instantly turn that 1 post into a Thread, Script, and Newsletter using <strong>Remix Mode</strong>.</span>}
+                              icon={<Wand2 size={32} className="text-purple-400" />} 
+                              title="Generate & Remix" 
+                              desc={<span>Get <strong>DALL-E 3 visuals</strong>, then use <strong>Remix</strong> to turn that post into a Thread or Script.</span>}
                               color="purple"
                            />
                            <StepArrow color="purple" />
                            <StepCard 
                               number={3} 
-                              icon={<ImageIcon size={32} className="text-purple-400" />} 
-                              title="High-End Production" 
-                              desc={<span>Generates <strong>DALL-E 3</strong> visuals with perfectly synced text overlays.</span>}
+                              icon={<Database size={32} className="text-purple-400" />} 
+                              title="Publish & Scale" 
+                              desc={<span>Copy your viral assets to all platforms. Everything syncs to <strong>Vault</strong>.</span>}
                               color="purple"
                            />
                         </>
@@ -286,7 +283,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
       <section className="w-full max-w-7xl mx-auto py-24 px-6">
             <div className="text-center mb-16">
                 <h2 className="text-3xl font-bold text-white mb-4">Transparent Pricing</h2>
-                <p className="text-gray-400">Choose the power you need. Upgrade anytime.</p>
+                <p className="text-gray-400">Insane value. Cancel anytime.</p>
             </div>
 
             {/* 1. LIFETIME DEAL BANNER */}
@@ -406,7 +403,6 @@ function StepArrow({ color }: { color?: string }) {
 function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlight, planType }: any) {
     const [isExpanded, setIsExpanded] = useState(false);
     
-    // Extragem datele specifice: features incluse (deepDive) si cele excluse (unavailable)
     const extraDetails = PLAN_EXTENSIONS[planType] || { deepDive: [], unavailable: [], competitor: "" };
     
     const includedFeatures = extraDetails.deepDive || [];
@@ -436,7 +432,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
-            {/* Listam feature-urile principale (Mereu vizibile) */}
+            {/* Listam feature-urile principale */}
             <div className="space-y-3 mb-6">
                 {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
@@ -446,11 +442,11 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 ))}
             </div>
 
-            {/* EXTENDED DETAILS (TOGGLE) - Aici este partea de Extend */}
+            {/* EXTENDED DETAILS (TOGGLE) */}
             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0'}`}>
                 <div className="pt-4 border-t border-gray-800 space-y-4">
                     
-                    {/* Feature-uri INCLUSE detaliat (Deep Dive) */}
+                    {/* Deep Dive (INCLUDED) */}
                     <div>
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Deep Dive</p>
                         <ul className="space-y-2 mb-4">
@@ -463,7 +459,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                         </ul>
                     </div>
 
-                    {/* Feature-uri UNAVAILABLE (Disabled - cu lacat) */}
+                    {/* UNAVAILABLE (MISSING - UPSELL) */}
                     {unavailableFeatures.length > 0 && (
                         <div>
                              <p className="text-[10px] font-bold text-red-900/70 uppercase tracking-wider mb-2">Missing in this plan</p>
