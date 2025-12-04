@@ -37,40 +37,24 @@ async function safeFetch(url: string, body: any) {
 // --- HELPER: Extract JSON (Robust) ---
 function extractJsonArray(text: string): any[] {
     try {
-        // 1. Curățăm Markdown-ul (```json ... ```)
         let cleanText = text.replace(/```json|```/g, '').trim();
-        
-        // 2. Încercăm parsare directă
         let parsed = JSON.parse(cleanText);
 
-        // 3. Dacă a returnat un obiect care conține "posts" (format comun OpenAI)
-        if (parsed.posts && Array.isArray(parsed.posts)) {
-            return parsed.posts;
-        }
-
-        // 4. Dacă e un singur obiect, îl punem într-un array
-        if (!Array.isArray(parsed)) {
-            return [parsed];
-        }
+        if (parsed.posts && Array.isArray(parsed.posts)) return parsed.posts;
+        if (!Array.isArray(parsed)) return [parsed];
 
         return parsed;
     } catch (e) {
-        // 5. Fallback agresiv: Căutăm primul [ și ultimul ]
         const start = text.indexOf('[');
         const end = text.lastIndexOf(']');
         if (start !== -1 && end !== -1) {
-            try {
-                return JSON.parse(text.substring(start, end + 1));
-            } catch (e2) {}
+            try { return JSON.parse(text.substring(start, end + 1)); } catch (e2) {}
         }
         
-        // 6. Fallback obiect simplu
         const objStart = text.indexOf('{');
         const objEnd = text.lastIndexOf('}');
         if (objStart !== -1 && objEnd !== -1) {
-             try {
-                return [JSON.parse(text.substring(objStart, objEnd + 1))];
-            } catch (e3) {}
+             try { return [JSON.parse(text.substring(objStart, objEnd + 1))]; } catch (e3) {}
         }
 
         console.error("JSON Parse Error. Raw text:", text);
@@ -78,26 +62,51 @@ function extractJsonArray(text: string): any[] {
     }
 }
 
-// --- 1. ANALIZĂ BRAND ---
-export async function autoGenerateBrandProfile(rawContent: string): Promise<BrandProfile> {
+// --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
+export async function generateSocialMediaPosts(
+  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
+): Promise<any[]> {
+    
+    // Construim contextul complet al brandului
+    let contextString = '';
+    if (brandProfile) {
+        contextString = `VOICE DNA: ${brandProfile.voiceDNA || brandVoice}. 
+                         TARGET AUDIENCE: ${brandProfile.targetAudience || brandProfile.description}. 
+                         HASHTAGS: ${brandProfile.fixedHashtags || ''}.
+                         RULES: Do not use banned words if specified.`;
+    }
+
     try {
-        const prompt = `ACT AS: Brand Strategist. ANALYZE: "${rawContent.substring(0, 3000)}". RETURN JSON: { "industry": "...", "language": "...", "voiceDNA": "...", "description": "...", "fixedHashtags": "..." }`;
-        const data = await safeFetch('/api/generate-text', { prompt });
-        const cleanJson = data.output.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(cleanJson);
-        return {
-            industry: parsed.industry || '',
-            language: parsed.language || 'English',
-            voiceDNA: parsed.voiceDNA || '',
-            description: parsed.description || '',
-            fixedHashtags: parsed.fixedHashtags || '',
-            brandColors: ['#3B82F6', '#8B5CF6', '#FFFFFF'],
-            logoUrl: null
-        };
-    } catch (e) { throw new Error("Analysis failed."); }
+        const data = await safeFetch('/api/generate-text', { 
+            prompt: topic, 
+            brandContext: contextString, 
+            language: brandProfile?.language || language || 'English',
+            imageBase64, imageMimeType, objective, useRealTime,
+            isCampaign, postCount, isRemix, remixFormats 
+        });
+
+        const parsed = extractJsonArray(data.output);
+        
+        if(Array.isArray(parsed)) {
+            return parsed.map((p: any) => {
+                let content = p.content || p.post || p.text || p.body || p;
+                if (typeof content !== 'string') content = JSON.stringify(content);
+
+                return { 
+                    content: content,
+                    type: p.type || 'post', 
+                    platform: p.platform || 'Generic'
+                };
+            });
+        }
+        return [];
+
+    } catch (e: any) {
+        return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
+    }
 }
 
-// --- 2. IMAGINI ---
+// --- 2. GENERARE IMAGINI ---
 export async function generateImageForPost(
     postText: string, 
     isPremium: boolean = false, 
@@ -135,50 +144,62 @@ export async function generateImageForPost(
     }
 }
 
-// --- 3. TEXT (Generare Postări & Campanii & Remix) ---
-// ...
-export async function generateSocialMediaPosts(
-  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
-): Promise<any[]> {
+// --- 3. ANALIZĂ BRAND (NOU & UNIFICAT) ---
+export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
+  if (!content || content.length < 10) {
+    throw new Error("Content is too short. Please paste at least one full post.");
+  }
+
+  const taskDescription = mode === 'influencer' 
+    ? "You are a Ghostwriter. REVERSE ENGINEER the writing style of this influencer to clone it."
+    : "You are a Brand Strategist. Analyze this content to build a Brand Voice profile.";
+
+  // Trimitem acest prompt special către același endpoint '/api/generate-text'
+  // Dar îi spunem să returneze JSON-ul de analiză, nu o postare
+  const prompt = `
+    ${taskDescription}
     
-    let contextString = '';
-    if (brandProfile) {
-        contextString = `VOICE: ${brandProfile.voiceDNA}. AUDIENCE: ${brandProfile.description}. HASHTAGS: ${brandProfile.fixedHashtags}`;
+    CONTENT SAMPLE: "${content.substring(0, 3000)}"
+
+    Extract "Voice DNA" into this JSON structure (return ONLY JSON):
+    {
+      "niche": "Industry (max 3 words)",
+      "audience": "Target Audience (max 5 words)",
+      "tone_score": number 0-100 (0=Casual, 100=Formal),
+      "emoji_score": number 0-100 (0=None, 100=Heavy),
+      "length_score": number 0-100 (0=Short, 100=Long),
+      "voice_description": "2-sentence instruction on how to write like this person."
     }
+  `;
 
-    try {
-        const data = await safeFetch('/api/generate-text', { 
-            prompt: topic, 
-            brandContext: contextString, 
-            language: brandProfile?.language || language || 'English',
-            imageBase64, imageMimeType, objective, useRealTime,
-            isCampaign, postCount, isRemix, remixFormats 
-        });
+  try {
+    // Reutilizam safeFetch catre API-ul existent
+    // Nu mai avem nevoie de 'model' aici, API-ul se ocupa
+    const data = await safeFetch('/api/generate-text', { 
+        prompt: prompt,
+        // Hack: Trimitem parametri simpli ca să nu declanșeze logica de postări din API
+        postCount: 1, 
+        isCampaign: false 
+    });
 
-        const parsed = extractJsonArray(data.output);
-        
-        if(Array.isArray(parsed)) {
-            return parsed.map((p: any) => {
-                // AICI ESTE FIX-UL: Căutăm conținutul oriunde ar fi
-                let content = p.content || p.post || p.text || p.body || p;
-                if (typeof content !== 'string') content = JSON.stringify(content);
+    const cleanJson = data.output.replace(/```json|```/g, '').trim();
+    return JSON.parse(cleanJson);
 
-                return { 
-                    content: content,
-                    type: p.type || 'post', 
-                    platform: p.platform || 'Generic'
-                };
-            });
-        }
-        return [];
+  } catch (error) {
+    console.error("Error analyzing brand voice:", error);
+    // Fallback
+    return {
+      niche: "General",
+      audience: "General Audience",
+      tone_score: 50,
+      emoji_score: 50,
+      length_score: 50,
+      voice_description: "Professional yet accessible."
+    };
+  }
+};
 
-    } catch (e: any) {
-        return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
-    }
-// ...
-}
-
-// --- ADAPTERS ---
+// --- 4. UTILS (Adapters) ---
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {
         const data = await safeFetch('/api/generate-text', { 
@@ -195,59 +216,20 @@ export async function refinePostContent(content: string, type: RefinementType): 
     } catch(e) { return content; }
 }
 
-// --- BRAND ANALYSIS SERVICE ---
-
-// --- BRAND ANALYSIS SERVICE ---
-
-export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
-  if (!content || content.length < 10) {
-    throw new Error("Content is too short. Please paste at least one full post.");
-  }
-
-  const taskDescription = mode === 'influencer' 
-    ? "You are a Ghostwriter for top tier creators. Your task is to REVERSE ENGINEER the writing style of this influencer so we can clone it."
-    : "You are a Brand Strategist. Your task is to analyze this brand's existing content to build a consistent voice profile.";
-
-  const prompt = `
-    ${taskDescription}
-    
-    CONTENT SAMPLE TO ANALYZE:
-    "${content.slice(0, 2000)}"
-
-    Extract the "Voice DNA" into a raw JSON object with this exact structure:
-    {
-      "niche": "Specific niche (e.g. SaaS Marketing, Crypto Trading)",
-      "audience": "Target audience (e.g. Solopreneurs, Gen Z)",
-      "tone_score": number 0-100 (0=Casual/Funny, 100=Formal/Corporate),
-      "emoji_score": number 0-100 (0=None, 100=Heavy usage),
-      "length_score": number 0-100 (0=Short/Punchy, 100=Long/Storytelling),
-      "voice_description": "Detailed instruction for an AI on how to write like this person. Include sentence structure, formatting habits, and vocabulary."
-    }
-    
-    Return ONLY valid JSON.
-  `;
-
-  try {
-    // Asigura-te ca variabila 'model' este accesibila aici. 
-    // Daca e definita sus in fisier, e ok. Daca nu, decomenteaza linia de mai jos:
-    // const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-    const result = await model.generateContent(prompt); 
-    const response = await result.response;
-    const text = response.text();
-    const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    
-    return JSON.parse(cleanedText);
-  } catch (error) {
-    console.error("Error analyzing brand voice:", error);
-    // Fallback
-    return {
-      niche: "General",
-      audience: "General Audience",
-      tone_score: 50,
-      emoji_score: 50,
-      length_score: 50,
-      voice_description: "Professional, engaging, and clear."
-    };
-  }
-};
+export async function autoGenerateBrandProfile(rawContent: string): Promise<BrandProfile> {
+    // Aceasta e versiunea veche, dar o păstrăm pentru compatibilitate dacă mai e folosită
+    // De fapt, face cam același lucru cu analyzeBrandVoice, dar returnează alt format
+    try {
+        const analysis = await analyzeBrandVoice(rawContent, 'personal');
+        return {
+            industry: analysis.niche,
+            language: 'English',
+            voiceDNA: analysis.voice_description,
+            description: analysis.audience,
+            fixedHashtags: '',
+            targetAudience: analysis.audience,
+            brandColors: ['#3B82F6', '#8B5CF6', '#FFFFFF'],
+            logoUrl: null
+        };
+    } catch (e) { throw new Error("Analysis failed."); }
+}
