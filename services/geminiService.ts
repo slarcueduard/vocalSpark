@@ -197,53 +197,57 @@ export async function refinePostContent(content: string, type: RefinementType): 
 
 // --- BRAND ANALYSIS SERVICE ---
 
-export const analyzeBrandVoice = async (content: string) => {
+// --- BRAND ANALYSIS SERVICE ---
+
+export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
   if (!content || content.length < 10) {
-    throw new Error("Content is too short to analyze. Please paste at least one full post or bio.");
+    throw new Error("Content is too short. Please paste at least one full post.");
   }
 
-  // Prompt special pentru analiză inversă (Reverse Engineering)
-  const prompt = `
-    You are an expert Brand Strategist. Analyze the following content sample from a creator/brand.
-    
-    CONTENT SAMPLE:
-    "${content.slice(0, 1000)}"
+  const taskDescription = mode === 'influencer' 
+    ? "You are a Ghostwriter for top tier creators. Your task is to REVERSE ENGINEER the writing style of this influencer so we can clone it."
+    : "You are a Brand Strategist. Your task is to analyze this brand's existing content to build a consistent voice profile.";
 
-    Your task is to extract their "Brand DNA" into a structured format.
-    Return ONLY a raw JSON object (no markdown, no code blocks) with this specific structure:
+  const prompt = `
+    ${taskDescription}
+    
+    CONTENT SAMPLE TO ANALYZE:
+    "${content.slice(0, 2000)}"
+
+    Extract the "Voice DNA" into a raw JSON object with this exact structure:
     {
-      "niche": "The specific industry or topic (max 3 words)",
-      "audience": "The target demographic (max 5 words)",
-      "tone_score": A number 0-100 (0 = Very Casual/Funny, 100 = Very Formal/Corporate),
-      "emoji_score": A number 0-100 (0 = No emojis, 100 = Heavy emoji usage),
-      "length_score": A number 0-100 (0 = Short/Punchy, 100 = Long/Storytelling),
-      "voice_description": "A 2-sentence summary of their writing style, vocabulary, and vibe."
+      "niche": "Specific niche (e.g. SaaS Marketing, Crypto Trading)",
+      "audience": "Target audience (e.g. Solopreneurs, Gen Z)",
+      "tone_score": number 0-100 (0=Casual/Funny, 100=Formal/Corporate),
+      "emoji_score": number 0-100 (0=None, 100=Heavy usage),
+      "length_score": number 0-100 (0=Short/Punchy, 100=Long/Storytelling),
+      "voice_description": "Detailed instruction for an AI on how to write like this person. Include sentence structure, formatting habits, and vocabulary."
     }
+    
+    Return ONLY valid JSON.
   `;
 
   try {
-    // Apelăm instanța modelului (asumând că 'model' e exportat sau accesibil aici, 
-    // dacă nu, folosește genAI.getGenerativeModel({ model: "gemini-pro" }))
-    // NOTA: Asigura-te ca ai importat 'model' sau il re-initialiezi aici.
-    
+    // Asigura-te ca variabila 'model' este accesibila aici. 
+    // Daca e definita sus in fisier, e ok. Daca nu, decomenteaza linia de mai jos:
+    // const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
     const result = await model.generateContent(prompt); 
     const response = await result.response;
     const text = response.text();
-    
-    // Curățăm JSON-ul (uneori AI-ul pune ```json ... ```)
     const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
     
     return JSON.parse(cleanedText);
   } catch (error) {
     console.error("Error analyzing brand voice:", error);
-    // Fallback în caz de eroare, ca să nu crape aplicația
+    // Fallback
     return {
       niche: "General",
       audience: "General Audience",
       tone_score: 50,
       emoji_score: 50,
       length_score: 50,
-      voice_description: "Professional yet accessible."
+      voice_description: "Professional, engaging, and clear."
     };
   }
 };
