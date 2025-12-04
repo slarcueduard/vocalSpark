@@ -1,17 +1,18 @@
 import React, { useState } from 'react';
 import { 
-  X, Sparkles, Globe, Link as LinkIcon, 
+  X, Sparkles, Link as LinkIcon, 
   Upload, Hash, Palette, Check, RefreshCw 
 } from 'lucide-react';
 
-interface BrandIdentityModalProps {
+interface BrandProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 type Tab = 'core' | 'visuals' | 'strategy';
 
-export function BrandIdentityModal({ isOpen, onClose }: BrandIdentityModalProps) {
+// AM REDENUMIT FUNCTIA AICI DIN BrandIdentityModal IN BrandProfileModal
+export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('core');
   
   // State pentru Magic Analyzer
@@ -41,16 +42,15 @@ export function BrandIdentityModal({ isOpen, onClose }: BrandIdentityModalProps)
       setIsAnalyzing(false);
       
       // LOGICA MOCK: Setam sliderele bazat pe ce a "gasit" AI-ul
-      // In productie, aici ar veni datele de la API
       setSliders({
         tone: 75,   // A detectat un ton destul de formal
         emoji: 30,  // Foloseste putine emoji-uri
         length: 65  // Scrie postari medii spre lungi
       });
 
-      // Optional: Auto-fill inputs based on "analysis"
+      // Feedback vizual ca a citit ceva
       if (!textInput && urlInput) {
-        setTextInput("Analysis complete from: " + urlInput);
+        setTextInput("Analysis complete based on content from: " + urlInput);
       }
     }, 1500);
   };
@@ -158,7 +158,7 @@ export function BrandIdentityModal({ isOpen, onClose }: BrandIdentityModalProps)
                         leftLabel="Casual / Witty" 
                         rightLabel="Formal / Professional" 
                         value={sliders.tone}
-                        onChange={(val) => setSliders({...sliders, tone: val})}
+                        onChange={(val: number) => setSliders({...sliders, tone: val})}
                       />
 
                       {/* Slider 2: Emojis */}
@@ -167,7 +167,7 @@ export function BrandIdentityModal({ isOpen, onClose }: BrandIdentityModalProps)
                         leftLabel="Minimal 📄" 
                         rightLabel="Heavy 🚀🔥" 
                         value={sliders.emoji}
-                        onChange={(val) => setSliders({...sliders, emoji: val})}
+                        onChange={(val: number) => setSliders({...sliders, emoji: val})}
                       />
 
                       {/* Slider 3: Length */}
@@ -176,7 +176,7 @@ export function BrandIdentityModal({ isOpen, onClose }: BrandIdentityModalProps)
                         leftLabel="Short & Punchy" 
                         rightLabel="Long Storytelling" 
                         value={sliders.length}
-                        onChange={(val) => setSliders({...sliders, length: val})}
+                        onChange={(val: number) => setSliders({...sliders, length: val})}
                       />
 
                   </div>
@@ -205,7 +205,7 @@ export function BrandIdentityModal({ isOpen, onClose }: BrandIdentityModalProps)
             </div>
           )}
 
-          {/* === TAB 2: VISUALS (Existing Implementation) === */}
+          {/* === TAB 2: VISUALS === */}
           {activeTab === 'visuals' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                {/* Brand Logo */}
@@ -255,7 +255,7 @@ export function BrandIdentityModal({ isOpen, onClose }: BrandIdentityModalProps)
             </div>
           )}
 
-          {/* === TAB 3: STRATEGY (Existing Implementation) === */}
+          {/* === TAB 3: STRATEGY === */}
           {activeTab === 'strategy' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div>
