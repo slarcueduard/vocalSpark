@@ -3,7 +3,7 @@ import {
   Sparkles, ArrowRight, Check, Zap, Globe, Fingerprint, 
   Image as ImageIcon, LayoutTemplate, Repeat, Database, 
   Calendar, ChevronDown, ChevronUp, Layers, History, 
-  MousePointerClick, Play, Lock // Am adaugat Lock icon
+  MousePointerClick, Play, Lock 
 } from 'lucide-react';
 
 // --- MOCK DATA & TYPES ---
@@ -26,38 +26,39 @@ const PLANS = {
   }
 };
 
-// Aici definim si ce este INCLUS, si ce LIPSESTE (unavailable)
+// Detalii extinse pentru Expand/Extend Button + Feature-uri lipsa (Upsell)
 const PLAN_EXTENSIONS: any = {
     creator: {
         deepDive: [
-            "Voice DNA (1 Profile)",
+            "Voice DNA (1 Brand Identity)",
             "Standard Flux Images",
             "Content Vault (Auto-Save)",
             "Single Post Generation"
         ],
-        // NOUTATE: Lista de feature-uri care lipsesc
+        // Feature-uri care LIPSESC din Creator (pentru a motiva upgrade-ul)
         unavailable: [
             { name: "Remix Mode", upgradeTo: "Pro" },
             { name: "Visual-Text Sync", upgradeTo: "Pro" },
             { name: "Real-Time Data (News)", upgradeTo: "Pro" },
             { name: "DALL-E 3 HD Images", upgradeTo: "Pro" }
         ],
-        competitor: "Better than Canva Pro ($15) because we write the strategy, not just design."
+        competitor: "Better value than Canva Pro ($15) because we handle the strategy & writing."
     },
     pro: {
         deepDive: [
-            "Unlimited Voice DNA",
+            "Unlimited Voice DNA Profiles",
             "Real-Time Data (Perplexity)",
             "Premium DALL-E 3 Images",
             "Smart Contextual Memory",
             "Priority Remix Mode"
         ],
+        // Feature-uri care LIPSESC din Pro
         unavailable: [
             { name: "White-label Reporting", upgradeTo: "Agency" },
             { name: "API Access", upgradeTo: "Agency" },
             { name: "Team Collaboration", upgradeTo: "Agency" }
         ],
-        competitor: "Much cheaper than Jasper ($49) + Midjourney ($30). You get the full suite."
+        competitor: "Cheaper than Jasper ($49) + Midjourney ($30) combined."
     },
     agency: {
         deepDive: [
@@ -67,12 +68,12 @@ const PLAN_EXTENSIONS: any = {
             "Custom API Integrations",
             "Dedicated Account Manager"
         ],
-        unavailable: [], // Agency are totul
+        unavailable: [], // Agency are totul inclus
         competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
     }
 };
 
-// Componenta Simpla pentru Iconita Google
+// Componenta Simpla pentru Iconita Google (svg inline)
 const GoogleIcon = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
@@ -89,6 +90,7 @@ interface LandingPageProps {
 }
 
 export function LandingPage({ onLogin }: LandingPageProps) {
+  // State pentru Toggle-ul din How It Works
   const [activeScenario, setActiveScenario] = useState<'new' | 'existing'>('new');
 
   return (
@@ -169,7 +171,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         </div>
       </section>
 
-      {/* --- HOW IT WORKS --- */}
+      {/* --- HOW IT WORKS (SCENARIOS: NEW vs VAULT) --- */}
       <section className="py-24 px-6 bg-[#0a0c10]">
           <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
@@ -195,17 +197,19 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
               {/* DYNAMIC STEPS CONTAINER */}
               <div className="relative mt-16">
+                  {/* Background Line (Desktop only) */}
                   <div className="hidden md:block absolute top-12 left-20 right-20 h-0.5 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 -z-10" />
 
                   <div className="flex flex-col md:flex-row justify-between gap-8 md:gap-4 relative">
                       
                       {activeScenario === 'new' ? (
+                        /* SCENARIUL 1: STANDARD (User Nou) */
                         <>
                            <StepCard 
                               number={1} 
                               icon={<Fingerprint size={32} className="text-blue-400" />} 
                               title="Define Brand Identity" 
-                              desc="Input your niche & tone. The AI builds your 'Voice DNA' so content feels human."
+                              desc={<span>Input your niche & tone. The AI builds your <strong>Voice DNA</strong> so content feels human.</span>}
                               color="blue"
                            />
                            <StepArrow />
@@ -213,7 +217,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                               number={2} 
                               icon={<Zap size={32} className="text-blue-400" />} 
                               title="Generate Strategy" 
-                              desc="Select a goal (Viral/Sales). The AI writes the copy and creates standard visuals."
+                              desc={<span>Select a goal (Viral/Sales). The AI writes the copy and creates <strong>Standard Visuals</strong>.</span>}
                               color="blue"
                            />
                            <StepArrow />
@@ -221,17 +225,18 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                               number={3} 
                               icon={<Database size={32} className="text-blue-400" />} 
                               title="Publish & Auto-Save" 
-                              desc="Post to socials. The content is automatically saved to your Vault for later."
+                              desc={<span>Post to socials. The content is automatically saved to your <strong>Vault</strong> for later.</span>}
                               color="blue"
                            />
                         </>
                       ) : (
+                        /* SCENARIUL 2: PREMIUM / VAULT (Power User) */
                         <>
                            <StepCard 
                               number={1} 
                               icon={<History size={32} className="text-purple-400" />} 
                               title="Select from Vault" 
-                              desc="Pick a past high-performer. The AI analyzes *why* it worked using your Brand Voice history."
+                              desc={<span>Pick a past high-performer. The AI analyzes <strong>why it worked</strong> using your Brand Voice.</span>}
                               color="purple"
                            />
                            <StepArrow color="purple" />
@@ -239,7 +244,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                               number={2} 
                               icon={<Repeat size={32} className="text-purple-400" />} 
                               title="Omnichannel Remix" 
-                              desc="Instantly turn that 1 post into a Thread, Script, and Newsletter using GPT-4o."
+                              desc={<span>Instantly turn that 1 post into a Thread, Script, and Newsletter using <strong>Remix Mode</strong>.</span>}
                               color="purple"
                            />
                            <StepArrow color="purple" />
@@ -247,7 +252,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                               number={3} 
                               icon={<ImageIcon size={32} className="text-purple-400" />} 
                               title="High-End Production" 
-                              desc="Generates DALL-E 3 visuals with perfectly synced text overlays ready for 4K screens."
+                              desc={<span>Generates <strong>DALL-E 3</strong> visuals with perfectly synced text overlays.</span>}
                               color="purple"
                            />
                         </>
@@ -265,10 +270,11 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 <p className="text-gray-400">Choose the power you need. Upgrade anytime.</p>
             </div>
 
-            {/* LIFETIME DEAL */}
+            {/* 1. LIFETIME DEAL BANNER */}
             <div className="max-w-4xl mx-auto mb-16 p-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
                 <div className="bg-[#161b22] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] -z-10" />
+                    
                     <div className="flex-1 text-center md:text-left">
                         <div className="inline-block bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 animate-pulse">
                             Founding Member Offer
@@ -279,6 +285,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                             One payment of <strong>$97</strong>. Keep it forever.
                         </p>
                     </div>
+
                     <div className="text-center">
                         <div className="flex items-center gap-2 justify-center md:justify-end mb-1">
                              <span className="text-gray-500 line-through decoration-red-500 decoration-2 text-lg">$297</span>
@@ -291,9 +298,10 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
             </div>
 
-            {/* MONTHLY SUBSCRIPTIONS */}
+            {/* 2. MONTHLY SUBSCRIPTIONS */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                 
+                {/* CREATOR */}
                 <PricingCardLanding 
                     plan={PLANS.creator}
                     desc="For Side-hustlers & Solopreneurs."
@@ -302,6 +310,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     planType="creator"
                 />
 
+                {/* PRO */}
                 <PricingCardLanding 
                     plan={PLANS.pro}
                     desc="For Influencers & Growing Brands."
@@ -312,6 +321,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     planType="pro"
                 />
 
+                {/* AGENCY */}
                 <PricingCardLanding 
                     plan={PLANS.agency}
                     desc="For Scale & Client Management."
@@ -334,7 +344,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
   );
 }
 
-// --- SUB-COMPONENTS ---
+// --- SUB-COMPONENTS & HELPERS ---
 
 function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: string }) {
     return (
@@ -377,7 +387,7 @@ function StepArrow({ color }: { color?: string }) {
 function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlight, planType }: any) {
     const [isExpanded, setIsExpanded] = useState(false);
     
-    // Extragem datele: features incluse (deepDive) si cele excluse (unavailable)
+    // Extragem datele specifice: features incluse (deepDive) si cele excluse (unavailable)
     const extraDetails = PLAN_EXTENSIONS[planType] || { deepDive: [], unavailable: [], competitor: "" };
     
     const includedFeatures = extraDetails.deepDive || [];
@@ -407,7 +417,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 <span className="text-gray-500 text-xs">/mo</span>
             </div>
 
-            {/* Listam feature-urile principale (Incluse) */}
+            {/* Listam feature-urile principale (Mereu vizibile) */}
             <div className="space-y-3 mb-6">
                 {plan.features.map((feature: string, idx: number) => (
                     <div key={idx} className="flex items-start gap-2">
@@ -417,11 +427,11 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                 ))}
             </div>
 
-            {/* EXTENDED DETAILS (TOGGLE) */}
+            {/* EXTENDED DETAILS (TOGGLE) - Aici este partea de Extend */}
             <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isExpanded ? 'max-h-[800px] opacity-100 mb-6' : 'max-h-0 opacity-0 mb-0'}`}>
                 <div className="pt-4 border-t border-gray-800 space-y-4">
                     
-                    {/* Feature-uri INCLUSE detaliat */}
+                    {/* Feature-uri INCLUSE detaliat (Deep Dive) */}
                     <div>
                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Deep Dive</p>
                         <ul className="space-y-2 mb-4">
@@ -434,7 +444,7 @@ function PricingCardLanding({ plan, desc, btnLabel, onAction, isPopular, highlig
                         </ul>
                     </div>
 
-                    {/* Feature-uri UNAVAILABLE (Disabled) - NOU */}
+                    {/* Feature-uri UNAVAILABLE (Disabled - cu lacat) */}
                     {unavailableFeatures.length > 0 && (
                         <div>
                              <p className="text-[10px] font-bold text-red-900/70 uppercase tracking-wider mb-2">Missing in this plan</p>
