@@ -1,37 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Sparkles, Link as LinkIcon, 
   Upload, Hash, Palette, Check, RefreshCw 
 } from 'lucide-react';
+import { BrandProfile } from '../types';
 
 interface BrandProfileModalProps {
-  isOpen: boolean;
+  // Aici pastram prop-urile vechi ca sa nu se strice App.tsx
+  currentProfile: BrandProfile | null;
+  onSave: (profile: BrandProfile) => Promise<void>;
   onClose: () => void;
+  // isOpen nu e nevoie in App.tsx pentru ca faci condition rendering {isOpen && ...}
 }
 
 type Tab = 'core' | 'visuals' | 'strategy';
 
-// AM REDENUMIT FUNCTIA AICI DIN BrandIdentityModal IN BrandProfileModal
-export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
+export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProfileModalProps) {
   const [activeTab, setActiveTab] = useState<Tab>('core');
+  const [isSaving, setIsSaving] = useState(false);
   
   // State pentru Magic Analyzer
   const [urlInput, setUrlInput] = useState('');
-  const [textInput, setTextInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // State pentru Sliders (Voice DNA)
+  // -- STATE-URILE BRANDULUI (Initializate din currentProfile) --
+  const [voiceDNA, setVoiceDNA] = useState(currentProfile?.voiceDNA || '');
+  const [industry, setIndustry] = useState(currentProfile?.industry || '');
+  const [language, setLanguage] = useState(currentProfile?.language || 'English');
+  const [targetAudience, setTargetAudience] = useState(currentProfile?.targetAudience || '');
+  
+  // Mock Visuals & Strategy (pentru demo, daca nu exista in BrandProfile)
+  const [brandColors, setBrandColors] = useState(['#3B82F6', '#8B5CF6', '#FFFFFF']);
+  const [hashtags, setHashtags] = useState('#MyBrand #MyNiche');
+
+  // Sliders State (Voice DNA Visualizer)
   const [sliders, setSliders] = useState({
     tone: 50,   // 0 = Casual, 100 = Formal
     emoji: 50,  // 0 = Minimal, 100 = Heavy
     length: 50  // 0 = Short/Punchy, 100 = Storytelling
   });
-
-  // State pentru Visuals & Strategy (Mock Data)
-  const [brandColors, setBrandColors] = useState(['#3B82F6', '#8B5CF6', '#FFFFFF']);
-  const [hashtags, setHashtags] = useState('#MyBrand #MyNiche');
-
-  if (!isOpen) return null;
 
   // Simulare Analiză AI (Magic Brand Analyzer)
   const handleAnalyze = () => {
@@ -43,16 +50,36 @@ export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
       
       // LOGICA MOCK: Setam sliderele bazat pe ce a "gasit" AI-ul
       setSliders({
-        tone: 75,   // A detectat un ton destul de formal
-        emoji: 30,  // Foloseste putine emoji-uri
-        length: 65  // Scrie postari medii spre lungi
+        tone: 75,
+        emoji: 30,
+        length: 65
       });
 
-      // Feedback vizual ca a citit ceva
-      if (!textInput && urlInput) {
-        setTextInput("Analysis complete based on content from: " + urlInput);
-      }
+      // Auto-fill Inputs daca sunt goale
+      if (!industry) setIndustry("Tech / SaaS");
+      if (!targetAudience) setTargetAudience("Entrepreneurs and Marketers");
+      if (!voiceDNA) setVoiceDNA(`Analyzed Tone from ${urlInput}: Professional, authoritative, concise.`);
     }, 1500);
+  };
+
+  const handleSave = async () => {
+      setIsSaving(true);
+      const updatedProfile: BrandProfile = {
+          name: currentProfile?.name || 'My Brand', // Fallback
+          industry,
+          targetAudience,
+          voiceDNA, // Aici se salveaza textul rezultat din analiza sau slidere
+          language
+      };
+
+      try {
+          await onSave(updatedProfile);
+          onClose();
+      } catch (error) {
+          console.error("Failed to save brand:", error);
+      } finally {
+          setIsSaving(false);
+      }
   };
 
   return (
@@ -119,12 +146,12 @@ export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
 
                     <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider">OR</div>
 
-                    {/* Text Area */}
+                    {/* Text Area (Voice DNA Manual) */}
                     <textarea 
-                        placeholder="Paste bio, best performing captions, or mission statement here..."
+                        placeholder="Paste bio, best performing captions, or describe your voice manually..."
                         className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[80px] focus:outline-none focus:border-blue-500 transition resize-none"
-                        value={textInput}
-                        onChange={(e) => setTextInput(e.target.value)}
+                        value={voiceDNA}
+                        onChange={(e) => setVoiceDNA(e.target.value)}
                     />
                  </div>
 
@@ -146,7 +173,7 @@ export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
                  </button>
               </div>
 
-              {/* VOICE DNA SLIDERS (NEW FEATURE) */}
+              {/* VOICE DNA SLIDERS (NEW FEATURE - VISUALIZER) */}
               <div>
                   <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Voice DNA Profile</h3>
                   
@@ -182,14 +209,19 @@ export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
                   </div>
               </div>
 
-              {/* MANUAL OVERRIDES */}
+              {/* MANUAL OVERRIDES (Inputs Standard) */}
               <div className="grid grid-cols-2 gap-4">
                   <div>
                       <label className="text-xs text-gray-400 block mb-1.5">Language</label>
-                      <select className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
-                          <option>English (US)</option>
-                          <option>Romanian</option>
-                          <option>Spanish</option>
+                      <select 
+                        value={language}
+                        onChange={(e) => setLanguage(e.target.value)}
+                        className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                      >
+                          <option value="English">English (US)</option>
+                          <option value="Romanian">Romanian</option>
+                          <option value="Spanish">Spanish</option>
+                          <option value="French">French</option>
                       </select>
                   </div>
                   <div>
@@ -197,8 +229,20 @@ export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
                       <input 
                         type="text" 
                         placeholder="e.g. Crypto, Fashion"
+                        value={industry}
+                        onChange={(e) => setIndustry(e.target.value)}
                         className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
                       />
+                  </div>
+                  <div className="col-span-2">
+                       <label className="text-xs text-gray-400 block mb-1.5">Target Audience</label>
+                       <input 
+                        type="text"
+                        placeholder="e.g. Busy moms, Startup Founders"
+                        value={targetAudience}
+                        onChange={(e) => setTargetAudience(e.target.value)}
+                        className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500"
+                       />
                   </div>
               </div>
 
@@ -280,11 +324,20 @@ export function BrandProfileModal({ isOpen, onClose }: BrandProfileModalProps) {
 
         {/* --- FOOTER --- */}
         <div className="p-6 border-t border-gray-800 flex justify-end gap-3 bg-[#0f1115]">
-          <button onClick={onClose} className="px-5 py-2.5 text-sm text-gray-400 hover:text-white font-medium transition">
+          <button 
+            onClick={onClose} 
+            disabled={isSaving}
+            className="px-5 py-2.5 text-sm text-gray-400 hover:text-white font-medium transition disabled:opacity-50"
+          >
             Cancel
           </button>
-          <button onClick={onClose} className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-blue-900/20 flex items-center gap-2 transition">
-            <Check size={16} /> Save Brand
+          <button 
+            onClick={handleSave} 
+            disabled={isSaving}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-blue-900/20 flex items-center gap-2 transition disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isSaving ? <RefreshCw className="animate-spin" size={16}/> : <Check size={16} />} 
+            {isSaving ? 'Saving...' : 'Save Brand'}
           </button>
         </div>
 
