@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, Sparkles, Link as LinkIcon, 
   Upload, Hash, Palette, Check, RefreshCw, 
-  User, UserCheck, Copy, Ban, MessageSquare
+  User, UserCheck, Copy, Ban, MessageSquare, Plus, Trash2
 } from 'lucide-react';
 import { BrandProfile } from '../types';
 import { analyzeBrandVoice } from '../services/geminiService';
@@ -13,7 +13,7 @@ interface BrandProfileModalProps {
   onClose: () => void;
 }
 
-type Tab = 'core' | 'visuals' | 'rules'; // Am schimbat 'strategy' in 'rules'
+type Tab = 'core' | 'visuals' | 'rules';
 type AnalysisMode = 'personal' | 'influencer';
 
 export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProfileModalProps) {
@@ -32,12 +32,13 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   const [language, setLanguage] = useState(currentProfile?.language || 'English');
   const [targetAudience, setTargetAudience] = useState(currentProfile?.targetAudience || '');
   
-  // Visuals
-  const [brandColors, setBrandColors] = useState(['#3B82F6', '#8B5CF6', '#FFFFFF']);
-  
-  // Writing Rules (NOU)
+  // Visuals (Culori + Hex Input)
+  const [brandColors, setBrandColors] = useState<string[]>(['#3B82F6', '#8B5CF6', '#FFFFFF']);
+  const [hexInput, setHexInput] = useState('#');
+
+  // Writing Rules
   const [hashtags, setHashtags] = useState('#MyBrand #MyNiche');
-  const [bannedWords, setBannedWords] = useState('delve, landscape, testament, unlock, tapestry'); // Default anti-AI words
+  const [bannedWords, setBannedWords] = useState('delve, landscape, testament, unlock, tapestry');
   const [ctaStyle, setCtaStyle] = useState('Ask a question to provoke comments');
 
   // Sliders State
@@ -52,7 +53,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const contentToAnalyze = textInput || urlInput;
 
     if (!contentToAnalyze || contentToAnalyze.length < 10) {
-        alert("Please paste some posts (text) from the influencer/brand you want to analyze.");
+        alert("Please paste text from a post, article, or bio to analyze.");
         return;
     }
 
@@ -81,11 +82,24 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     }
   };
 
+  // --- LOGICA CULORI (HEX) ---
+  const handleAddColor = () => {
+      // Validare simpla Hex
+      if (/^#[0-9A-F]{6}$/i.test(hexInput)) {
+          setBrandColors([...brandColors, hexInput]);
+          setHexInput('#'); // Reset
+      } else {
+          alert("Please enter a valid Hex code (e.g. #124444)");
+      }
+  };
+
+  const removeColor = (colorToRemove: string) => {
+      setBrandColors(brandColors.filter(c => c !== colorToRemove));
+  };
+
   const handleSave = async () => {
       setIsSaving(true);
       
-      // Construim un prompt master care include si regulile negative
-      // Asta va fi folosit de backend la generare
       const finalVoiceDNA = `
         ${voiceDNA}
         ---
@@ -99,9 +113,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
           name: currentProfile?.name || 'My Brand',
           industry,
           targetAudience,
-          voiceDNA: finalVoiceDNA, // Salvam totul compactat in VoiceDNA pentru simplitate
+          voiceDNA: finalVoiceDNA,
           language
       };
+
+      // Nota: In viitor poti salva si brandColors in obiectul BrandProfile
+      // daca actualizezi tipul in types.ts
 
       try {
           await onSave(updatedProfile);
@@ -163,10 +180,30 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                  <div className="space-y-3">
                     <div className="relative">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><LinkIcon size={14} /></div>
-                        <input type="text" placeholder={analysisMode === 'influencer' ? "Influencer Social URL (Optional)" : "Your Website URL..."} className="w-full bg-[#0f1115] border border-gray-700 rounded-lg py-2.5 pl-9 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 transition" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
+                        {/* URL INPUT UPDATE */}
+                        <input 
+                            type="text" 
+                            placeholder={analysisMode === 'influencer' ? "Influencer's Blog / Article URL" : "Your Blog / Personal Website URL (No Social Media)"}
+                            className="w-full bg-[#0f1115] border border-gray-700 rounded-lg py-2.5 pl-9 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 transition" 
+                            value={urlInput} 
+                            onChange={(e) => setUrlInput(e.target.value)} 
+                        />
                     </div>
+                    
+                    {/* Helper Text */}
+                    <p className="text-[10px] text-gray-500 px-1">
+                        *Social Media links (LinkedIn, IG) are blocked. Please copy & paste text below.
+                    </p>
+
                     <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider">AND / OR</div>
-                    <textarea placeholder={analysisMode === 'influencer' ? "Paste 2-3 examples of their posts..." : "Paste your bio or past captions..."} className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono" value={textInput} onChange={(e) => setTextInput(e.target.value)} />
+                    
+                    {/* TEXTAREA UPDATE */}
+                    <textarea 
+                        placeholder={analysisMode === 'influencer' ? "Paste 2-3 examples of their best posts here..." : "Paste your bio, mission, or past captions..."} 
+                        className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono" 
+                        value={textInput} 
+                        onChange={(e) => setTextInput(e.target.value)} 
+                    />
                  </div>
 
                  <button onClick={handleAnalyze} disabled={isAnalyzing} className={`w-full mt-4 text-white font-bold py-2.5 rounded-lg transition shadow-lg flex items-center justify-center gap-2 ${analysisMode === 'influencer' ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
@@ -205,7 +242,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             </div>
           )}
 
-          {/* === TAB 2: VISUALS === */}
+          {/* === TAB 2: VISUALS (UPDATED WITH HEX INPUT) === */}
           {activeTab === 'visuals' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                <div>
@@ -222,25 +259,52 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                       </div>
                   </div>
                </div>
+               
+               {/* BRAND COLORS SECTION */}
                <div>
                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Colors</label>
-                   <div className="flex gap-3">
+                   
+                   <div className="flex flex-wrap gap-3 mb-4">
                         {brandColors.map((color, idx) => (
-                            <div key={idx} className="w-16 h-16 rounded-xl shadow-lg border border-gray-700 relative group cursor-pointer" style={{ backgroundColor: color }}>
-                                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><Palette size={16} className="text-white" /></div>
+                            <div key={idx} className="group relative w-16 h-16 rounded-xl shadow-lg border border-gray-700" style={{ backgroundColor: color }}>
+                                {/* Delete Button on Hover */}
+                                <button 
+                                    onClick={() => removeColor(color)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm z-10"
+                                >
+                                    <X size={10} />
+                                </button>
+                                <div className="absolute inset-0 flex items-end justify-center pb-1">
+                                    <span className="text-[9px] font-bold px-1 py-0.5 bg-black/50 rounded text-white">{color}</span>
+                                </div>
                             </div>
                         ))}
-                        <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-700 flex items-center justify-center text-gray-500 hover:border-gray-500 hover:text-gray-300 transition cursor-pointer"><span className="text-xl font-light">+</span></div>
+                   </div>
+
+                   {/* Add Color Input */}
+                   <div className="flex gap-2">
+                       <input 
+                            type="text" 
+                            value={hexInput}
+                            onChange={(e) => setHexInput(e.target.value)}
+                            className="bg-[#1c1c2e] border border-gray-700 text-white rounded-lg px-3 py-2 text-sm w-32 focus:border-blue-500 outline-none"
+                            placeholder="#124444"
+                       />
+                       <button 
+                            onClick={handleAddColor}
+                            className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition"
+                       >
+                           <Plus size={16} /> Add Color
+                       </button>
                    </div>
                </div>
             </div>
           )}
 
-          {/* === TAB 3: WRITING RULES (NEW) === */}
+          {/* === TAB 3: WRITING RULES === */}
           {activeTab === 'rules' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 
-                {/* Banned Words - Anti-AI */}
                 <div className="bg-red-900/10 border border-red-900/30 p-4 rounded-xl">
                    <label className="text-xs font-bold text-red-400 uppercase tracking-wider block mb-2 flex items-center gap-2">
                        <Ban size={14} /> Anti-Robot Filter (Banned Words)
@@ -254,13 +318,11 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                    />
                 </div>
 
-                {/* Hashtags */}
                 <div>
                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-2"><Hash size={14}/> Mandatory Hashtags</label>
                    <input type="text" value={hashtags} onChange={(e) => setHashtags(e.target.value)} className="w-full bg-[#161b22] border border-gray-700 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-blue-500" />
                 </div>
 
-                {/* CTA Style */}
                 <div>
                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-2"><MessageSquare size={14}/> Call to Action Style</label>
                    <select value={ctaStyle} onChange={(e) => setCtaStyle(e.target.value)} className="w-full bg-[#161b22] border border-gray-700 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-blue-500">
