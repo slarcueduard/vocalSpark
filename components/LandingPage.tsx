@@ -8,67 +8,86 @@ import {
 
 // --- MOCK DATA & TYPES ---
 
+// --- DATA & TYPES: SOCIAL SPARK SPECIFIC FEATURES ---
+
 const PLANS = {
   creator: {
     name: "Creator",
     price: 19,
-    features: ["1 Brand Voice", "Basic Text Gen", "Standard Images", "500 Credits/mo"]
+    features: [
+      "1 Voice DNA Profile",           // Specific: Brand Voice
+      "Smart Caption Writer",          // Specific: Text Gen
+      "Flux Standard Visuals",         // Specific: Image Model
+      "500 AI Credits/mo"
+    ]
   },
   pro: {
     name: "Pro",
     price: 49,
-    features: ["Unlimited Voices", "Remix Mode", "Visual-Text Sync", "2000 Credits/mo"]
+    features: [
+      "Unlimited Voice DNA",           // Scale
+      "Omnichannel Remix Mode",        // Killer Feature
+      "Visual-Text Sync",              // Unique Selling Point
+      "2000 AI Credits/mo"
+    ]
   },
   agency: {
     name: "Agency",
     price: 199,
-    features: ["5 Workspaces", "API Access", "White-labeling", "Unlimited Credits"]
+    features: [
+      "5 Client Workspaces",           // Specific Agency needs
+      "Team Collaboration",
+      "White-Label Reports",
+      "Unlimited AI Credits"
+    ]
   }
 };
 
-// Detalii extinse pentru Expand/Extend Button + Feature-uri lipsa (Upsell)
+// Detalii extinse si specifice Social Spark
 const PLAN_EXTENSIONS: any = {
     creator: {
         deepDive: [
-            "Voice DNA (1 Brand Identity)",
-            "Standard Flux Images",
-            "Content Vault (Auto-Save)",
-            "Single Post Generation"
+            "1 Brand Identity (Tone & Niche)",
+            "Single Post Generation (Text + Image)",
+            "The Vault (30-Day History)",
+            "Standard Flux Model (1:1 Ratio)",
+            "Auto-Hashtag Suggestions"
         ],
-        // Feature-uri care LIPSESC din Creator (pentru a motiva upgrade-ul)
+        // Ce pierde userul daca ramane la Creator (Upsell la Pro)
         unavailable: [
-            { name: "Remix Mode", upgradeTo: "Pro" },
-            { name: "Visual-Text Sync", upgradeTo: "Pro" },
-            { name: "Real-Time Data (News)", upgradeTo: "Pro" },
-            { name: "DALL-E 3 HD Images", upgradeTo: "Pro" }
+            { name: "Remix Mode (Repurposing)", upgradeTo: "Pro" },
+            { name: "Visual-Text Sync (Text on Image)", upgradeTo: "Pro" },
+            { name: "Live Trend Hunter (Real-Time Data)", upgradeTo: "Pro" },
+            { name: "DALL-E 3 HD Models", upgradeTo: "Pro" }
         ],
-        competitor: "Better value than Canva Pro ($15) because we handle the strategy & writing."
+        competitor: "Smarter than ChatGPT Plus ($20) because we include Brand Voice & Image Gen in one flow."
     },
     pro: {
         deepDive: [
             "Unlimited Voice DNA Profiles",
-            "Real-Time Data (Perplexity)",
-            "Premium DALL-E 3 Images",
-            "Smart Contextual Memory",
-            "Priority Remix Mode"
+            "Contextual Memory (Reads past Vault posts)",
+            "Live Trend Hunter (Perplexity Integration)",
+            "DALL-E 3 HD Visuals (All Aspect Ratios)",
+            "Priority Processing Speed"
         ],
-        // Feature-uri care LIPSESC din Pro
+        // Ce pierde userul Pro (Upsell la Agency)
         unavailable: [
-            { name: "White-label Reporting", upgradeTo: "Agency" },
+            { name: "Multi-Client Workspaces", upgradeTo: "Agency" },
             { name: "API Access", upgradeTo: "Agency" },
-            { name: "Team Collaboration", upgradeTo: "Agency" }
+            { name: "White-Label Sharing", upgradeTo: "Agency" }
         ],
-        competitor: "Cheaper than Jasper ($49) + Midjourney ($30) combined."
+        competitor: "Cheaper than Jasper ($49) + Midjourney ($30) combined. You get the full Repurposing suite."
     },
     agency: {
         deepDive: [
-            "Strategic Content Calendar",
-            "Team Collaboration (5 Seats)",
-            "White-label Reporting",
+            "5 Separate Client Workspaces",
+            "5 Team Member Seats",
             "Custom API Integrations",
-            "Dedicated Account Manager"
+            "Branded Client Exports (PDF/Link)",
+            "Dedicated Account Manager",
+            "Bulk Content Export"
         ],
-        unavailable: [], // Agency are totul inclus
+        unavailable: [], // Agency are totul
         competitor: "A fraction of the cost of a full marketing agency retainer ($2k+)."
     }
 };
