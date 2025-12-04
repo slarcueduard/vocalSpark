@@ -13,7 +13,7 @@ import {
   updateDoc, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { auth, db } from '../config/firebase'; // Asigura-te ca ai config-ul corect
+import { auth, db } from '../services/firebase';
 import { BrandProfile, UserProfile } from '../types';
 
 interface AuthContextType {
