@@ -5,7 +5,8 @@ import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle } from 'lucide-react'; 
+// AM ADAUGAT 'Fingerprint' LA IMPORTURI
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -16,9 +17,8 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
-// --- LINK-URI PENTRU PLATI (CONFIGUREAZA AICI) ---
-// Inlocuieste acest link cu link-ul tau real de Stripe Payment Link
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/bJe6oH0zEb434FX56SaAw00"; 
+// --- CONFIGURARE LINK PLATA ---
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_..."; // Pune link-ul tau real aici
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
@@ -196,12 +196,10 @@ const SocialSparkApp: React.FC = () => {
           throw new Error("AI returned an empty response. Please try again.");
       }
 
-      // Determinare Tip
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
-      // --- LOGICA CRITICĂ DE SINCRONIZARE ID ---
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, 
           id: crypto.randomUUID(), 
@@ -213,15 +211,12 @@ const SocialSparkApp: React.FC = () => {
           type: p.type || 'post'
       }));
 
-      // Actualizăm UI
       setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
-      // --- AUTO-SAVE ---
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
-          
           for (const postData of newPostsData) {
               try {
                   const savedId = await savePostToHistory(user.uid, postData, topic, limit);
@@ -258,7 +253,7 @@ const SocialSparkApp: React.FC = () => {
         {vibeMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3"><span className="text-xl">✨</span><span className="font-bold text-sm">{vibeMessage}</span></div>}
         {notification && <div className="fixed top-20 right-6 z-50 animate-in fade-in bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex gap-3 cursor-pointer" onClick={() => setCurrentView('history')}><div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div></div>}
         
-        {/* --- TRIAL EXPIRED OVERLAY (FIXED) --- */}
+        {/* --- TRIAL EXPIRED OVERLAY --- */}
         {isTrialExpired && (
             <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl text-center max-w-md w-full shadow-2xl shadow-red-900/20 animate-in fade-in zoom-in duration-300">
@@ -270,14 +265,12 @@ const SocialSparkApp: React.FC = () => {
                     <p className="text-gray-400 mb-8">You've used all your free credits. Upgrade to Pro to continue creating viral content.</p>
                     
                     <div className="space-y-3">
-                        {/* 1. REDIRECT CATRE PLATA */}
                         <button 
                             onClick={() => {
-                                // AICI PUI LINK-UL DE PLATA REAL
-                                if (STRIPE_PAYMENT_LINK.includes("pui_linkul_tau_aici")) {
-                                    alert("Dev: Configureaza STRIPE_PAYMENT_LINK in App.tsx!");
-                                } else {
+                                if (STRIPE_PAYMENT_LINK.includes("buy.stripe.com")) {
                                     window.location.href = STRIPE_PAYMENT_LINK;
+                                } else {
+                                    alert("Dev: Configureaza link-ul Stripe in App.tsx!");
                                 }
                             }}
                             className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition shadow-lg shadow-red-900/30"
@@ -285,7 +278,6 @@ const SocialSparkApp: React.FC = () => {
                             Upgrade to PRO ($12.99)
                         </button>
                         
-                        {/* 2. SIGN OUT FUNCTIONAL */}
                         <button 
                             onClick={() => logout()} 
                             className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 hover:text-white transition border border-gray-700"
@@ -294,10 +286,9 @@ const SocialSparkApp: React.FC = () => {
                         </button>
                     </div>
 
-                    {/* 3. RESET DEV BUTTON */}
                     <button 
                         onClick={() => {
-                            if(confirm("Dev: This will only reload the page. To reset credits, verify Firestore!")) {
+                            if(confirm("Dev: This will reload. Reset in Firebase manually!")) {
                                 window.location.reload(); 
                             }
                         }}
@@ -326,7 +317,34 @@ const SocialSparkApp: React.FC = () => {
                         </header>
                         <div className="space-y-8">
                             <section className="space-y-3">
-                                <div className="flex items-center justify-between"><label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2"><span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}</label>{attachedImage && <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>}</div>
+                                {/* HEADER CU ACTIVE PERSONA (MODIFICAT AICI) */}
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                        <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> 
+                                        {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}
+                                    </label>
+
+                                    <div className="flex items-center gap-3">
+                                        {/* Brand/Persona Badge */}
+                                        {brandProfile && (
+                                            <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                                                <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
+                                                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-900/20 border border-blue-500/30 text-blue-300 text-xs font-medium shadow-sm">
+                                                    <Fingerprint size={12} />
+                                                    <span>{brandProfile.name || "Default"}</span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Image Indicator */}
+                                        {attachedImage && (
+                                            <span className="text-xs text-green-400 flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30">
+                                                <ImageIcon size={12}/> Image Attached
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <div className="relative group">
                                     <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={appMode === 'remix' ? 6 : 3} placeholder={appMode === 'remix' ? "Paste content to remix..." : "E.g. 3 tips for crypto..."} className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" />
                                     <div className="absolute bottom-3 right-3 flex gap-2">
