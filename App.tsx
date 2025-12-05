@@ -16,12 +16,14 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
+// --- LINK-URI PENTRU PLATI (CONFIGUREAZA AICI) ---
+// Inlocuieste acest link cu link-ul tau real de Stripe Payment Link
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/pui_linkul_tau_aici"; 
+
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-  // --- FIX 1: Am adaugat 'logout' in lista de functii extrase din useAuth ---
   const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile, logout } = useAuth();
-  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -256,10 +258,10 @@ const SocialSparkApp: React.FC = () => {
         {vibeMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3"><span className="text-xl">✨</span><span className="font-bold text-sm">{vibeMessage}</span></div>}
         {notification && <div className="fixed top-20 right-6 z-50 animate-in fade-in bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex gap-3 cursor-pointer" onClick={() => setCurrentView('history')}><div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div></div>}
         
-        {/* --- TRIAL EXPIRED OVERLAY (FIXED: LOGOUT & UPGRADE) --- */}
+        {/* --- TRIAL EXPIRED OVERLAY (FIXED) --- */}
         {isTrialExpired && (
-            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl text-center max-w-md w-full shadow-2xl shadow-red-900/20">
+            <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl text-center max-w-md w-full shadow-2xl shadow-red-900/20 animate-in fade-in zoom-in duration-300">
                     <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
                         <Lock size={32} className="text-red-500"/>
                     </div>
@@ -268,28 +270,38 @@ const SocialSparkApp: React.FC = () => {
                     <p className="text-gray-400 mb-8">You've used all your free credits. Upgrade to Pro to continue creating viral content.</p>
                     
                     <div className="space-y-3">
+                        {/* 1. REDIRECT CATRE PLATA */}
                         <button 
-                            onClick={() => alert("Redirecting to Checkout...")}
-                            className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition"
+                            onClick={() => {
+                                // AICI PUI LINK-UL DE PLATA REAL
+                                if (STRIPE_PAYMENT_LINK.includes("pui_linkul_tau_aici")) {
+                                    alert("Dev: Configureaza STRIPE_PAYMENT_LINK in App.tsx!");
+                                } else {
+                                    window.location.href = STRIPE_PAYMENT_LINK;
+                                }
+                            }}
+                            className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition shadow-lg shadow-red-900/30"
                         >
                             Upgrade to PRO ($12.99)
                         </button>
                         
+                        {/* 2. SIGN OUT FUNCTIONAL */}
                         <button 
-                            onClick={() => logout()} // AICI FOLOSIM LOGOUT CORECT
-                            className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 transition"
+                            onClick={() => logout()} 
+                            className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 hover:text-white transition border border-gray-700"
                         >
                             Sign Out
                         </button>
                     </div>
 
+                    {/* 3. RESET DEV BUTTON */}
                     <button 
                         onClick={() => {
-                            if(confirm("Dev: Reset Credits?")) {
+                            if(confirm("Dev: This will only reload the page. To reset credits, verify Firestore!")) {
                                 window.location.reload(); 
                             }
                         }}
-                        className="mt-6 text-[10px] text-gray-700 hover:text-gray-500 cursor-pointer"
+                        className="mt-8 text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer transition"
                     >
                         [Dev Mode: How to Reset?]
                     </button>
