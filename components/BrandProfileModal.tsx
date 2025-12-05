@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Sparkles, Link as LinkIcon, 
   Upload, Hash, Palette, Check, RefreshCw, 
@@ -20,6 +20,9 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   const [activeTab, setActiveTab] = useState<Tab>('core');
   const [isSaving, setIsSaving] = useState(false);
   
+  // Ref pentru input-ul de fisier (ascuns)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('personal');
   const [urlInput, setUrlInput] = useState('');
   const [textInput, setTextInput] = useState('');
@@ -34,6 +37,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   // Visuals
   const [brandColors, setBrandColors] = useState<string[]>(['#3B82F6', '#8B5CF6', '#FFFFFF']);
   const [hexInput, setHexInput] = useState('#');
+  const [logoPreview, setLogoPreview] = useState<string | null>(null); // State pentru LOGO
 
   // Writing Rules
   const [hashtags, setHashtags] = useState('#MyBrand #MyNiche');
@@ -42,8 +46,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
   const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
 
-  // --- FIX CRITIC: Sincronizare cu datele salvate ---
-  // De fiecare data cand se deschide modalul sau se incarca profilul, actualizam campurile
+  // --- POPULARE DATE ---
   useEffect(() => {
     if (currentProfile) {
         setVoiceDNA(currentProfile.voiceDNA || '');
@@ -51,16 +54,17 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         setLanguage(currentProfile.language || 'English');
         setTargetAudience(currentProfile.targetAudience || '');
         
-        // Daca ai salvat si alte campuri in voiceDNA (formatul impachetat), ar trebui extrase aici
-        // Dar pentru MVP, simplul fapt ca apare textul in Voice DNA e suficient.
-        
         if (currentProfile.fixedHashtags) setHashtags(currentProfile.fixedHashtags);
         if (currentProfile.brandColors && currentProfile.brandColors.length > 0) {
             setBrandColors(currentProfile.brandColors);
         }
+        if (currentProfile.logoUrl) {
+            setLogoPreview(currentProfile.logoUrl);
+        }
     }
   }, [currentProfile]);
 
+  // --- LOGICA ANALIZA ---
   const handleAnalyze = async () => {
     const contentToAnalyze = textInput || urlInput;
     if (!contentToAnalyze || contentToAnalyze.length < 10) {
@@ -87,6 +91,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     }
   };
 
+  // --- LOGICA CULORI ---
   const handleAddColor = () => {
       if (/^#[0-9A-F]{6}$/i.test(hexInput)) {
           setBrandColors([...brandColors, hexInput]);
@@ -100,10 +105,34 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
       setBrandColors(brandColors.filter(c => c !== colorToRemove));
   };
 
+  // --- LOGICA LOGO UPLOAD (NOU) ---
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+        // Verificam dimensiunea (max 2MB pentru Base64 in Firestore)
+        if (file.size > 2 * 1024 * 1024) {
+            alert("File is too large. Please upload a logo under 2MB.");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            // Convertim in Base64 string pentru a salva direct in DB (metoda simpla MVP)
+            const base64String = reader.result as string;
+            setLogoPreview(base64String);
+        };
+        reader.readAsDataURL(file);
+    }
+  };
+
+  const triggerFileInput = () => {
+      fileInputRef.current?.click();
+  };
+
+  // --- SAVE ---
   const handleSave = async () => {
       setIsSaving(true);
       
-      // Impachetam regulile in Voice DNA pentru AI
       const finalVoiceDNA = `
         ${voiceDNA}
         ---
@@ -119,10 +148,10 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
           targetAudience,
           voiceDNA: finalVoiceDNA,
           language,
-          // Salvam si campurile individuale ca sa le putem repopula in UI
           fixedHashtags: hashtags, 
           brandColors: brandColors,
-          description: targetAudience // Mapam description la audience
+          logoUrl: logoPreview, // Salvam logo-ul
+          description: targetAudience
       };
 
       try {
@@ -209,7 +238,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                        <label className="text-xs text-gray-400 block mb-1.5">Target Audience</label>
                        <input type="text" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white" />
                   </div>
-                  {/* Afisam si Voice DNA pentru editare manuala */}
                   <div className="col-span-2">
                        <label className="text-xs text-gray-400 block mb-1.5">Generated Voice DNA (Editable)</label>
                        <textarea value={voiceDNA} onChange={(e) => setVoiceDNA(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white h-24" />
@@ -218,22 +246,51 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             </div>
           )}
 
-          {/* TAB 2: VISUALS */}
+          {/* TAB 2: VISUALS (ACUM CU UPLOAD FUNCTIONAL) */}
           {activeTab === 'visuals' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
                <div>
                   <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Logo</label>
+                  
+                  {/* INPUT FILE ASCUNS */}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                    accept="image/png, image/jpeg, image/jpg"
+                  />
+
                   <div className="flex items-center gap-4">
-                      <div className="w-24 h-24 bg-[#1c1c2e] border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:border-blue-500 hover:text-blue-500 transition cursor-pointer group">
-                          <Upload size={24} className="mb-2 group-hover:-translate-y-1 transition-transform" /><span className="text-[10px]">Upload PNG</span>
+                      {/* PREVIEW BOX */}
+                      <div 
+                        onClick={triggerFileInput}
+                        className="w-24 h-24 bg-[#1c1c2e] border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:border-blue-500 hover:text-blue-500 transition cursor-pointer group overflow-hidden relative"
+                      >
+                          {logoPreview ? (
+                              <img src={logoPreview} alt="Logo Preview" className="w-full h-full object-contain p-2" />
+                          ) : (
+                              <>
+                                <Upload size={24} className="mb-2 group-hover:-translate-y-1 transition-transform" />
+                                <span className="text-[10px]">Upload PNG</span>
+                              </>
+                          )}
                       </div>
+
                       <div className="flex-1">
                           <h4 className="text-sm font-bold text-white">Upload PNG (Transparent)</h4>
-                          <p className="text-xs text-gray-500 mt-1">The AI will use this for image branding.</p>
-                          <button className="mt-3 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded border border-gray-600 transition">Choose File</button>
+                          <p className="text-xs text-gray-500 mt-1">Max 2MB. The AI will try to place this logo on generated images.</p>
+                          <button 
+                            onClick={triggerFileInput}
+                            className="mt-3 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded border border-gray-600 transition"
+                          >
+                              Choose File
+                          </button>
                       </div>
                   </div>
                </div>
+               
+               {/* COLORS SECTION */}
                <div>
                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Colors</label>
                    <div className="flex flex-wrap gap-3 mb-4">
