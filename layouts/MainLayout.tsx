@@ -104,18 +104,33 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             Strategy
           </div>
 
-        {/* BUTON BRAND PROFILE */}
-          <div onClick={onOpenBrandProfile} className="cursor-pointer">
-            <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
-            
-            {brandProfile && (
-                <div className="ml-12 mt-1 p-2 bg-[#1c1c2e] rounded-lg border border-gray-800 text-[10px] text-gray-400 hover:border-gray-600 transition group">
-                    <p className="text-white font-bold mb-1 border-b border-gray-700 pb-1">{brandProfile.name || 'Brand Profile'}</p>
-                    <p><span className="text-blue-400 font-bold">Niche:</span> {brandProfile.industry || '-'}</p>
-                    <p><span className="text-purple-400 font-bold">Lang:</span> {brandProfile.language || 'English'}</p>
-                </div>
-            )}
+       {/* BUTON BRAND PROFILE */}
+<div onClick={onOpenBrandProfile} className="cursor-pointer mt-auto"> {/* Poti pune mt-auto daca vrei sa fie jos */}
+  <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
+  
+  {brandProfile && (
+      <div className="ml-12 mt-2 p-3 bg-[#161b22] rounded-xl border border-gray-800/50 text-[10px] text-gray-400 hover:border-gray-600 transition group shadow-inner">
+          {/* Numele Profilului */}
+          <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-gray-800">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+              <span className="text-white font-bold truncate">{brandProfile.name || 'Personal Brand'}</span>
           </div>
+          
+          {/* Detalii Extra */}
+          <div className="space-y-1">
+              <div className="flex justify-between">
+                  <span className="text-gray-600">Niche:</span>
+                  <span className="text-blue-400 font-medium truncate max-w-[80px]">{brandProfile.industry || '-'}</span>
+              </div>
+              <div className="flex justify-between">
+                  <span className="text-gray-600">Tone:</span>
+                  {/* Facem un mic "hack" sa afisam un rezumat scurt din VoiceDNA sau un placeholder */}
+                  <span className="text-purple-400 font-medium">Custom AI</span>
+              </div>
+          </div>
+      </div>
+  )}
+</div>
         </nav>
 
         {/* User Profile */}
