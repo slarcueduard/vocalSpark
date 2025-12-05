@@ -52,27 +52,39 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
 
   // --- POPULARE DATE (Cand se schimba profilul activ) ---
+// --- FIX CRITIC: Resetare COMPLETA la schimbarea profilului ---
   useEffect(() => {
     if (currentProfile) {
+        // 1. Populăm datele care există
         setProfileName(currentProfile.name || `Brand #${activeProfileIndex + 1}`);
         setVoiceDNA(currentProfile.voiceDNA || '');
         setIndustry(currentProfile.industry || '');
         setLanguage(currentProfile.language || 'English');
         setTargetAudience(currentProfile.targetAudience || '');
         
-        if (currentProfile.fixedHashtags) setHashtags(currentProfile.fixedHashtags);
+        // 2. Populăm listele și obiectele (cu fallback la default)
+        setHashtags(currentProfile.fixedHashtags || '#MyBrand #MyNiche');
+        
         if (currentProfile.brandColors && currentProfile.brandColors.length > 0) {
             setBrandColors(currentProfile.brandColors);
         } else {
-            setBrandColors(['#3B82F6', '#8B5CF6', '#FFFFFF']);
+            setBrandColors(['#3B82F6', '#8B5CF6', '#FFFFFF']); // Reset la default
         }
-        if (currentProfile.logoUrl) {
-            setLogoPreview(currentProfile.logoUrl);
-        } else {
-            setLogoPreview(null);
-        }
-    }
-  }, [currentProfile, activeProfileIndex]); // Re-ruleaza cand schimbam profilul
+
+        setLogoPreview(currentProfile.logoUrl || null); // Reset la null daca nu are logo
+
+        // 3. IMPORTANT: Resetăm input-urile temporare care nu sunt salvate în profil
+        // Altfel, textul de analiză de la Profilul A rămâne vizibil la Profilul B
+        setUrlInput(''); 
+        setTextInput('');
+        setAnalysisMode('personal'); // Resetam modul la default
+        
+        // Resetam sliderele la o valoare neutra (sau salvata, daca am avea unde)
+        // Daca nu salvam sliderele in DB, le punem default
+        setSliders({ tone: 50, emoji: 50, length: 50 });
+
+    } 
+  }, [currentProfile, activeProfileIndex]); // Dependențe critice
 
   // --- HANDLERS ---
   
