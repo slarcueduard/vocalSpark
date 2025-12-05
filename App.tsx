@@ -18,7 +18,7 @@ import { CalendarView } from './components/CalendarView';
 
 // --- LINK-URI PENTRU PLATI (CONFIGUREAZA AICI) ---
 // Inlocuieste acest link cu link-ul tau real de Stripe Payment Link
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/pui_linkul_tau_aici"; 
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/bJe6oH0zEb434FX56SaAw00"; 
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
