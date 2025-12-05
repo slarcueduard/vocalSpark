@@ -19,17 +19,17 @@ import { BrandProfile, UserProfile } from '../types';
 interface AuthContextType {
   user: User | null;
   userProfile: UserProfile | null;
-  brandProfile: BrandProfile | null; // Profilul ACTIV curent
-  allProfiles: BrandProfile[]; // Toate profilele disponibile
+  brandProfile: BrandProfile | null;
+  allProfiles: BrandProfile[];
   activeProfileIndex: number;
   loading: boolean;
   signIn: () => Promise<void>;
   logout: () => Promise<void>;
-  saveBrandProfile: (profile: BrandProfile) => Promise<void>; // Salveaza profilul ACTIV
-  switchProfile: (index: number) => Promise<void>; // Schimba profilul activ
-  addNewProfile: () => Promise<void>; // Adauga un profil nou (daca permite planul)
+  saveBrandProfile: (profile: BrandProfile) => Promise<void>;
+  switchProfile: (index: number) => Promise<void>;
+  addNewProfile: () => Promise<void>;
   checkCredits: (cost: number) => boolean;
-  isTrialExpired: boolean;
+  isTrialExpired: boolean; // Variabila care blocheaza ecranul
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -46,9 +46,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const [loading, setLoading] = useState(true);
 
-  // Derivam profilul activ pentru restul aplicatiei
+  // Derivam profilul activ
   const brandProfile = allProfiles[activeProfileIndex] || null;
 
+  // --- 1. MONITORIZARE LOGIN ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -63,39 +64,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
+  // --- 2. FETCH DATA (SAFE MODE: NU SUPRASCRIE DATELE EXISTENTE) ---
   const fetchUserData = async (uid: string) => {
     try {
-      // 1. User Profile
+      // 1. User Profile (Abonament & Credite)
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        setUserProfile(userSnap.data() as UserProfile);
+        // DACA EXISTA, IL FOLOSIM (Respectam ce ai pus tu manual in Firebase)
+        const data = userSnap.data() as UserProfile;
+        console.log("✅ User Data Loaded from Firebase:", data);
+        setUserProfile(data);
       } else {
+        // DOAR DACA NU EXISTA, cream unul default (Trial)
+        console.log("⚠️ New User Detected. Creating default profile...");
         const newProfile: UserProfile = {
           uid,
           email: auth.currentUser?.email || '',
-          credits: 150,
-          subscriptionTier: 'creator',
+          credits: 150, // Default Trial Credits
+          subscriptionTier: 'creator', // Default Tier
           createdAt: new Date().toISOString()
         };
         await setDoc(userRef, newProfile);
         setUserProfile(newProfile);
       }
 
-      // 2. Brand Profiles (Multi-Profile Logic)
+      // 2. Brand Profiles
       const brandRef = doc(db, 'brands', uid);
       const brandSnap = await getDoc(brandRef);
 
       if (brandSnap.exists()) {
         const data = brandSnap.data();
-        
-        // Logica de Migrare: Daca avem formatul vechi (fara array 'profiles'), il convertim
         if (data.profiles && Array.isArray(data.profiles)) {
             setAllProfiles(data.profiles);
             setActiveProfileIndex(data.activeIndex || 0);
         } else {
-            // Migram datele vechi in Profilul 1
+            // Migrare date vechi
             const migratedProfile: BrandProfile = {
                 name: data.name || 'Personal Brand',
                 industry: data.industry || '',
@@ -108,12 +113,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
             setAllProfiles([migratedProfile]);
             setActiveProfileIndex(0);
-            
-            // Salvam structura noua in DB
             await setDoc(brandRef, { profiles: [migratedProfile], activeIndex: 0 }, { merge: true });
         }
       } else {
-        // Doc nou
+        // Default Brand
         const defaultProfile: BrandProfile = {
           name: 'Personal Brand',
           industry: '',
@@ -141,13 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try { await signOut(auth); } catch (error) { console.error("Error signing out", error); }
   };
 
-  // --- LOGICA MULTI-PROFILE ---
-
   const switchProfile = async (index: number) => {
       if (index >= 0 && index < allProfiles.length) {
           setActiveProfileIndex(index);
           if (user) {
-              // Persistenta selectiei
               const brandRef = doc(db, 'brands', user.uid);
               await updateDoc(brandRef, { activeIndex: index });
           }
@@ -156,8 +156,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const addNewProfile = async () => {
       if (!user) return;
-      
-      // Limite Planuri
       const tier = userProfile?.subscriptionTier || 'creator';
       const limit = tier === 'agency' ? 5 : (tier === 'pro' ? 2 : 1);
       
@@ -181,20 +179,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setActiveProfileIndex(newIndex);
 
       const brandRef = doc(db, 'brands', user.uid);
-      await setDoc(brandRef, { 
-          profiles: newProfilesList, 
-          activeIndex: newIndex 
-      }, { merge: true });
+      await setDoc(brandRef, { profiles: newProfilesList, activeIndex: newIndex }, { merge: true });
   };
 
   const saveBrandProfile = async (updatedActiveProfile: BrandProfile) => {
     if (!user) return;
     try {
-      // Updatam doar profilul activ in lista
       const newProfilesList = [...allProfiles];
       newProfilesList[activeProfileIndex] = updatedActiveProfile;
-      
-      setAllProfiles(newProfilesList); // Update local instant
+      setAllProfiles(newProfilesList); 
 
       const brandRef = doc(db, 'brands', user.uid);
       await setDoc(brandRef, {
@@ -202,19 +195,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeIndex: activeProfileIndex,
         updatedAt: serverTimestamp()
       }, { merge: true });
-      
-      console.log("Profile saved!");
     } catch (error) {
       console.error("Error saving brand:", error);
       throw error;
     }
   };
 
+  // --- LOGICA DE PLATA ---
   const checkCredits = (cost: number) => {
     if (!userProfile) return false;
     if (userProfile.credits >= cost) {
       const newCredits = userProfile.credits - cost;
       setUserProfile({ ...userProfile, credits: newCredits });
+      
       if (user) {
         const userRef = doc(db, 'users', user.uid);
         updateDoc(userRef, { credits: newCredits });
@@ -224,7 +217,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   };
 
-  const isTrialExpired = (userProfile?.credits || 0) <= 0;
+  // --- LOGICA NOUA PENTRU BLOCARE (TRIAL EXPIRED) ---
+  // Blocam ecranul DOAR DACA userul este pe plan 'trial' (sau creator default) SI nu are credite.
+  // Daca este 'pro' sau 'agency', nu blocam ecranul, doar nu va putea genera (checkCredits va da false).
+  
+  const currentCredits = userProfile?.credits ?? 0;
+  const currentTier = userProfile?.subscriptionTier || 'creator';
+
+  const isTrialExpired = currentCredits <= 0 && (currentTier === 'trial' || currentTier === 'creator');
 
   return (
     <AuthContext.Provider value={{ 
