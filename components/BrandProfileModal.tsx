@@ -222,23 +222,26 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         {/* --- RIGHT MAIN CONTENT --- */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#0f1115]">
             
-            {/* Header */}
-            <div className="p-6 border-b border-gray-800 flex justify-between items-start">
-            <div>
-                <div className="flex items-center gap-2 mb-2">
-                    <input 
-                        type="text" 
-                        value={profileName}
-                        onChange={(e) => setProfileName(e.target.value)}
-                        className="bg-transparent text-xl font-bold text-white outline-none border-b border-transparent hover:border-gray-700 focus:border-blue-500 transition w-full"
-                        placeholder="Profile Name (e.g. Personal)"
-                    />
-                    <div className="bg-blue-600/20 p-1.5 rounded-lg"><Sparkles size={16} className="text-blue-500" /></div>
-                </div>
-                <p className="text-sm text-gray-400">Manage identity for: <span className="text-white">{profileName}</span></p>
-            </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={20} /></button>
-            </div>
+           {/* Header */}
+<div className="p-6 border-b border-gray-800 flex justify-between items-start">
+<div>
+    <div className="flex items-center gap-2 mb-2">
+        {/* AICI ESTE INPUTUL DE NUME - IL FACEM MAI EVIDENT */}
+        <input 
+            type="text" 
+            value={profileName}
+            onChange={(e) => setProfileName(e.target.value)}
+            className="bg-transparent text-xl font-bold text-white outline-none border-b border-gray-700 hover:border-blue-500 focus:border-blue-500 transition w-full placeholder-gray-600"
+            placeholder="Name this Profile (e.g. LinkedIn Pro)"
+        />
+        <div className="bg-blue-600/20 p-1.5 rounded-lg"><Sparkles size={16} className="text-blue-500" /></div>
+    </div>
+    <p className="text-sm text-gray-400">
+        This name will appear in Creator Studio as: <span className="text-blue-400 font-mono">"Writing as: {profileName || '...'}"</span>
+    </p>
+</div>
+<button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={20} /></button>
+</div>
 
             {/* Tabs */}
             <div className="flex border-b border-gray-800 bg-[#0f1115]">
