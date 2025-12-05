@@ -14,6 +14,9 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
 
+// --- CONFIGURARE LINK PLATA ---
+const STRIPE_LINK = "https://buy.stripe.com/pui_linkul_tau_aici"; // <-- Pune linkul tau
+
 interface MainLayoutProps {
   children: React.ReactNode;
   onOpenBrandProfile: () => void;
@@ -22,7 +25,11 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange }: MainLayoutProps) {
-  const { userProfile, logout, credits, user, brandProfile } = useAuth(); 
+  // Aici facem corectia: Luam 'userProfile' si extragem 'credits' din el
+  const { userProfile, logout, user, brandProfile } = useAuth(); 
+  
+  const credits = userProfile?.credits ?? 0; // Fallback la 0 daca e null
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isPricingOpen, setIsPricingOpen] = useState(false); 
 
@@ -69,7 +76,6 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             Workspace
           </div>
           
-          {/* BUTON CREATOR STUDIO */}
           <div onClick={() => onViewChange('create')}>
             <NavItem 
                 icon={<LayoutDashboard size={20} />} 
@@ -78,7 +84,6 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             />
           </div>
 
-          {/* BUTON CONTENT VAULT */}
           <div onClick={() => onViewChange('history')}>
             <NavItem 
                 icon={<Archive size={20} />} 
@@ -87,7 +92,6 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             />
           </div>
 
-          {/* BUTON CALENDAR */}
           <div onClick={() => onViewChange('calendar')}>
             <NavItem 
                 icon={<CalendarIcon size={20} />} 
@@ -100,7 +104,6 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             Strategy
           </div>
 
-          {/* BUTON BRAND PROFILE */}
           <div onClick={onOpenBrandProfile} className="cursor-pointer">
             <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
             
@@ -162,7 +165,11 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             </div>
 
             <button 
-              onClick={() => setIsPricingOpen(true)}
+              onClick={() => {
+                  // Deschidem link-ul de Stripe sau Modala de Pricing
+                  // setIsPricingOpen(true); // Daca vrei modal intern
+                  window.open(STRIPE_LINK, "_blank"); // Daca vrei direct la checkout
+              }}
               className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20"
             >
               <Building2 size={14} />
