@@ -63,8 +63,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        setUserProfile(userSnap.data() as UserProfile);
-      } else {
+    const userData = userSnap.data();
+    console.log("🔥 DATA DIN FIREBASE:", userData); // <--- ADAUGA ASTA
+    setUserProfile(userData as UserProfile);
+  } else {
         const newProfile: UserProfile = {
           uid,
           email: auth.currentUser?.email || '',
