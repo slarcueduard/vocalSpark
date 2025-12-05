@@ -104,12 +104,14 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             Strategy
           </div>
 
+        {/* BUTON BRAND PROFILE */}
           <div onClick={onOpenBrandProfile} className="cursor-pointer">
             <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
             
-            {brandProfile && brandProfile.industry && (
+            {brandProfile && (
                 <div className="ml-12 mt-1 p-2 bg-[#1c1c2e] rounded-lg border border-gray-800 text-[10px] text-gray-400 hover:border-gray-600 transition group">
-                    <p><span className="text-blue-400 font-bold">Niche:</span> {brandProfile.industry}</p>
+                    <p className="text-white font-bold mb-1 border-b border-gray-700 pb-1">{brandProfile.name || 'Brand Profile'}</p>
+                    <p><span className="text-blue-400 font-bold">Niche:</span> {brandProfile.industry || '-'}</p>
                     <p><span className="text-purple-400 font-bold">Lang:</span> {brandProfile.language || 'English'}</p>
                 </div>
             )}
