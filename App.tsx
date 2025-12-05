@@ -19,7 +19,9 @@ import { CalendarView } from './components/CalendarView';
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile } = useAuth();
+  // --- FIX 1: Am adaugat 'logout' in lista de functii extrase din useAuth ---
+  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile, logout } = useAuth();
+  
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -66,7 +68,6 @@ const SocialSparkApp: React.FC = () => {
   };
 
   const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
-      // setPosts([]); // Păstrăm postările la schimbarea tab-urilor
       setError(null);
       if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
       else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
@@ -254,48 +255,47 @@ const SocialSparkApp: React.FC = () => {
     >
         {vibeMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3"><span className="text-xl">✨</span><span className="font-bold text-sm">{vibeMessage}</span></div>}
         {notification && <div className="fixed top-20 right-6 z-50 animate-in fade-in bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex gap-3 cursor-pointer" onClick={() => setCurrentView('history')}><div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div></div>}
-        {/* --- TRIAL EXPIRED OVERLAY (FIXED) --- */}
-{isTrialExpired && (
-    <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
-        <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl text-center max-w-md w-full shadow-2xl shadow-red-900/20">
-            <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Lock size={32} className="text-red-500"/>
-            </div>
-            
-            <h2 className="text-2xl font-bold text-white mb-2">Trial Expired</h2>
-            <p className="text-gray-400 mb-8">You've used all your free credits. Upgrade to Pro to continue creating viral content.</p>
-            
-            <div className="space-y-3">
-                <button className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition">
-                    Upgrade to PRO ($12.99)
-                </button>
-                
-                {/* Butonul de Logout cerut */}
-                <button 
-                    onClick={() => {
-                        auth.signOut(); // Folosim auth direct sau functia logout din useAuth
-                        window.location.reload();
-                    }}
-                    className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 transition"
-                >
-                    Sign Out
-                </button>
-            </div>
+        
+        {/* --- TRIAL EXPIRED OVERLAY (FIXED: LOGOUT & UPGRADE) --- */}
+        {isTrialExpired && (
+            <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+                <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl text-center max-w-md w-full shadow-2xl shadow-red-900/20">
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Lock size={32} className="text-red-500"/>
+                    </div>
+                    
+                    <h2 className="text-2xl font-bold text-white mb-2">Trial Expired</h2>
+                    <p className="text-gray-400 mb-8">You've used all your free credits. Upgrade to Pro to continue creating viral content.</p>
+                    
+                    <div className="space-y-3">
+                        <button 
+                            onClick={() => alert("Redirecting to Checkout...")}
+                            className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition"
+                        >
+                            Upgrade to PRO ($12.99)
+                        </button>
+                        
+                        <button 
+                            onClick={() => logout()} // AICI FOLOSIM LOGOUT CORECT
+                            className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 transition"
+                        >
+                            Sign Out
+                        </button>
+                    </div>
 
-            {/* Buton SECRET pentru resetare (doar pentru tine, scoate-l in productie) */}
-            <button 
-                onClick={() => {
-                    // Hack rapid: Resetam creditele in localStorage sau reincarcam pagina
-                    // In realitate, trebuie sa intri in Firebase Console -> Firestore -> users -> ID -> schimbi creditele
-                    alert("Pentru a reseta creditele, mergi in Firebase Console -> Firestore -> users -> Editeaza 'credits' la 500.");
-                }}
-                className="mt-6 text-[10px] text-gray-700 hover:text-gray-500 cursor-pointer"
-            >
-                [Dev Mode: How to Reset?]
-            </button>
-        </div>
-    </div>
-)}
+                    <button 
+                        onClick={() => {
+                            if(confirm("Dev: Reset Credits?")) {
+                                window.location.reload(); 
+                            }
+                        }}
+                        className="mt-6 text-[10px] text-gray-700 hover:text-gray-500 cursor-pointer"
+                    >
+                        [Dev Mode: How to Reset?]
+                    </button>
+                </div>
+            </div>
+        )}
 
         {currentView === 'history' ? <HistoryView /> : currentView === 'calendar' ? <CalendarView onNavigateToVault={() => setCurrentView('history')} /> : (
             <div className="flex h-full gap-6 relative">
