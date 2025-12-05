@@ -23,7 +23,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: () => Promise<void>;
   logout: () => Promise<void>;
-  saveBrandProfile: (profile: BrandProfile) => Promise<void>; // Functia critica
+  saveBrandProfile: (profile: BrandProfile) => Promise<void>;
   checkCredits: (cost: number) => boolean;
   isTrialExpired: boolean;
 }
@@ -44,10 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(currentUser);
       
       if (currentUser) {
-        // Daca userul e logat, incercam sa luam datele din DB
         await fetchUserData(currentUser.uid);
       } else {
-        // Daca nu e logat, resetam tot
         setUserProfile(null);
         setBrandProfile(null);
       }
@@ -57,21 +55,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
-  // 2. FETCH DATA DIN FIREBASE (Profil + Brand)
+  // 2. FETCH DATA DIN FIREBASE
   const fetchUserData = async (uid: string) => {
     try {
-      // a) Luam User Profile (Credite, Plan)
+      // User Profile
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
         setUserProfile(userSnap.data() as UserProfile);
       } else {
-        // User nou: Cream profil default
         const newProfile: UserProfile = {
           uid,
           email: auth.currentUser?.email || '',
-          credits: 150, // Trial
+          credits: 150,
           subscriptionTier: 'creator',
           createdAt: new Date().toISOString()
         };
@@ -79,14 +76,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(newProfile);
       }
 
-      // b) Luam Brand Profile (Voice DNA, Setari) - ASTA E IMPORTANT PENTRU PERSISTENTA
+      // Brand Profile
       const brandRef = doc(db, 'brands', uid);
       const brandSnap = await getDoc(brandRef);
 
       if (brandSnap.exists()) {
         setBrandProfile(brandSnap.data() as BrandProfile);
       } else {
-        // Brand default gol
         setBrandProfile({
           name: 'My Brand',
           industry: '',
@@ -101,9 +97,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 3. LOG IN
+  // 3. LOG IN (MODIFICAT: Cere contul mereu)
   const signIn = async () => {
     const provider = new GoogleAuthProvider();
+    // Aici adaugam setarea care forteaza 'Account Chooser'
+    provider.setCustomParameters({
+      prompt: 'select_account'
+    });
+
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
@@ -120,25 +121,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // 5. SAVE BRAND PROFILE (Functia care face butonul sa mearga)
+  // 5. SAVE BRAND PROFILE
   const saveBrandProfile = async (newProfile: BrandProfile) => {
     if (!user) return;
 
     try {
-      // Salvam local (pentru viteza UI)
       setBrandProfile(newProfile);
-
-      // Salvam in Firebase (pentru persistenta la refresh/logout)
       const brandRef = doc(db, 'brands', user.uid);
       await setDoc(brandRef, {
         ...newProfile,
         updatedAt: serverTimestamp()
-      }, { merge: true }); // 'merge: true' e important sa nu stergem alte campuri
-      
+      }, { merge: true });
       console.log("Brand saved to Firebase successfully!");
     } catch (error) {
       console.error("Error saving brand:", error);
-      throw error; // Aruncam eroarea ca sa o prinda componenta si sa opreasca loaderul
+      throw error;
     }
   };
 
@@ -146,7 +143,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const checkCredits = (cost: number) => {
     if (!userProfile) return false;
     if (userProfile.credits >= cost) {
-      // Scadem creditele local si in DB
       const newCredits = userProfile.credits - cost;
       setUserProfile({ ...userProfile, credits: newCredits });
       
@@ -163,15 +159,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{ 
-      user, 
-      userProfile, 
-      brandProfile, 
-      loading, 
-      signIn, 
-      logout, 
-      saveBrandProfile, 
-      checkCredits,
-      isTrialExpired
+      user, userProfile, brandProfile, loading, 
+      signIn, logout, saveBrandProfile, checkCredits, isTrialExpired
     }}>
       {children}
     </AuthContext.Provider>
