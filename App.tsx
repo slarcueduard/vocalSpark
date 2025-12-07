@@ -61,9 +61,9 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
- const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       setError(null);
-      setPosts([]); // <--- FIX: Golim lista cand schimbam modul
+      // setPosts([]); // <--- AM COMENTAT/STERS ACEASTA LINIE. Acum postarile raman pe ecran.
       
       if (mode === 'single') { 
           setAppMode('creator'); 
