@@ -40,92 +40,85 @@ function extractJsonArray(text: string): any[] {
         let cleanText = text.replace(/```json|```/g, '').trim();
         let parsed = JSON.parse(cleanText);
 
+        // Daca AI-ul returneaza un obiect cu cheia "posts"
         if (parsed.posts && Array.isArray(parsed.posts)) return parsed.posts;
-        if (!Array.isArray(parsed)) return [parsed];
-
-        return parsed;
+        // Daca AI-ul returneaza direct array
+        if (Array.isArray(parsed)) return parsed;
+        // Daca e un singur obiect, il facem array
+        return [parsed];
     } catch (e) {
+        // Fallback: incercam sa gasim array-ul in text
         const start = text.indexOf('[');
         const end = text.lastIndexOf(']');
         if (start !== -1 && end !== -1) {
             try { return JSON.parse(text.substring(start, end + 1)); } catch (e2) {}
         }
-        
-        const objStart = text.indexOf('{');
-        const objEnd = text.lastIndexOf('}');
-        if (objStart !== -1 && objEnd !== -1) {
-             try { return [JSON.parse(text.substring(objStart, objEnd + 1))]; } catch (e3) {}
-        }
-
-        console.error("JSON Parse Error. Raw text:", text);
-        throw new Error("AI response format error. Could not parse JSON.");
+        console.error("JSON Parse Error:", text);
+        throw new Error("AI response format error.");
     }
 }
 
-// --- 1. GENERARE TEXT (OPTIMIZAT: SPEED & PRIORITY) ---
-// ... importuri si helperi existenti ...
-
+// --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
 export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
+    // 1. BRAND CONTEXT
     let brandContext = '';
     if (brandProfile) {
         brandContext = `
-        STYLE & TONE:
-        - Voice DNA: ${brandProfile.voiceDNA || brandVoice}
+        BRAND IDENTITY:
+        - Voice: ${brandProfile.voiceDNA || brandVoice}
         - Audience: ${brandProfile.targetAudience}
-        - Hashtags: ${brandProfile.fixedHashtags || ''}
+        - Keywords/Hashtags: ${brandProfile.fixedHashtags || ''}
         `;
     }
 
+    // 2. LOGICA STRICTA PENTRU NUMARUL DE POSTARI
     let specificInstructions = "";
     
     if (isCampaign) {
-        // --- FIX CRITIC: Instructiuni Explicite pentru Array ---
         specificInstructions = `
-        TASK: Create a ${postCount}-part sequential Campaign.
+        TASK: Generate a **CAMPAIGN SEQUENCE** of exactly ${postCount} posts.
         GOAL: ${objective.toUpperCase()}.
         TOPIC: "${topic}".
         
-        CRITICAL OUTPUT RULE: You MUST return a JSON ARRAY containing exactly ${postCount} separate objects.
-        
         STRUCTURE:
-        1. Object 1: Teaser/Hook post.
-        2. Object 2-${postCount-1}: Value/Educational posts.
-        3. Object ${postCount}: Sales/CTA post.
+        - Post 1: The Hook/Teaser (Attention)
+        - Middle Posts (2 to ${postCount-1}): Value/Education/Trust
+        - Last Post (${postCount}): Sales/Conversion/Call to Action
+        
+        CRITICAL: You MUST return a JSON ARRAY with EXACTLY ${postCount} objects.
         `;
     } else if (isRemix) {
         specificInstructions = `
-        TASK: Remix content into ${remixFormats.length} formats: ${remixFormats.join(', ')}.
+        TASK: Remix content into ${remixFormats.length} distinct formats: ${remixFormats.join(', ')}.
         SOURCE: "${topic}".
-        CRITICAL: Return a JSON ARRAY with ${remixFormats.length} objects, one for each format.
+        CRITICAL: Return exactly ${remixFormats.length} objects.
         `;
     } else {
         specificInstructions = `
-        TASK: Generate ${postCount} variations of a viral post.
+        TASK: Generate ${postCount} distinct variations of a viral post.
         TOPIC: "${topic}".
         GOAL: ${objective.toUpperCase()}.
-        CRITICAL: Return a JSON ARRAY with ${postCount} objects.
+        CRITICAL: Return exactly ${postCount} objects.
         `;
     }
 
+    // 3. SYSTEM PROMPT (Strict Output Format)
     const systemPrompt = `
-    You are an expert Social Media AI.
-    Write in ${language}. Be concise. No fluff.
+    You are a Viral Social Media AI. Write in ${language}.
+    Be concise. No corporate fluff.
     
     ${brandContext}
     
     ${specificInstructions}
     
-    OUTPUT JSON FORMAT ONLY:
+    OUTPUT FORMAT (STRICT JSON ARRAY):
     [
-      {
-        "platform": "Platform Name",
-        "content": "Post text here...",
-        "imagePrompt": "Visual description..."
-      },
-      ... (repeat for required count)
+      { "platform": "Platform Name", "content": "Post 1 content..." },
+      { "platform": "Platform Name", "content": "Post 2 content..." }
+      ... (ensure there are exactly ${isRemix ? remixFormats.length : postCount} items)
     ]
     `;
 
@@ -140,7 +133,6 @@ export async function generateSocialMediaPosts(
 
         const parsed = extractJsonArray(data.output);
         
-        // Dubla verificare
         if(Array.isArray(parsed)) {
             return parsed.map((p: any) => {
                 let content = p.content || p.post || p.text || p.body || p;
@@ -148,7 +140,7 @@ export async function generateSocialMediaPosts(
 
                 return { 
                     content: content,
-                    type: p.type || (isCampaign ? 'campaign_post' : 'post'), // Backend-ul poate nu trimite type, il punem noi
+                    type: p.type || (isCampaign ? 'campaign_post' : 'post'),
                     platform: p.platform || (isRemix ? 'Remix' : 'Generic')
                 };
             });
@@ -159,9 +151,8 @@ export async function generateSocialMediaPosts(
         return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
     }
 }
-// ... restul fisierului ...
 
-// --- 2. GENERARE IMAGINI (STANDARD CLIENT-SIDE + PREMIUM SERVER-SIDE) ---
+// --- 2. GENERARE IMAGINI ---
 export async function generateImageForPost(
     postText: string, 
     isPremium: boolean = false, 
@@ -169,14 +160,13 @@ export async function generateImageForPost(
     brandColors: string[] = []
 ): Promise<string> {
     
-    // A. STANDARD (FLUX) - Generare Directa Client-Side
+    // A. STANDARD (FLUX) - Client-side
     if (!isPremium) {
         const cleanPrompt = encodeURIComponent(`${postText} ${topicContext}`.slice(0, 500));
-        // Adaugam un seed random ca sa fie diferita mereu
         return `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
     }
 
-    // B. PREMIUM (DALL-E 3) - Trece prin Server
+    // B. PREMIUM (DALL-E 3) - Server-side
     try {
         const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
 
@@ -189,7 +179,7 @@ export async function generateImageForPost(
         
         const imageUrl = data.imageUrl;
 
-        // Proxy DALL-E (optional, pentru a evita expirarea linkurilor)
+        // Proxy DALL-E
         if (imageUrl.startsWith('http')) {
             try {
                 const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
@@ -209,29 +199,28 @@ export async function generateImageForPost(
     }
 }
 
-// --- 3. ANALIZĂ BRAND (UNIFICAT) ---
+// --- 3. ANALIZĂ BRAND ---
 export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
   if (!content || content.length < 10) {
     throw new Error("Content is too short.");
   }
 
   const taskDescription = mode === 'influencer' 
-    ? "You are a Ghostwriter. REVERSE ENGINEER the writing style of this influencer to clone it."
-    : "You are a Brand Strategist. Analyze this content to build a Brand Voice profile.";
+    ? "You are a Ghostwriter. REVERSE ENGINEER the writing style."
+    : "You are a Brand Strategist. Analyze this content.";
 
   const prompt = `
     ${taskDescription}
-    
-    CONTENT SAMPLE: "${content.substring(0, 3000)}"
+    CONTENT: "${content.substring(0, 3000)}"
 
-    Extract "Voice DNA" into this JSON structure (return ONLY JSON):
+    Extract "Voice DNA" into JSON:
     {
       "niche": "Industry (max 3 words)",
       "audience": "Target Audience (max 5 words)",
-      "tone_score": number 0-100 (0=Casual, 100=Formal),
-      "emoji_score": number 0-100 (0=None, 100=Heavy),
-      "length_score": number 0-100 (0=Short, 100=Long),
-      "voice_description": "2-sentence instruction on how to write like this person."
+      "tone_score": number 0-100,
+      "emoji_score": number 0-100,
+      "length_score": number 0-100,
+      "voice_description": "2-sentence style instruction."
     }
   `;
 
@@ -241,10 +230,8 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
         postCount: 1, 
         isCampaign: false 
     });
-
     const cleanJson = data.output.replace(/```json|```/g, '').trim();
     return JSON.parse(cleanJson);
-
   } catch (error) {
     console.error("Error analyzing brand voice:", error);
     return {
