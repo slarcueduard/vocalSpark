@@ -134,21 +134,35 @@ const SocialSparkApp: React.FC = () => {
       setIsImageModalOpen(true);
   };
 
+  // --- FIX FINAL IMAGINI VAULT: Fortam compresia pentru ORICE tip de imagine ---
   const handleImageSelected = async (url: string) => {
-      let persistentUrl = url;
-      // Convertim Blob in Base64
-      if (url.startsWith('blob:')) {
-          persistentUrl = await convertBlobUrlToBase64(url);
+      setIsLoading(true); // Aratam un mic loading ca sa stie userul ca se lucreaza
+      
+      try {
+          // Indiferent daca e link OpenAI, Blob sau Flux, il transformam in Base64 comprimat
+          // Asta asigura ca se salveaza in Firebase permanent.
+          const persistentUrl = await compressImage(url);
+          
+          if (activePostIdForImage) {
+              setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
+              await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
+          } else {
+              setAttachedImage(persistentUrl);
+          }
+      } catch (e) {
+          console.error("Failed to process/compress image:", e);
+          // Fallback: Daca nu merge compresia, folosim URL-ul original (macar sa apara ceva)
+          if (activePostIdForImage) {
+              setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
+              await updatePostInHistory(activePostIdForImage, { imageUrl: url });
+          } else {
+              setAttachedImage(url);
+          }
+      } finally {
+          setIsLoading(false);
+          setIsImageModalOpen(false);
+          setActivePostIdForImage(null);
       }
-
-      if (activePostIdForImage) {
-          setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
-          await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
-      } else {
-          setAttachedImage(persistentUrl);
-      }
-      setIsImageModalOpen(false);
-      setActivePostIdForImage(null);
   };
 
   const handleLuckyGenerate = async () => {
