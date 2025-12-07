@@ -127,24 +127,37 @@ export const PostCard: React.FC<PostCardProps> = ({
              <div className="absolute top-0 left-0 w-full h-1 bg-green-500 z-10"></div>
         )}
 
-        {/* A. IMAGINE */}
-        <div className="w-full md:w-1/3 bg-black relative group min-h-[250px] border-b md:border-b-0 md:border-r border-gray-800 flex items-center justify-center">
-            {post.isGeneratingImage ? (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-blue-500 animate-pulse bg-[#0f1115]">
-                    <ImageIcon className="w-10 h-10 mb-2" />
-                    <span className="text-xs font-bold uppercase tracking-widest">Designing...</span>
-                </div>
-            ) : post.imageUrl ? (
-                <>
-                    <img src={post.imageUrl} alt="Post visual" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center gap-3 backdrop-blur-sm p-4">
-                        <a href={post.imageUrl} download="social-spark.png" className="flex items-center gap-2 px-4 py-2 bg-white text-black hover:bg-gray-200 rounded-lg text-xs font-bold transition w-full justify-center">
-                            <Download className="w-4 h-4" /> Download
-                        </a>
-                        <button onClick={() => onGenerateImage(post.id, post.content)} className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white hover:bg-gray-700 rounded-lg text-xs font-bold border border-gray-600 transition w-full justify-center">
-                            <ImageIcon className="w-4 h-4" /> Regenerate
-                        </button>
-                    </div>
+      {/* --- IMAGE SECTION --- */}
+<div className="w-full h-48 bg-[#0a0c10] border-r border-gray-800 flex items-center justify-center relative group overflow-hidden">
+    {post.imageUrl ? (
+        <>
+            <img 
+                src={post.imageUrl} 
+                alt="Post Visual" 
+                className="w-full h-full object-cover"
+            />
+            {/* Overlay Edit */}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
+                <button 
+                    onClick={() => onGenerateImage(post.id, post.imagePrompt || post.content)}
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2"
+                >
+                    <Sparkles size={14} /> Change Image
+                </button>
+            </div>
+        </>
+    ) : (
+        <button 
+            onClick={() => onGenerateImage(post.id, post.imagePrompt || post.content)}
+            className="flex flex-col items-center gap-2 text-gray-600 hover:text-blue-400 transition group/btn"
+        >
+            <div className="p-3 bg-[#161b22] rounded-xl border border-gray-700 group-hover/btn:border-blue-500/50 transition">
+                 <ImageIcon size={24} />
+            </div>
+            <span className="text-xs font-bold">Create Visual</span>
+        </button>
+    )}
+</div>
                 </>
             ) : (
                 <div className="flex flex-col items-center justify-center text-gray-600 p-6 text-center w-full h-full bg-[#0f1115]">
