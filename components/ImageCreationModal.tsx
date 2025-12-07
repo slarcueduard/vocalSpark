@@ -28,7 +28,7 @@ const PHOTO_FILTERS = [
 ];
 
 export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
-  const { checkCredits, credits, brandProfile } = useAuth();
+  const { checkCredits, credits, brandProfile, userProfile } = useAuth(); // Asigura-te ca ai acces la credits/userProfile
   const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload');
   
   const [prompt, setPrompt] = useState(initialPrompt);
@@ -36,7 +36,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none');
   
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isImageLoading, setIsImageLoading] = useState(false); // State nou pentru încărcarea vizuală a imaginii
+  const [isImageLoading, setIsImageLoading] = useState(false); 
   const [isProcessing, setIsProcessing] = useState(false);
   
   const [applyLogo, setApplyLogo] = useState(false);
@@ -46,9 +46,12 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Afisam doar costul estimat, NU il scadem aici
   const currentCost = modelType === 'standard' ? 2 : 20;
-  const canAfford = checkCredits(currentCost);
+  // Putem verifica daca are acces la premium
+  const canUsePremium = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
 
+  // Cleanup pentru blob-uri
   useEffect(() => {
       return () => {
           if (uploadedImageBlob) URL.revokeObjectURL(uploadedImageBlob);
@@ -57,10 +60,15 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    if (!canAfford) { setError(`Not enough credits.`); return; }
+
+    // --- FIX CRITIC: Verificam si scadem creditele AICI, la click ---
+    if (!checkCredits(currentCost)) { 
+        setError(`Not enough credits. You need ${currentCost} Cr.`); 
+        return; 
+    }
 
     setIsGenerating(true);
-    setIsImageLoading(true); // Începem loading-ul vizual
+    setIsImageLoading(true);
     setError(null);
     if (activeTab === 'upload') setResultImage(null);
 
@@ -78,10 +86,9 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
       if (activeTab === 'upload') setActiveTab('generate');
     } catch (err: any) {
       setError("Failed to generate image.");
-      setIsImageLoading(false);
+      setIsImageLoading(false); // Oprim loaderul daca e eroare
     } finally {
       setIsGenerating(false);
-      // Nu oprim isImageLoading aici, îl oprim când <img onLoad /> se declanșează
     }
   };
 
@@ -133,17 +140,22 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         if (ctx) {
             if (needsFilter) ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
             ctx.drawImage(img, 0, 0, w, h);
+            
             if (needsLogo && brandProfile?.logoUrl) {
                 ctx.filter = 'none';
                 const logoImg = new Image();
                 logoImg.crossOrigin = "anonymous";
                 logoImg.src = brandProfile.logoUrl;
                 await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
+                
+                // Logică simplă de scalare a logo-ului (20% din lățime)
                 const logoW = w * 0.2;
                 const scale = logoW / logoImg.width;
                 const logoH = logoImg.height * scale;
                 const pad = w * 0.05;
-                ctx.shadowColor = "rgba(0,0,0,0.5)"; ctx.shadowBlur = 5;
+                
+                ctx.shadowColor = "rgba(0,0,0,0.5)"; 
+                ctx.shadowBlur = 5;
                 ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
             }
 
@@ -174,7 +186,11 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         <div className="w-full md:w-1/2 p-6 flex flex-col bg-[#161b22] border-r border-gray-800 overflow-y-auto custom-scrollbar">
              <div className="flex justify-between items-center mb-6">
                 <button onClick={onClose} className="flex items-center gap-2 text-gray-400 hover:text-white text-sm font-medium"><ArrowLeft size={16} /> Back</button>
-                {activeTab === 'generate' && <div className="bg-gray-800 px-3 py-1 rounded-full border border-gray-700 text-xs text-white font-bold">Credits: {credits}</div>}
+                {activeTab === 'generate' && (
+                    <div className="bg-gray-800 px-3 py-1 rounded-full border border-gray-700 text-xs text-white font-bold flex items-center gap-1">
+                        <Zap size={12} className="text-yellow-400"/> Credits: {userProfile?.credits ?? 0}
+                    </div>
+                )}
              </div>
 
              <div className="flex p-1 bg-gray-900 rounded-xl mb-6 border border-gray-800">
@@ -184,15 +200,21 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
              {activeTab === 'generate' ? (
                  <>
-                    <textarea value={prompt} onChange={e => setPrompt(e.target.value)} className="w-full h-24 bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-sm text-white mb-4 resize-none" placeholder="Describe image..." />
+                    <textarea value={prompt} onChange={e => setPrompt(e.target.value)} className="w-full h-24 bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-sm text-white mb-4 resize-none focus:border-blue-500 outline-none" placeholder="Describe image..." />
                     <div className="grid grid-cols-2 gap-3 mb-6">
                         <div onClick={() => setModelType('standard')} className={`p-3 rounded-xl border-2 cursor-pointer transition ${modelType === 'standard' ? 'border-blue-500 bg-blue-500/10' : 'border-gray-700 bg-gray-900'}`}>
                             <div className="flex justify-between mb-1"><Zap size={16} className="text-blue-400"/><span className="text-[10px] bg-gray-800 px-1.5 rounded text-gray-300">2 Cr</span></div>
                             <div className="font-bold text-sm text-white">Standard</div>
                         </div>
-                        <div onClick={() => setModelType('premium')} className={`p-3 rounded-xl border-2 cursor-pointer transition ${modelType === 'premium' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 bg-gray-900'}`}>
+                        <div 
+                            onClick={() => {
+                                if (canUsePremium) setModelType('premium');
+                                else alert("Upgrade to PRO for DALL-E 3 images.");
+                            }} 
+                            className={`p-3 rounded-xl border-2 cursor-pointer transition ${modelType === 'premium' ? 'border-purple-500 bg-purple-500/10' : 'border-gray-700 bg-gray-900'} ${!canUsePremium ? 'opacity-50' : ''}`}
+                        >
                             <div className="flex justify-between mb-1"><Crown size={16} className="text-purple-400"/><span className="text-[10px] bg-gray-800 px-1.5 rounded text-gray-300">20 Cr</span></div>
-                            <div className="font-bold text-sm text-white">Premium</div>
+                            <div className="font-bold text-sm text-white flex items-center gap-1">Premium {!canUsePremium && <Lock size={12}/>}</div>
                         </div>
                     </div>
                     <div className="mb-6">
@@ -203,14 +225,14 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                             ))}
                         </div>
                     </div>
-                    <button onClick={handleGenerate} disabled={isGenerating} className="w-full py-3 bg-blue-600 rounded-xl text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2">
-                        {isGenerating ? <><Loader className="animate-spin" size={16}/> Starting...</> : "Generate Image"}
+                    <button onClick={handleGenerate} disabled={isGenerating} className="w-full py-3 bg-blue-600 rounded-xl text-white font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 hover:bg-blue-500 transition shadow-lg">
+                        {isGenerating ? <><Loader className="animate-spin" size={16}/> Generating...</> : "Generate Image"}
                     </button>
                  </>
              ) : (
                  <>
                     {!uploadedImageBlob ? (
-                        <div onClick={() => fileInputRef.current?.click()} className="h-48 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-gray-500">
+                        <div onClick={() => fileInputRef.current?.click()} className="h-48 border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-gray-500 transition">
                             <ImageIcon className="text-gray-500 mb-2" size={32} />
                             <span className="text-sm text-gray-400">Click to upload</span>
                             <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" hidden />
@@ -219,7 +241,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                         <div className="animate-in fade-in">
                             <div className="flex justify-between items-center mb-4">
                                 <label className="text-xs font-bold text-gray-500 uppercase">Filters</label>
-                                <button onClick={() => { setUploadedImageBlob(null); fileInputRef.current!.value=''; }} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"><Trash size={12} /> Remove</button>
+                                <button onClick={() => { setUploadedImageBlob(null); if(fileInputRef.current) fileInputRef.current.value=''; }} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1"><Trash size={12} /> Remove</button>
                             </div>
                             <div className="grid grid-cols-4 gap-2 mb-4">
                                 {PHOTO_FILTERS.map(f => (
@@ -230,25 +252,31 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                     )}
                  </>
              )}
+             
+             {/* Logo Toggle */}
              {brandProfile?.logoUrl && (
                  <div className="mt-6 flex items-center justify-between bg-gray-800/50 p-3 rounded-xl border border-gray-700">
-                     <span className="text-xs text-gray-300 font-bold">Apply Brand Logo</span>
-                     <input type="checkbox" checked={applyLogo} onChange={e => setApplyLogo(e.target.checked)} />
+                     <div className="flex items-center gap-2">
+                        <img src={brandProfile.logoUrl} className="w-6 h-6 object-contain" alt="Brand Logo" />
+                        <span className="text-xs text-gray-300 font-bold">Apply Brand Logo</span>
+                     </div>
+                     <input type="checkbox" checked={applyLogo} onChange={e => setApplyLogo(e.target.checked)} className="accent-blue-600 w-4 h-4"/>
                  </div>
              )}
-             {error && <div className="mt-4 text-red-400 text-xs">{error}</div>}
+             
+             {error && <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-xs flex items-center gap-2"><AlertCircle size={14}/> {error}</div>}
         </div>
 
         {/* RIGHT: Preview (Cu Loader Vizual) */}
         <div className="w-full md:w-1/2 bg-black flex flex-col items-center justify-center p-6 relative">
-            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10"><X size={20}/></button>
+            <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10 bg-black/50 rounded-full"><X size={20}/></button>
             
             {/* LOADER PENTRU IMAGINE */}
             {isImageLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
                     <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-blue-400 font-bold animate-pulse tracking-widest">CREATING VISUAL...</p>
-                    <p className="text-xs text-gray-500 mt-2">Standard: 2s | Premium: 10s</p>
+                    <p className="text-xs text-gray-500 mt-2">Standard: ~3s | Premium: ~12s</p>
                 </div>
             )}
 
@@ -257,10 +285,10 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                     <img 
                         src={previewSrc} 
                         alt="Preview" 
-                        onLoad={() => setIsImageLoading(false)} // Oprim loader-ul când imaginea s-a încărcat
+                        onLoad={() => setIsImageLoading(false)} 
                         onError={() => setIsImageLoading(false)}
                         style={{ filter: activeTab === 'upload' ? activeFilterStyle : 'none' }} 
-                        className="max-h-[400px] max-w-full rounded-lg shadow-2xl object-contain border border-gray-800" 
+                        className="max-h-[450px] max-w-full rounded-lg shadow-2xl object-contain border border-gray-800" 
                     />
                     <div className="flex gap-2 w-full max-w-xs">
                         <button onClick={handleUseImage} disabled={isProcessing || isImageLoading} className="flex-1 bg-green-600 hover:bg-green-500 py-3 rounded-lg text-white font-bold text-sm shadow-lg flex items-center justify-center gap-2 transition">
@@ -271,7 +299,8 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
             ) : (
                 !isImageLoading && (
                     <div className="text-gray-600 text-sm flex flex-col items-center">
-                        <Sparkles className="mb-2 opacity-50" /> Preview Area
+                        <ImageIcon size={48} className="mx-auto mb-4 opacity-30"/>
+                        <p>Preview Area</p>
                     </div>
                 )
             )}
