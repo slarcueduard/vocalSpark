@@ -3,11 +3,11 @@ import {
   X, Sparkles, Link as LinkIcon, 
   Upload, Hash, Palette, Check, RefreshCw, 
   User, UserCheck, Copy, Ban, MessageSquare, Plus, Trash2,
-  Users, Layout, Crown, Lock
+  Lock
 } from 'lucide-react';
 import { BrandProfile } from '../types';
 import { analyzeBrandVoice } from '../services/geminiService';
-import { useAuth } from '../contexts/AuthContext'; // Importam Contextul pentru functiile multi-profile
+import { useAuth } from '../contexts/AuthContext';
 
 interface BrandProfileModalProps {
   currentProfile: BrandProfile | null;
@@ -19,7 +19,6 @@ type Tab = 'core' | 'visuals' | 'rules';
 type AnalysisMode = 'personal' | 'influencer';
 
 export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProfileModalProps) {
-  // Accesam datele multi-profile din context
   const { allProfiles, activeProfileIndex, switchProfile, addNewProfile, userProfile } = useAuth();
   
   const [activeTab, setActiveTab] = useState<Tab>('core');
@@ -33,7 +32,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // -- STATE-URILE BRANDULUI --
-  const [profileName, setProfileName] = useState('My Brand'); // NOU: Nume profil
+  const [profileName, setProfileName] = useState('My Brand');
   const [voiceDNA, setVoiceDNA] = useState('');
   const [industry, setIndustry] = useState('');
   const [language, setLanguage] = useState('English');
@@ -51,40 +50,36 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
   const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
 
-  // --- POPULARE DATE (Cand se schimba profilul activ) ---
-// --- FIX CRITIC: Resetare COMPLETA la schimbarea profilului ---
+  // --- FIX: POPULARE DATE (RESET COMPLET LA SCHIMBARE) ---
   useEffect(() => {
     if (currentProfile) {
-        // 1. Populăm datele care există
+        // Date salvate
         setProfileName(currentProfile.name || `Brand #${activeProfileIndex + 1}`);
         setVoiceDNA(currentProfile.voiceDNA || '');
         setIndustry(currentProfile.industry || '');
         setLanguage(currentProfile.language || 'English');
         setTargetAudience(currentProfile.targetAudience || '');
         
-        // 2. Populăm listele și obiectele (cu fallback la default)
+        // Hashtags
         setHashtags(currentProfile.fixedHashtags || '#MyBrand #MyNiche');
         
+        // Culori (cu reset)
         if (currentProfile.brandColors && currentProfile.brandColors.length > 0) {
             setBrandColors(currentProfile.brandColors);
         } else {
-            setBrandColors(['#3B82F6', '#8B5CF6', '#FFFFFF']); // Reset la default
+            setBrandColors(['#3B82F6', '#8B5CF6', '#FFFFFF']);
         }
 
-        setLogoPreview(currentProfile.logoUrl || null); // Reset la null daca nu are logo
+        // Logo (cu reset)
+        setLogoPreview(currentProfile.logoUrl || null);
 
-        // 3. IMPORTANT: Resetăm input-urile temporare care nu sunt salvate în profil
-        // Altfel, textul de analiză de la Profilul A rămâne vizibil la Profilul B
-        setUrlInput(''); 
+        // Date Temporare (Analiza) -> TREBUIE RESETATE
+        setUrlInput('');
         setTextInput('');
-        setAnalysisMode('personal'); // Resetam modul la default
-        
-        // Resetam sliderele la o valoare neutra (sau salvata, daca am avea unde)
-        // Daca nu salvam sliderele in DB, le punem default
+        setAnalysisMode('personal');
         setSliders({ tone: 50, emoji: 50, length: 50 });
-
-    } 
-  }, [currentProfile, activeProfileIndex]); // Dependențe critice
+    }
+  }, [currentProfile, activeProfileIndex]); // Se activeaza cand se schimba profilul
 
   // --- HANDLERS ---
   
@@ -152,7 +147,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
       `;
 
       const updatedProfile: BrandProfile = {
-          name: profileName, // Salvam numele editat
+          name: profileName,
           industry,
           targetAudience,
           voiceDNA: finalVoiceDNA,
@@ -165,8 +160,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
       try {
           await onSave(updatedProfile);
-          // Nu inchidem automat modalul, poate vrea sa editeze alt profil
-          // onClose(); 
           alert("Profile Saved Successfully! ✅");
       } catch (error) {
           console.error("Failed to save brand:", error);
@@ -194,7 +187,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
                 {allProfiles.map((p, idx) => (
                     <button 
                         key={idx}
@@ -205,10 +198,10 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                             : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white'
                         }`}
                     >
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${idx === activeProfileIndex ? 'bg-white/20' : 'bg-[#1c1c2e] border border-gray-700'}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${idx === activeProfileIndex ? 'bg-white/20' : 'bg-[#1c1c2e] border border-gray-700'}`}>
                             {p.name?.[0]?.toUpperCase() || '#'}
                         </div>
-                        <div className="overflow-hidden">
+                        <div className="overflow-hidden w-full">
                             <p className="text-sm font-bold truncate">{p.name}</p>
                             <p className="text-[10px] opacity-70 truncate">{p.industry || 'No niche'}</p>
                         </div>
@@ -234,26 +227,23 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         {/* --- RIGHT MAIN CONTENT --- */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#0f1115]">
             
-           {/* Header */}
-<div className="p-6 border-b border-gray-800 flex justify-between items-start">
-<div>
-    <div className="flex items-center gap-2 mb-2">
-        {/* AICI ESTE INPUTUL DE NUME - IL FACEM MAI EVIDENT */}
-        <input 
-            type="text" 
-            value={profileName}
-            onChange={(e) => setProfileName(e.target.value)}
-            className="bg-transparent text-xl font-bold text-white outline-none border-b border-gray-700 hover:border-blue-500 focus:border-blue-500 transition w-full placeholder-gray-600"
-            placeholder="Name this Profile (e.g. LinkedIn Pro)"
-        />
-        <div className="bg-blue-600/20 p-1.5 rounded-lg"><Sparkles size={16} className="text-blue-500" /></div>
-    </div>
-    <p className="text-sm text-gray-400">
-        This name will appear in Creator Studio as: <span className="text-blue-400 font-mono">"Writing as: {profileName || '...'}"</span>
-    </p>
-</div>
-<button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={20} /></button>
-</div>
+            {/* Header */}
+            <div className="p-6 border-b border-gray-800 flex justify-between items-start">
+            <div>
+                <div className="flex items-center gap-2 mb-2">
+                    <input 
+                        type="text" 
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        className="bg-transparent text-xl font-bold text-white outline-none border-b border-transparent hover:border-gray-700 focus:border-blue-500 transition w-full"
+                        placeholder="Profile Name (e.g. Personal)"
+                    />
+                    <div className="bg-blue-600/20 p-1.5 rounded-lg"><Sparkles size={16} className="text-blue-500" /></div>
+                </div>
+                <p className="text-sm text-gray-400">This name will appear in Creator Studio as: <span className="text-blue-400 font-mono">"Writing as: {profileName}"</span></p>
+            </div>
+            <button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={20} /></button>
+            </div>
 
             {/* Tabs */}
             <div className="flex border-b border-gray-800 bg-[#0f1115]">
@@ -264,6 +254,10 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
             {/* Scrollable Form */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            
+            {/* ... Restul codului pentru taburi (Core, Visuals, Rules) ramane identic ... */}
+            {/* Copiaza continutul tab-urilor din mesajul anterior daca e nevoie, sau lasa ce ai deja daca e functional */}
+            {/* Am inclus doar logica de resetare sus */}
             
             {activeTab === 'core' && (
                 <div className="space-y-6 animate-in fade-in">
