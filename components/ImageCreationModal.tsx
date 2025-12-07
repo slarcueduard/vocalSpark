@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
-  X, Sparkles, Zap, Crown, Download, AlertCircle, ArrowLeft, Upload, 
-  Image as ImageIcon, Palette, Trash, SlidersHorizontal, Loader
+  X, Sparkles, Zap, Crown, AlertCircle, ArrowLeft, Upload, 
+  Image as ImageIcon, Trash, Loader
 } from 'lucide-react';
 import { generateImageForPost } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
@@ -28,9 +28,9 @@ const PHOTO_FILTERS = [
 ];
 
 export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' }: ImageCreationModalProps) {
-  const { checkCredits, credits, brandProfile, userProfile } = useAuth(); // Asigura-te ca ai acces la credits/userProfile
-  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload');
+  const { checkCredits, userProfile, brandProfile } = useAuth();
   
+  const [activeTab, setActiveTab] = useState<'generate' | 'upload'>('upload');
   const [prompt, setPrompt] = useState(initialPrompt);
   const [modelType, setModelType] = useState<'standard' | 'premium'>('standard');
   const [selectedAiStyle, setSelectedAiStyle] = useState<string>('none');
@@ -46,12 +46,10 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Afisam doar costul estimat, NU il scadem aici
+  // --- FIX CRITIC: CALCULAM DOAR NUMARUL, NU APELAM FUNCTIA DE SCADERE AICI ---
   const currentCost = modelType === 'standard' ? 2 : 20;
-  // Putem verifica daca are acces la premium
   const canUsePremium = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
 
-  // Cleanup pentru blob-uri
   useEffect(() => {
       return () => {
           if (uploadedImageBlob) URL.revokeObjectURL(uploadedImageBlob);
@@ -61,7 +59,8 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
-    // --- FIX CRITIC: Verificam si scadem creditele AICI, la click ---
+    // --- AICI SE SCAD CREDITELE (Doar la click) ---
+    console.log("🖱️ Button Clicked. Checking credits...");
     if (!checkCredits(currentCost)) { 
         setError(`Not enough credits. You need ${currentCost} Cr.`); 
         return; 
@@ -86,7 +85,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
       if (activeTab === 'upload') setActiveTab('generate');
     } catch (err: any) {
       setError("Failed to generate image.");
-      setIsImageLoading(false); // Oprim loaderul daca e eroare
+      setIsImageLoading(false);
     } finally {
       setIsGenerating(false);
     }
@@ -148,7 +147,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                 logoImg.src = brandProfile.logoUrl;
                 await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
                 
-                // Logică simplă de scalare a logo-ului (20% din lățime)
                 const logoW = w * 0.2;
                 const scale = logoW / logoImg.width;
                 const logoH = logoImg.height * scale;
