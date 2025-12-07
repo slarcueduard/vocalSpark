@@ -129,8 +129,10 @@ const SocialSparkApp: React.FC = () => {
       setIsImageModalOpen(true);
   };
 
+  // --- HANDLE IMAGE SELECTION (CU COMPRESIE) ---
   const handleImageSelected = async (url: string) => {
-      setIsLoading(true);
+      setIsLoading(true); 
+      
       try {
           const persistentUrl = await compressImage(url);
           
@@ -141,7 +143,7 @@ const SocialSparkApp: React.FC = () => {
               setAttachedImage(persistentUrl);
           }
       } catch (e) {
-          console.error("Image Error:", e);
+          console.error("Failed to process image:", e);
           setAttachedImage(url); // Fallback
       } finally {
           setIsLoading(false);
@@ -302,7 +304,7 @@ const SocialSparkApp: React.FC = () => {
                         </header>
                         <div className="space-y-8">
                             <section className="space-y-3">
-                                {/* HEADER: ACTIVE PERSONA + IMAGE INDICATOR */}
+                                {/* HEADER CU FIX PENTRU PREVIEW IMAGINE */}
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                         <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> 
@@ -310,7 +312,6 @@ const SocialSparkApp: React.FC = () => {
                                     </label>
 
                                     <div className="flex items-center gap-3">
-                                        {/* Brand/Persona Badge */}
                                         {brandProfile && (
                                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                                                 <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
@@ -321,7 +322,6 @@ const SocialSparkApp: React.FC = () => {
                                             </div>
                                         )}
 
-                                        {/* Image Indicator (FIXED: Close Button + Green Style) */}
                                         {attachedImage && (
                                             <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
                                                 <span className="text-xs text-green-400 flex items-center gap-1">
@@ -429,7 +429,10 @@ const SocialSparkApp: React.FC = () => {
                     </div>
                 </div>
                 <div className="hidden xl:block w-[400px] shrink-0">
-                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
+                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} 
+                    // FIX CRITIC: Prioritate Imagine Atasata (Draft) vs Postare Activa
+                    imageUrl={attachedImage || activePost?.imageUrl || null} 
+                    isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
                 </div>
             </div>
         )}
