@@ -135,29 +135,34 @@ const SocialSparkApp: React.FC = () => {
   };
 
   // --- FIX FINAL IMAGINI VAULT: Fortam compresia pentru ORICE tip de imagine ---
+  // --- HANDLE IMAGE SELECTION (CU COMPRESIE) ---
   const handleImageSelected = async (url: string) => {
-      setIsLoading(true); // Aratam un mic loading ca sa stie userul ca se lucreaza
+      setIsLoading(true); 
       
       try {
-          // Indiferent daca e link OpenAI, Blob sau Flux, il transformam in Base64 comprimat
-          // Asta asigura ca se salveaza in Firebase permanent.
+          // 1. Convertim ORICE url (blob/http) in Base64 comprimat
           const persistentUrl = await compressImage(url);
           
           if (activePostIdForImage) {
-              setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
+              // CAZ A: Imagine pentru un Post DEJA generat
+              console.log("Saving image to post:", activePostIdForImage);
+              
+              setPosts(prev => prev.map(p => 
+                  p.id === activePostIdForImage 
+                  ? { ...p, imageUrl: persistentUrl } // Update local instant
+                  : p
+              ));
+              
+              // Salvare in Firebase
               await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
           } else {
+              // CAZ B: Imagine pentru Input Principal (viitorul post)
+              console.log("Attaching image to main input");
               setAttachedImage(persistentUrl);
           }
       } catch (e) {
-          console.error("Failed to process/compress image:", e);
-          // Fallback: Daca nu merge compresia, folosim URL-ul original (macar sa apara ceva)
-          if (activePostIdForImage) {
-              setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
-              await updatePostInHistory(activePostIdForImage, { imageUrl: url });
-          } else {
-              setAttachedImage(url);
-          }
+          console.error("Failed to process image:", e);
+          alert("Could not process image. Try a smaller one.");
       } finally {
           setIsLoading(false);
           setIsImageModalOpen(false);
