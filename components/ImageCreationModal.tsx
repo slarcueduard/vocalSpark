@@ -46,21 +46,20 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- FIX CRITIC: CALCULAM DOAR NUMARUL, NU APELAM FUNCTIA DE SCADERE AICI ---
   const currentCost = modelType === 'standard' ? 2 : 20;
   const canUsePremium = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
 
   useEffect(() => {
       return () => {
           if (uploadedImageBlob) URL.revokeObjectURL(uploadedImageBlob);
+          // Curatam si blob-ul generat daca exista
+          if (resultImage && resultImage.startsWith('blob:')) URL.revokeObjectURL(resultImage);
       }
-  }, [uploadedImageBlob]);
+  }, [uploadedImageBlob, resultImage]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
 
-    // --- AICI SE SCAD CREDITELE (Doar la click) ---
-    console.log("🖱️ Button Clicked. Checking credits...");
     if (!checkCredits(currentCost)) { 
         setError(`Not enough credits. You need ${currentCost} Cr.`); 
         return; 
@@ -81,8 +80,16 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
           initialPrompt, 
           brandProfile?.brandColors || []
       );
-      setResultImage(imageUrl);
+
+      // --- FIX PREVIEW: Convertim URL-ul extern in Blob local imediat ---
+      // Asta rezolva problema imaginilor "rupte" din cauza CORS sau expiry
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const localUrl = URL.createObjectURL(blob);
+      
+      setResultImage(localUrl);
       if (activeTab === 'upload') setActiveTab('generate');
+
     } catch (err: any) {
       setError("Failed to generate image.");
       setIsImageLoading(false);
@@ -110,7 +117,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     const needsLogo = applyLogo && brandProfile?.logoUrl;
 
     if (!needsFilter && !needsLogo) {
-        onSelectImage(target);
+        onSelectImage(target); // Trimitem Blob-ul direct la App.tsx (care il va converti in Base64)
         onClose();
         return;
     }
