@@ -8,6 +8,7 @@ export const PLATFORMS = [
   { value: Platform.LinkedIn, label: 'LinkedIn' },
   { value: Platform.TikTok, label: 'TikTok Script' }
 ];
+
 export const TONES = [
   { value: Tone.Inspirational, label: '✨ Inspirational' },
   { value: Tone.Professional, label: '👔 Professional' },
@@ -17,13 +18,41 @@ export const TONES = [
   { value: Tone.Urgent, label: '🔥 Urgent / FOMO' }
 ];
 
+// --- AM UNIFICAT AICI CELE DOUA DECLARATII ---
+// Am schimbat 'id' in 'value' ca sa mearga cu <select>-ul din App.tsx
 export const OBJECTIVES = [
-  { value: 'engagement', label: '💬 Engagement / Viral' },
-  { value: 'sales', label: '💰 Sales / Conversion' },
-  { value: 'awareness', label: '📣 Brand Awareness' },
-  { value: 'educational', label: '📚 Value / How-to' },
-  { value: 'storytelling', label: '📖 Personal Story' }
+  { 
+    value: 'engagement', 
+    label: '💬 Engagement / Viral', 
+    description: 'Ask questions & start conversations.',
+    icon: MessageCircle 
+  },
+  { 
+    value: 'sales', 
+    label: '💰 Sales / Conversion', 
+    description: 'Persuade users to buy or sign up.',
+    icon: ShoppingBag 
+  },
+  { 
+    value: 'awareness', 
+    label: '📣 Brand Awareness', 
+    description: 'Short, punchy & shareable content.',
+    icon: Zap 
+  },
+  { 
+    value: 'educational', 
+    label: '📚 Value / How-to', 
+    description: 'Build trust with tips & guides.',
+    icon: BookOpen 
+  },
+  { 
+    value: 'traffic', // Era 'storytelling' inainte, am lasat traffic daca vrei clicks, sau poti pune storytelling
+    label: '🔗 Get Clicks / Traffic', 
+    description: 'Drive traffic to your link/bio.',
+    icon: MousePointerClick 
+  }
 ];
+
 export const PERSON_STYLES = [
   { value: 'Face Retouch', label: 'Face Retouch' },
   { value: 'Sharpen Portrait', label: 'Sharpen Portrait' },
@@ -49,8 +78,6 @@ export const ARTISTIC_STYLES = [
   { value: 'Minimalist Line Art', label: 'Line Art' },
 ];
 
-
-
 export const INDUSTRIES = [
   'Real Estate',
   'Tech / SaaS',
@@ -63,18 +90,16 @@ export const INDUSTRIES = [
   'Other'
 ];
 
-// ... (codul existent)
-
 // --- VELOCITY VIBES (Harvey, Wick, Wolf, Moody) ---
 export const SUCCESS_MESSAGES = [
-  "Boom. Deal closed. 💼", // Harvey
-  "Clean. Efficient. Dangerous. 🔫", // John Wick
-  "Sell me this pen? I just wrote the ad for it. 💰", // Wolf
-  "That's how winning is done. 🍸", // Harvey
+  "Boom. Deal closed. 💼", 
+  "Clean. Efficient. Dangerous. 🔫", 
+  "Sell me this pen? I just wrote the ad for it. 💰", 
+  "That's how winning is done. 🍸", 
   "Content so sharp it cuts. 🔪", 
-  "Money never sleeps, neither does this AI. 📈", // Wolf
-  "Executed perfectly. 🎯", // Wick
-  "Charming, isn't it? 😉", // Hank
+  "Money never sleeps, neither does this AI. 📈", 
+  "Executed perfectly. 🎯", 
+  "Charming, isn't it? 😉", 
   "Now go make them an offer they can't refuse.",
   "Lunch is for wimps. Post this instead.",
   "A masterpiece. Now monetize it."
@@ -83,36 +108,3 @@ export const SUCCESS_MESSAGES = [
 export const getRandomVibe = () => {
   return SUCCESS_MESSAGES[Math.floor(Math.random() * SUCCESS_MESSAGES.length)];
 };
-
-export const OBJECTIVES: { id: PostObjective; label: string; description: string; icon: any }[] = [
-  { 
-    id: 'engagement', 
-    label: 'Get Comments', 
-    description: 'Ask questions & start conversations.',
-    icon: MessageCircle 
-  },
-  { 
-    id: 'sales', 
-    label: 'Sell Product', 
-    description: 'Persuade users to buy or sign up.',
-    icon: ShoppingBag 
-  },
-  { 
-    id: 'education', 
-    label: 'Teach Value', 
-    description: 'Build trust with tips & guides.',
-    icon: BookOpen 
-  },
-  { 
-    id: 'viral', 
-    label: 'Go Viral', 
-    description: 'Short, punchy & shareable content.',
-    icon: Zap 
-  },
-  { 
-    id: 'traffic', 
-    label: 'Get Clicks', 
-    description: 'Drive traffic to your link/bio.',
-    icon: MousePointerClick 
-  }
-];
