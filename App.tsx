@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
 import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
-import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants'; // Importam OBJECTIVES
+import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
 import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target } from 'lucide-react'; 
@@ -16,7 +16,6 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
-// --- CONFIGURARE LINK PLATA ---
 const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_..."; 
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
@@ -27,21 +26,20 @@ const SocialSparkApp: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
+  
+  // Starea pentru Moduri
   const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
-  
-  // State pentru Obiectiv (Default Engagement)
   const [objective, setObjective] = useState<PostObjective>('engagement');
-  
   const [campaignCount, setCampaignCount] = useState(3);
   const [remixFormats, setRemixFormats] = useState<string[]>(['LinkedIn Post', 'Twitter Thread']);
   
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]); // Aici tinem TOATE posturile sesiunii
   
   const [useRealTime, setUseRealTime] = useState(false);
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
@@ -56,27 +54,31 @@ const SocialSparkApp: React.FC = () => {
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
+  // --- LOGICA FILTRARE VIZUALA (Fix pentru problema ta) ---
+  const visiblePosts = posts.filter(post => {
+      // 1. Daca suntem in REMIX, aratam doar Remix
+      if (appMode === 'remix') {
+          return post.generationType === 'remix';
+      }
+      // 2. Daca suntem in CAMPAIGN, aratam doar Campaign
+      if (isCampaignMode) {
+          return post.generationType === 'campaign' || post.generationType === 'campaign_post';
+      }
+      // 3. Altfel (Single), aratam Single sau generic
+      return post.generationType === 'single' || post.generationType === 'post' || !post.generationType;
+  });
+
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       setError(null);
-      // setPosts([]); // <--- AM COMENTAT/STERS ACEASTA LINIE. Acum postarile raman pe ecran.
-      
-      if (mode === 'single') { 
-          setAppMode('creator'); 
-          setIsCampaignMode(false); 
-      }
-      else if (mode === 'campaign') { 
-          setAppMode('creator'); 
-          setIsCampaignMode(true); 
-      }
-      else if (mode === 'remix') { 
-          setAppMode('remix'); 
-          setIsCampaignMode(false); 
-      }
+      // NU mai stergem postarile (setPosts([])), doar schimbam filtrul
+      if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
+      else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
+      else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
   };
 
   const toggleRemixFormat = (fmt: string) => {
@@ -107,7 +109,6 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
     }
   }, [loading, brandProfile, appMode]); 
 
-  // --- IMAGINE HELPER ---
   const compressImage = async (imageUrl: string): Promise<string> => {
       return new Promise((resolve, reject) => {
           const img = new Image();
@@ -124,10 +125,7 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
               const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
               resolve(dataUrl);
           };
-          img.onerror = (err) => {
-              console.error("Image load error", err);
-              resolve(imageUrl);
-          };
+          img.onerror = (err) => { console.error("Image load error", err); resolve(imageUrl); };
           img.src = imageUrl;
       });
   };
@@ -166,16 +164,11 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
   };
 
   const handleLuckyGenerate = async () => {
-      if (!checkCredits(1)) { 
-          if (isTrialExpired) return; 
-          alert(`Insufficient credits! This requires 1 credit.`); 
-          return; 
-      }
+      if (!checkCredits(1)) { if (isTrialExpired) return; alert(`Insufficient credits! This requires 1 credit.`); return; }
 
       setIsLoading(true); setError(null);
       try {
-          // Lucky foloseste obiectivul 'Viral/Engagement' implicit, sau poti randomiza
-          const luckyTopic = "Generate a high-performing, viral post about a trending topic in my niche. Surprise me.";
+          const luckyTopic = "Generate a viral post about a trending topic in my niche. Surprise me.";
           
           const generatedPosts = await generateSocialMediaPosts(
               luckyTopic, tone, 1, brandProfile?.language || 'English', brandProfile?.voiceDNA || '',
@@ -199,10 +192,7 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                   await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
               }
           }
-      } catch (err: any) { 
-          setError(err.message || 'Failed to generate lucky post.'); 
-          refundCredits(1);
-      } 
+      } catch (err: any) { setError(err.message || 'Failed to generate lucky post.'); refundCredits(1); } 
       finally { setIsLoading(false); }
   };
 
@@ -215,11 +205,7 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
     
     const cost = useRealTime ? 10 : (1 * count);
 
-    if (!checkCredits(cost)) { 
-        if (isTrialExpired) return; 
-        alert(`Insufficient credits! This action requires ${cost} credits.`); 
-        return; 
-    }
+    if (!checkCredits(cost)) { if (isTrialExpired) return; alert(`Insufficient credits! This action requires ${cost} credits.`); return; }
 
     setIsLoading(true); setError(null);
     try {
@@ -233,12 +219,9 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
           }
       }
 
-      // TRIMITEREA OBIECTIVULUI CATRE AI
       const generatedPosts = await generateSocialMediaPosts(
           topic, tone, count, brandProfile?.language || 'English', brandProfile?.voiceDNA || '',
-          brandProfile || undefined, imgData, imgMime, 
-          objective, // <--- AICI FOLOSIM OBIECTIVUL SELECTAT
-          useRealTime, isCampaignMode, appMode === 'remix', remixFormats
+          brandProfile || undefined, imgData, imgMime, objective, useRealTime, isCampaignMode, appMode === 'remix', remixFormats
       );
       
       if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) throw new Error("AI returned an empty response.");
@@ -253,7 +236,8 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
           isGeneratingImage: false, isLocked: false, generationType: genType, type: p.type || 'post'
       }));
 
-      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
+      // Adaugam noile postari la lista existenta
+      setPosts(prev => [...newPostsData, ...prev]);
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
@@ -336,9 +320,12 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                                                 </div>
                                             </div>
                                         )}
+
                                         {attachedImage && (
                                             <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
-                                                <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>
+                                                <span className="text-xs text-green-400 flex items-center gap-1">
+                                                    <ImageIcon size={12}/> Image Attached
+                                                </span>
                                                 <button onClick={() => setAttachedImage(null)} className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"><X size={10} /></button>
                                             </div>
                                         )}
@@ -373,73 +360,25 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                                 </div>
                             </section>
 
-{/* --- CONTROLS GRID (ALIGNED) --- */}
                             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                
-                                {/* 1. GOAL */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4">
-                                        <Target size={12}/> Goal
-                                    </label>
-                                    <div className="relative">
-                                        <select 
-                                            value={objective} 
-                                            onChange={(e) => setObjective(e.target.value as PostObjective)} 
-                                            className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600"
-                                        >
-                                            {OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                        </select>
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        </div>
-                                    </div>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4"><Target size={12}/> Goal</label>
+                                    <div className="relative"><select value={objective} onChange={(e) => setObjective(e.target.value as PostObjective)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600">{OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
                                 </div>
-
-                                {/* 2. TONE */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4">
-                                        <SparklesIcon className="w-3 h-3"/> Tone
-                                    </label>
-                                    <div className="relative">
-                                        <select 
-                                            value={tone} 
-                                            onChange={(e) => setTone(e.target.value as Tone)} 
-                                            className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600"
-                                        >
-                                            {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                        </select>
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        </div>
-                                    </div>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4"><SparklesIcon className="w-3 h-3"/> Tone</label>
+                                    <div className="relative"><select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600">{TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
                                 </div>
-
-                                {/* 3. PLATFORM */}
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4">
-                                        <Globe size={12}/> Platform
-                                    </label>
-                                    <div className="relative">
-                                        <select 
-                                            value={selectedPlatform} 
-                                            onChange={(e) => setSelectedPlatform(e.target.value as Platform)} 
-                                            className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600"
-                                        >
-                                            {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                                        </select>
-                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
-                                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                        </div>
-                                    </div>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4"><Globe size={12}/> Platform</label>
+                                    <div className="relative"><select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600">{PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
                                 </div>
-
                             </section>
                             
                             <div className="flex gap-3">
                                 <button onClick={handleLuckyGenerate} disabled={isLoading || isTrialExpired} className="px-4 py-4 rounded-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 text-white flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group" title="I'm Feeling Lucky (Text Only)">
                                     <Dices className={`w-6 h-6 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
                                 </button>
-
                                 <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="flex-1 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                     {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
                                     {isLoading ? (appMode === 'remix' ? 'Remixing...' : isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (appMode === 'remix' ? 'Remix Content ♻️' : isCampaignMode ? 'Generate Campaign 🚀' : 'Craft my Post ✨')}
@@ -449,10 +388,10 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                             {error && <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2"><BriefcaseIcon size={16} /> {error}</div>}
 
                             <div ref={resultsRef} className="scroll-mt-24">
-                                {posts.length > 0 && (
+                                {visiblePosts.length > 0 && (
                                     <div className="space-y-6 mt-10 pt-10 border-t border-gray-800 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                        <div className="flex items-center justify-between"><h3 className="font-bold text-xl text-white">Generated Results</h3><span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{posts.length} variations</span></div>
-                                        {posts.map(post => (
+                                        <div className="flex items-center justify-between"><h3 className="font-bold text-xl text-white">Generated Results</h3><span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{visiblePosts.length} results</span></div>
+                                        {visiblePosts.map(post => (
                                             <PostCard 
                                                 key={post.id} 
                                                 post={post} 
@@ -483,7 +422,7 @@ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
                     </div>
                 </div>
                 <div className="hidden xl:block w-[400px] shrink-0">
-                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
+                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={attachedImage || activePost?.imageUrl || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
                 </div>
             </div>
         )}
