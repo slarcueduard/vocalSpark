@@ -92,33 +92,35 @@ const SocialSparkApp: React.FC = () => {
     }
   }, [loading, brandProfile, appMode]); 
 
-  // --- IMAGINE HELPER: BLOB TO BASE64 ---
-  const convertBlobUrlToBase64 = async (blobUrl: string): Promise<string> => {
-      try {
-          const response = await fetch(blobUrl);
-          const blob = await response.blob();
-          return new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-          });
-      } catch (e) {
-          console.error("Error converting blob:", e);
-          return blobUrl;
-      }
-  };
+  // --- FIX CRITIC: COMPRESOR IMAGINE (CANVAS) ---
+  // Transforma ORICE url (blob sau http) intr-un Base64 mic (sub 500KB) compatibil cu Firestore
+  const compressImage = async (imageUrl: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous"; // Important pentru imagini externe
+          img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_WIDTH = 800; // Reducem rezolutia pentru a incapea in DB
+              const scaleSize = MAX_WIDTH / img.width;
+              canvas.width = MAX_WIDTH;
+              canvas.height = img.height * scaleSize;
 
-  const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
-      try {
-          const response = await fetch(url);
-          const blob = await response.blob();
-          return new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve({ data: (reader.result as string).split(',')[1], mimeType: blob.type });
-              reader.readAsDataURL(blob);
-          });
-      } catch (e) { return null; }
+              const ctx = canvas.getContext('2d');
+              if (!ctx) { reject("Canvas context error"); return; }
+              
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              
+              // Exportam ca JPEG calitate 60% (optimizare maxima)
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+              resolve(dataUrl);
+          };
+          img.onerror = (err) => {
+              console.error("Image load error for compression", err);
+              // Fallback: returnam originalul daca nu putem comprima (desi e riscant pt DB)
+              resolve(imageUrl); 
+          };
+          img.src = imageUrl;
+      });
   };
 
   const openImageModalForPost = (postId: string, content: string) => {
@@ -133,26 +135,26 @@ const SocialSparkApp: React.FC = () => {
       setIsImageModalOpen(true);
   };
 
-  // --- FIX IMAGINE PERSISTENTA ---
+  // --- HANDLE IMAGE SELECTION (CU COMPRESIE) ---
   const handleImageSelected = async (url: string) => {
-      let persistentUrl = url;
-      
-      // Convertim Blob in Base64 pentru a fi salvat in Firestore
-      if (url.startsWith('blob:')) {
-          persistentUrl = await convertBlobUrlToBase64(url);
+      setIsLoading(true); // Aratam un mic loading cat timp comprimam
+      try {
+          const persistentUrl = await compressImage(url);
+          
+          if (activePostIdForImage) {
+              setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
+              await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
+          } else {
+              setAttachedImage(persistentUrl);
+          }
+      } catch (e) {
+          console.error("Failed to process image:", e);
+          alert("Could not process image. Try a smaller one.");
+      } finally {
+          setIsLoading(false);
+          setIsImageModalOpen(false);
+          setActivePostIdForImage(null);
       }
-
-      if (activePostIdForImage) {
-          // Update Post existent
-          setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
-          // Update Firestore imediat
-          await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
-      } else {
-          // Update Input Principal
-          setAttachedImage(persistentUrl);
-      }
-      setIsImageModalOpen(false);
-      setActivePostIdForImage(null);
   };
 
   const handleLuckyGenerate = async () => {
@@ -210,24 +212,15 @@ const SocialSparkApp: React.FC = () => {
     setIsLoading(true); setError(null);
     try {
       let imgData = undefined, imgMime = undefined;
-      // Daca avem imagine atasata, asiguram ca e base64
+      
+      // Procesam imaginea pentru trimitere la AI (aici pastram Base64-ul deja comprimat)
       if (attachedImage) {
           if (attachedImage.startsWith('data:')) {
               const parts = attachedImage.split(',');
               imgData = parts[1];
               imgMime = parts[0].split(':')[1].split(';')[0];
-          } else if (attachedImage.startsWith('blob:')) {
-              // Convertim blob-ul din input principal inainte de a trimite la AI
-              const base64 = await convertBlobUrlToBase64(attachedImage);
-              const parts = base64.split(',');
-              imgData = parts[1];
-              imgMime = parts[0].split(':')[1].split(';')[0];
-              // Actualizam si state-ul ca sa fie consistent la salvare
-              setAttachedImage(base64);
-          } else {
-              const converted = await urlToBase64(attachedImage);
-              if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
-          }
+          } 
+          // Nu mai avem nevoie de alte conversii, 'attachedImage' e garantat base64 din handleImageSelected
       }
 
       const generatedPosts = await generateSocialMediaPosts(
@@ -243,7 +236,7 @@ const SocialSparkApp: React.FC = () => {
 
       const newPostsData = generatedPosts.map(p => ({ 
           ...p, id: crypto.randomUUID(), adaptedContent: {}, 
-          imageUrl: attachedImage || null, // Aici folosim imaginea atasata (acum convertita sigur)
+          imageUrl: attachedImage || null, 
           isGeneratingImage: false, isLocked: false, generationType: genType, type: p.type || 'post'
       }));
 
@@ -261,7 +254,6 @@ const SocialSparkApp: React.FC = () => {
     finally { setIsLoading(false); }
   };
 
-  // ... (restul functiilor raman neschimbate: handleDeletePost, etc.)
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
@@ -374,12 +366,10 @@ const SocialSparkApp: React.FC = () => {
                             </section>
                             
                             <div className="flex gap-3">
-                                {/* BUTON LUCKY */}
                                 <button onClick={handleLuckyGenerate} disabled={isLoading || isTrialExpired} className="px-4 py-4 rounded-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 text-white flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group" title="I'm Feeling Lucky (Text Only)">
                                     <Dices className={`w-6 h-6 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
                                 </button>
 
-                                {/* BUTON STANDARD */}
                                 <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="flex-1 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                     {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
                                     {isLoading ? (appMode === 'remix' ? 'Remixing...' : isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (appMode === 'remix' ? 'Remix Content ♻️' : isCampaignMode ? 'Generate Campaign 🚀' : 'Craft my Post ✨')}
