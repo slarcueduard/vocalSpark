@@ -12,7 +12,7 @@ import {
   setDoc, 
   updateDoc, 
   serverTimestamp,
-  increment // <--- IMPORT IMPORTANT
+  increment 
 } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { BrandProfile, UserProfile } from '../types';
@@ -41,40 +41,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
+  // State pentru Multi-Profile
   const [allProfiles, setAllProfiles] = useState<BrandProfile[]>([]);
   const [activeProfileIndex, setActiveProfileIndex] = useState(0);
   
   const [loading, setLoading] = useState(true);
+
+  // Derivam profilul activ
   const brandProfile = allProfiles[activeProfileIndex] || null;
-// ... în interiorul AuthProvider ...
 
-  const checkCredits = (cost: number) => {
-    if (!userProfile) return false;
-    
-    const currentCredits = Number(userProfile.credits);
-    
-    // Protectie: Daca costul e 0 sau negativ, nu facem nimic
-    if (cost <= 0) return true;
-
-    if (!isNaN(currentCredits) && currentCredits >= cost) {
-      
-      // --- LOGGING: Arata in consola cand se scad banii ---
-      console.warn(`💸 SCADERE CREDITE! Cost: ${cost} | Ramas: ${currentCredits - cost}`);
-      // ----------------------------------------------------
-
-      const newCredits = currentCredits - cost;
-      setUserProfile({ ...userProfile, credits: newCredits });
-      
-      if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        updateDoc(userRef, { credits: increment(-cost) });
-      }
-      return true;
-    }
-    
-    console.error("❌ Insufficient funds. Need:", cost, "Have:", currentCredits);
-    return false;
-  };
+  // 1. MONITORIZARE LOGIN
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -89,14 +65,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
+  // 2. FETCH DATA
   const fetchUserData = async (uid: string) => {
     try {
+      // User Profile
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        const data = userSnap.data() as UserProfile;
-        setUserProfile(data);
+        setUserProfile(userSnap.data() as UserProfile);
       } else {
         const newProfile: UserProfile = {
           uid,
@@ -109,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(newProfile);
       }
 
+      // Brand Profiles
       const brandRef = doc(db, 'brands', uid);
       const brandSnap = await getDoc(brandRef);
 
@@ -118,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAllProfiles(data.profiles);
             setActiveProfileIndex(data.activeIndex || 0);
         } else {
+            // Migrare date vechi
             const migratedProfile: BrandProfile = {
                 name: data.name || 'Personal Brand',
                 industry: data.industry || '',
@@ -217,33 +196,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- LOGICA DE PLATA (CRITIC - REPARAT) ---
+  // --- LOGICA DE PLATA (DEFINIT O SINGURA DATA) ---
   const checkCredits = (cost: number) => {
     if (!userProfile) return false;
     
-    // Asiguram ca e numar
     const currentCredits = Number(userProfile.credits);
     if (isNaN(currentCredits)) return false;
 
-    if (currentCredits >= cost) {
-      // 1. Calculam noul total local pentru UI instant
-      const newCredits = currentCredits - cost;
-      
-      console.log(`💰 DEDUCTING: ${cost} | OLD: ${currentCredits} | NEW: ${newCredits}`);
+    // Protectie cost 0
+    if (cost <= 0) return true;
 
-      // 2. Updatam starea locala
+    if (currentCredits >= cost) {
+      // 1. Update Local
+      const newCredits = currentCredits - cost;
+      console.warn(`💸 CREDITS DEDUCTED: ${cost} | Remaining: ${newCredits}`);
       setUserProfile({ ...userProfile, credits: newCredits });
       
-      // 3. Updatam Firebase ATOMIC (Increment cu minus) - Asta previne bug-uri de suprascriere
+      // 2. Update Firebase Atomic
       if (user) {
         const userRef = doc(db, 'users', user.uid);
-        // "Scade costul din ce e in baza de date" - e mult mai sigur
         updateDoc(userRef, { credits: increment(-cost) });
       }
       return true;
     }
     
-    console.warn("⚠️ Not enough credits:", currentCredits, "Cost:", cost);
+    console.error("❌ Not enough credits.");
     return false;
   };
 
