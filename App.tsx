@@ -5,7 +5,6 @@ import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-// AM ADAUGAT 'Dices' PENTRU BUTONUL LUCKY
 import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
@@ -26,14 +25,10 @@ const SocialSparkApp: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // --- NAVIGARE ---
   const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
-
-  // --- MODURI DE LUCRU ---
   const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
   const [isCampaignMode, setIsCampaignMode] = useState(false);
   
-  // --- INPUT STATES ---
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
@@ -45,7 +40,6 @@ const SocialSparkApp: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   
   const [useRealTime, setUseRealTime] = useState(false);
-  
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -98,6 +92,23 @@ const SocialSparkApp: React.FC = () => {
     }
   }, [loading, brandProfile, appMode]); 
 
+  // --- IMAGINE HELPER: BLOB TO BASE64 ---
+  const convertBlobUrlToBase64 = async (blobUrl: string): Promise<string> => {
+      try {
+          const response = await fetch(blobUrl);
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+          });
+      } catch (e) {
+          console.error("Error converting blob:", e);
+          return blobUrl;
+      }
+  };
+
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
           const response = await fetch(url);
@@ -122,90 +133,67 @@ const SocialSparkApp: React.FC = () => {
       setIsImageModalOpen(true);
   };
 
-  const handleImageSelected = (url: string) => {
+  // --- FIX IMAGINE PERSISTENTA ---
+  const handleImageSelected = async (url: string) => {
+      let persistentUrl = url;
+      
+      // Convertim Blob in Base64 pentru a fi salvat in Firestore
+      if (url.startsWith('blob:')) {
+          persistentUrl = await convertBlobUrlToBase64(url);
+      }
+
       if (activePostIdForImage) {
-          setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
-          updatePostInHistory(activePostIdForImage, { imageUrl: url });
+          // Update Post existent
+          setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
+          // Update Firestore imediat
+          await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
       } else {
-          setAttachedImage(url);
+          // Update Input Principal
+          setAttachedImage(persistentUrl);
       }
       setIsImageModalOpen(false);
       setActivePostIdForImage(null);
   };
 
-  // --- LOGICA I'M FEELING LUCKY (Text Only) ---
   const handleLuckyGenerate = async () => {
-      if (!checkCredits(1)) { // 1 Credit pentru text simplu
+      if (!checkCredits(1)) { 
           if (isTrialExpired) return; 
           alert(`Insufficient credits! This requires 1 credit.`); 
           return; 
       }
 
-      setIsLoading(true); 
-      setError(null);
-      
+      setIsLoading(true); setError(null);
       try {
-          // 1. Definim un prompt "Surpriza" care forteaza AI-ul sa fie creativ pe nisa brandului
           const luckyTopic = "Generate a high-performing, viral post about a trending, controversial, or highly valuable topic specifically for my niche. Surprise me with the angle.";
           
-          // 2. Apelam functia standard, dar fara imagine si fara Campaign/Remix
           const generatedPosts = await generateSocialMediaPosts(
-              luckyTopic, 
-              tone, 
-              1, // Doar 1 post
-              brandProfile?.language || 'English',
-              brandProfile?.voiceDNA || '',
-              brandProfile || undefined, 
-              undefined, // Fara imagine (imgData)
-              undefined, // Fara imagine (imgMime)
-              'engagement', // Obiectiv default
-              false, // Fara Real-Time (ca sa fie rapid si ieftin)
-              false, // Nu e campanie
-              false, // Nu e remix
-              []
+              luckyTopic, tone, 1, brandProfile?.language || 'English', brandProfile?.voiceDNA || '',
+              brandProfile || undefined, undefined, undefined, 'engagement', false, false, false, []
           );
           
-          if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) {
-              throw new Error("AI returned an empty response.");
-          }
+          if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) throw new Error("AI returned an empty response.");
 
           const newPostsData = generatedPosts.map(p => ({ 
-              ...p, 
-              id: crypto.randomUUID(), 
-              adaptedContent: {}, 
-              imageUrl: null, // Asiguram ca nu are imagine
-              isGeneratingImage: false, 
-              isLocked: false,
-              generationType: 'single',
-              type: 'post'
+              ...p, id: crypto.randomUUID(), adaptedContent: {}, imageUrl: null, isGeneratingImage: false, 
+              isLocked: false, generationType: 'single', type: 'post'
           }));
 
           setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
           setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-          setVibeMessage("🎲 You got lucky! Check this out."); // Mesaj custom
+          setVibeMessage("🎲 You got lucky! Check this out."); 
 
-          // Auto-Save
           if (user) {
               const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
               for (const postData of newPostsData) {
                   await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
               }
           }
-
-      } catch (err: any) { 
-          console.error("Lucky Error:", err);
-          setError(err.message || 'Failed to generate lucky post.'); 
-      } finally { 
-          setIsLoading(false); 
-      }
+      } catch (err: any) { setError(err.message || 'Failed to generate lucky post.'); } 
+      finally { setIsLoading(false); }
   };
 
-  // --- STANDARD GENERATE ---
   const handleGenerate = async () => {
-    if (!topic.trim() && !attachedImage) { 
-        setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
-        return; 
-    }
+    if (!topic.trim() && !attachedImage) { setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); return; }
     
     let count = 1;
     if (isCampaignMode) count = campaignCount;
@@ -222,11 +210,20 @@ const SocialSparkApp: React.FC = () => {
     setIsLoading(true); setError(null);
     try {
       let imgData = undefined, imgMime = undefined;
+      // Daca avem imagine atasata, asiguram ca e base64
       if (attachedImage) {
           if (attachedImage.startsWith('data:')) {
               const parts = attachedImage.split(',');
               imgData = parts[1];
               imgMime = parts[0].split(':')[1].split(';')[0];
+          } else if (attachedImage.startsWith('blob:')) {
+              // Convertim blob-ul din input principal inainte de a trimite la AI
+              const base64 = await convertBlobUrlToBase64(attachedImage);
+              const parts = base64.split(',');
+              imgData = parts[1];
+              imgMime = parts[0].split(':')[1].split(';')[0];
+              // Actualizam si state-ul ca sa fie consistent la salvare
+              setAttachedImage(base64);
           } else {
               const converted = await urlToBase64(attachedImage);
               if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
@@ -234,33 +231,20 @@ const SocialSparkApp: React.FC = () => {
       }
 
       const generatedPosts = await generateSocialMediaPosts(
-          topic, tone, count, 
-          brandProfile?.language || 'English',
-          brandProfile?.voiceDNA || '',
-          brandProfile || undefined, 
-          imgData, imgMime, objective, useRealTime,
-          isCampaignMode,
-          appMode === 'remix',
-          remixFormats
+          topic, tone, count, brandProfile?.language || 'English', brandProfile?.voiceDNA || '',
+          brandProfile || undefined, imgData, imgMime, objective, useRealTime, isCampaignMode, appMode === 'remix', remixFormats
       );
       
-      if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) {
-          throw new Error("AI returned an empty response. Please try again.");
-      }
+      if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) throw new Error("AI returned an empty response.");
 
       let genType: GenerationType = 'single';
       if (appMode === 'remix') genType = 'remix';
       else if (isCampaignMode) genType = 'campaign';
 
       const newPostsData = generatedPosts.map(p => ({ 
-          ...p, 
-          id: crypto.randomUUID(), 
-          adaptedContent: {}, 
-          imageUrl: attachedImage || null, 
-          isGeneratingImage: false, 
-          isLocked: false,
-          generationType: genType,
-          type: p.type || 'post'
+          ...p, id: crypto.randomUUID(), adaptedContent: {}, 
+          imageUrl: attachedImage || null, // Aici folosim imaginea atasata (acum convertita sigur)
+          isGeneratingImage: false, isLocked: false, generationType: genType, type: p.type || 'post'
       }));
 
       setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
@@ -270,23 +254,14 @@ const SocialSparkApp: React.FC = () => {
       if (user) {
           const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
           for (const postData of newPostsData) {
-              try {
-                  const savedId = await savePostToHistory(user.uid, postData, topic, limit);
-                  if (savedId) {
-                      setPosts(curr => curr.map(p => p.id === postData.id ? { ...p, id: savedId } : p));
-                  }
-              } catch (saveErr) { console.error("Save Failed:", saveErr); }
+              await savePostToHistory(user.uid, postData, topic, limit);
           }
       }
-
-    } catch (err: any) { 
-        console.error("Generate Error:", err);
-        setError(err.message || 'Failed to generate content.'); 
-    } finally { 
-        setIsLoading(false); 
-    }
+    } catch (err: any) { setError(err.message || 'Failed to generate content.'); } 
+    finally { setIsLoading(false); }
   };
 
+  // ... (restul functiilor raman neschimbate: handleDeletePost, etc.)
   const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
   const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
   const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp=>pp.id===id)?.adaptedContent, [platform]: adapted } }); };
@@ -399,22 +374,13 @@ const SocialSparkApp: React.FC = () => {
                             </section>
                             
                             <div className="flex gap-3">
-                                {/* BUTON LUCKY (NOU) */}
-                                <button 
-                                    onClick={handleLuckyGenerate} 
-                                    disabled={isLoading || isTrialExpired} 
-                                    className="px-4 py-4 rounded-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 text-white flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group"
-                                    title="I'm Feeling Lucky (Text Only)"
-                                >
+                                {/* BUTON LUCKY */}
+                                <button onClick={handleLuckyGenerate} disabled={isLoading || isTrialExpired} className="px-4 py-4 rounded-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 text-white flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group" title="I'm Feeling Lucky (Text Only)">
                                     <Dices className={`w-6 h-6 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
                                 </button>
 
                                 {/* BUTON STANDARD */}
-                                <button 
-                                    onClick={handleGenerate} 
-                                    disabled={isLoading || isTrialExpired} 
-                                    className="flex-1 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
-                                >
+                                <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="flex-1 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                     {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
                                     {isLoading ? (appMode === 'remix' ? 'Remixing...' : isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (appMode === 'remix' ? 'Remix Content ♻️' : isCampaignMode ? 'Generate Campaign 🚀' : 'Craft my Post ✨')}
                                 </button>
