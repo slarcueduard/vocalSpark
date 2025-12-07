@@ -50,8 +50,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
   const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
 
-  // --- FIX 1: POPULARE DATE (Doar datele persistente) ---
-  // Ruleaza la incarcare, la schimbarea profilului SI la salvare
+  // --- 1. POPULARE DATE (LOAD) ---
   useEffect(() => {
     if (currentProfile) {
         setProfileName(currentProfile.name || `Brand #${activeProfileIndex + 1}`);
@@ -69,24 +68,24 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         }
 
         setLogoPreview(currentProfile.logoUrl || null);
-    }
-  }, [currentProfile]); // Scoatem activeProfileIndex de aici ca sa nu faca dublu render
 
-  // --- FIX 2: RESETARE TEMPORARA (Doar cand SCHIMBI profilul) ---
-  // Aici punem lucrurile care trebuie sa dispara cand treci de la Brand A la Brand B
-  // DAR care NU trebuie sa dispara cand dai Save la Brand A.
+        // --- FIX SLIDERS: Incarcam valorile salvate sau 50 default ---
+        setSliders({
+            tone: currentProfile.toneScore ?? 50,
+            emoji: currentProfile.emojiScore ?? 50,
+            length: currentProfile.lengthScore ?? 50
+        });
+    }
+  }, [currentProfile]); 
+
+  // --- 2. RESETARE TEMPORARA (La schimbarea profilului) ---
   useEffect(() => {
-      // Resetam input-urile de analiza
       setUrlInput('');
       setTextInput('');
       setAnalysisMode('personal');
-      
-      // Resetam sliderele la default (sau le poti salva in DB in viitor)
-      setSliders({ tone: 50, emoji: 50, length: 50 });
-      
-      // Resetam tab-ul la primul
+      // Nu mai resetam sliderele aici la 50, pentru ca primul useEffect se va ocupa sa le seteze corect din DB
       setActiveTab('core');
-  }, [activeProfileIndex]); // Ruleaza DOAR cand schimbi indexul (profilul)
+  }, [activeProfileIndex]);
 
   // --- HANDLERS ---
   
@@ -162,12 +161,16 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
           fixedHashtags: hashtags, 
           brandColors: brandColors,
           logoUrl: logoPreview,
-          description: targetAudience
+          description: targetAudience,
+          
+          // --- FIX SALVARE: Salvam valorile sliderelor in DB ---
+          toneScore: sliders.tone,
+          emojiScore: sliders.emoji,
+          lengthScore: sliders.length
       };
 
       try {
           await onSave(updatedProfile);
-          // Nu mai dam onClose() automat, userul poate vrea sa continue editarea
           alert("Profile Saved Successfully! ✅");
       } catch (error) {
           console.error("Failed to save brand:", error);
@@ -216,7 +219,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                     </button>
                 ))}
 
-                {/* Buton Add New */}
                 <button 
                     onClick={addNewProfile}
                     disabled={!canAddMore}
@@ -235,7 +237,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         {/* --- RIGHT MAIN CONTENT --- */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#0f1115]">
             
-            {/* Header */}
             <div className="p-6 border-b border-gray-800 flex justify-between items-start">
             <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -244,7 +245,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         value={profileName}
                         onChange={(e) => setProfileName(e.target.value)}
                         className="bg-transparent text-xl font-bold text-white outline-none border-b border-gray-700 hover:border-blue-500 focus:border-blue-500 transition w-full placeholder-gray-600"
-                        placeholder="Name this Profile (e.g. Personal)"
+                        placeholder="Profile Name (e.g. Personal)"
                     />
                     <div className="bg-blue-600/20 p-1.5 rounded-lg"><Sparkles size={16} className="text-blue-500" /></div>
                 </div>
@@ -253,14 +254,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             <button onClick={onClose} className="text-gray-500 hover:text-white transition"><X size={20} /></button>
             </div>
 
-            {/* Tabs */}
             <div className="flex border-b border-gray-800 bg-[#0f1115]">
                 <TabButton label="Core Identity" isActive={activeTab === 'core'} onClick={() => setActiveTab('core')} />
                 <TabButton label="Visuals & Logo" isActive={activeTab === 'visuals'} onClick={() => setActiveTab('visuals')} />
                 <TabButton label="Writing Rules" isActive={activeTab === 'rules'} onClick={() => setActiveTab('rules')} />
             </div>
 
-            {/* Scrollable Form */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
             
             {activeTab === 'core' && (
