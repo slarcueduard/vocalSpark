@@ -107,25 +107,37 @@ export async function generateSocialMediaPosts(
 }
 
 // --- 2. GENERARE IMAGINI ---
+// --- 2. GENERARE IMAGINI (UPDATED) ---
 export async function generateImageForPost(
     postText: string, 
     isPremium: boolean = false, 
     topicContext: string = '', 
     brandColors: string[] = []
 ): Promise<string> {
+    
+    // A. STANDARD (FLUX) - Generare Directa Client-Side (Fara erori de server)
+    if (!isPremium) {
+        // Curatam promptul pentru URL
+        const cleanPrompt = encodeURIComponent(`${postText} ${topicContext}`.slice(0, 500));
+        // Folosim Pollinations.ai (Flux) direct
+        return `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
+    }
+
+    // B. PREMIUM (DALL-E 3) - Trece prin Server (Vercel API)
     try {
         const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
 
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
-            isPremium: isPremium,
+            isPremium: true, // Fortam flag-ul
             topic: topicContext,
             brandColors: brandColors
         });
         
         const imageUrl = data.imageUrl;
 
-        if (isPremium && imageUrl.startsWith('http')) {
+        // Proxy pentru DALL-E (ca sa nu expire linkul sau sa avem CORS)
+        if (imageUrl.startsWith('http')) {
             try {
                 const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
                 if (!proxyRes.ok) return imageUrl;
@@ -139,7 +151,7 @@ export async function generateImageForPost(
         }
         return imageUrl;
     } catch (e) {
-        console.error("Image Gen Failed:", e);
+        console.error("Premium Image Gen Failed:", e);
         throw e; 
     }
 }
