@@ -49,6 +49,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const currentCost = modelType === 'standard' ? 2 : 20;
   const canUsePremium = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
 
+  // Cleanup pentru blob-uri uploaded
   useEffect(() => {
       return () => {
           if (uploadedImageBlob) URL.revokeObjectURL(uploadedImageBlob);
@@ -64,8 +65,10 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     }
 
     setIsGenerating(true);
-    setIsImageLoading(true);
+    setIsImageLoading(true); // Pornim loader-ul vizual
     setError(null);
+    
+    // Resetam imaginea anterioara ca sa se vada ca lucram
     if (activeTab === 'upload') setResultImage(null);
 
     try {
@@ -79,8 +82,8 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
           brandProfile?.brandColors || []
       );
       
-      // FIX PREVIEW: Setam direct URL-ul primit (fie link extern, fie link Pollinations)
-      // Nu mai incercam sa-l convertim aici, lasam tag-ul <img> sa il incarce
+      // --- FIX PREVIEW: Setam direct URL-ul ---
+      // Browserul va incarca imaginea in tag-ul <img>. Nu o mai convertim aici.
       setResultImage(imageUrl);
       
       if (activeTab === 'upload') setActiveTab('generate');
@@ -91,6 +94,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
       setIsImageLoading(false);
     } finally {
       setIsGenerating(false);
+      // Nota: isImageLoading ramane true pana cand <img onLoad> il face false
     }
   };
 
@@ -112,18 +116,19 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     setIsProcessing(true);
     try {
         const img = new Image();
-        img.crossOrigin = "anonymous"; // Important pentru canvas
+        img.crossOrigin = "anonymous"; // CRITIC: Permite manipularea imaginilor externe in Canvas
         img.src = target;
         
-        // Asteptam sa se incarce imaginea in memorie pentru procesare
-        await new Promise((r, j) => { img.onload = r; img.onerror = j; });
+        await new Promise((r, j) => { 
+            img.onload = r; 
+            img.onerror = (e) => j("Failed to load image for processing"); 
+        });
 
         const canvas = document.createElement('canvas');
-        const MAX_DIM = 1080; // Rezolutie max pentru optimizare spatiu
+        const MAX_DIM = 1080;
         let w = img.width;
         let h = img.height;
         
-        // Resize inteligent
         if (w > MAX_DIM || h > MAX_DIM) {
             const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
             w = Math.round(w * ratio);
@@ -135,13 +140,13 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
-            // Aplicam Filtrele
+            // Filtre
             if (activeTab === 'upload' && selectedPhotoFilter !== 'normal') {
                  ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
             }
             ctx.drawImage(img, 0, 0, w, h);
             
-            // Aplicam Logo-ul (daca e selectat)
+            // Logo
             if (applyLogo && brandProfile?.logoUrl) {
                 ctx.filter = 'none';
                 const logoImg = new Image();
@@ -149,7 +154,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                 logoImg.src = brandProfile.logoUrl;
                 await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
                 
-                const logoW = w * 0.2; // 20% din latime
+                const logoW = w * 0.2;
                 const scale = logoW / logoImg.width;
                 const logoH = logoImg.height * scale;
                 const pad = w * 0.05;
@@ -159,14 +164,15 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                 ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
             }
 
-            // EXPORT FINAL: Base64
+            // Export final Base64 (pentru salvare sigura in Firebase)
             const base64Url = canvas.toDataURL('image/jpeg', 0.85);
             onSelectImage(base64Url);
             onClose();
         }
     } catch (error) {
         console.error("Processing error:", error);
-        // Fallback extrem: daca crapa canvas-ul, trimitem URL-ul original
+        // Fallback: Daca canvas-ul crapa, trimitem link-ul original
+        // (De exemplu, unele imagini externe au protectii CORS stricte)
         onSelectImage(target);
         onClose();
     } finally {
@@ -284,6 +290,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                     <img 
                         src={previewSrc} 
                         alt="Preview" 
+                        // Aceste evenimente ascund loader-ul cand imaginea e gata de afisare
                         onLoad={() => setIsImageLoading(false)} 
                         onError={() => setIsImageLoading(false)}
                         style={{ filter: activeTab === 'upload' ? activeFilterStyle : 'none' }} 
