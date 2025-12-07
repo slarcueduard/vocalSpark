@@ -40,20 +40,17 @@ function extractJsonArray(text: string): any[] {
         let cleanText = text.replace(/```json|```/g, '').trim();
         let parsed = JSON.parse(cleanText);
 
-        // Daca AI-ul returneaza un obiect cu cheia "posts"
         if (parsed.posts && Array.isArray(parsed.posts)) return parsed.posts;
-        // Daca AI-ul returneaza direct array
         if (Array.isArray(parsed)) return parsed;
-        // Daca e un singur obiect, il facem array
         return [parsed];
     } catch (e) {
-        // Fallback: incercam sa gasim array-ul in text
         const start = text.indexOf('[');
         const end = text.lastIndexOf(']');
         if (start !== -1 && end !== -1) {
             try { return JSON.parse(text.substring(start, end + 1)); } catch (e2) {}
         }
-        console.error("JSON Parse Error:", text);
+        
+        console.error("JSON Parse Error. Raw text:", text);
         throw new Error("AI response format error.");
     }
 }
@@ -63,62 +60,64 @@ export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
-    // 1. BRAND CONTEXT
+    // 1. BRAND CONTEXT (Simplified for Stability)
     let brandContext = '';
     if (brandProfile) {
         brandContext = `
-        BRAND IDENTITY:
-        - Voice: ${brandProfile.voiceDNA || brandVoice}
-        - Audience: ${brandProfile.targetAudience}
-        - Keywords/Hashtags: ${brandProfile.fixedHashtags || ''}
+        Voice: ${brandProfile.voiceDNA || brandVoice || "Professional"}
+        Audience: ${brandProfile.targetAudience || "General"}
+        Hashtags: ${brandProfile.fixedHashtags || ''}
         `;
     }
 
-    // 2. LOGICA STRICTA PENTRU NUMARUL DE POSTARI
+    // 2. CONSTRUIREA TASK-ULUI
     let specificInstructions = "";
     
     if (isCampaign) {
+        // --- PROMPT CAMPANIE SIMPLIFICAT ---
         specificInstructions = `
-        TASK: Generate a **CAMPAIGN SEQUENCE** of exactly ${postCount} posts.
-        GOAL: ${objective.toUpperCase()}.
+        TASK: Create a ${postCount}-part social media campaign.
         TOPIC: "${topic}".
+        GOAL: ${objective}.
         
-        STRUCTURE:
-        - Post 1: The Hook/Teaser (Attention)
-        - Middle Posts (2 to ${postCount-1}): Value/Education/Trust
-        - Last Post (${postCount}): Sales/Conversion/Call to Action
+        STRUCTURE (Return exactly ${postCount} posts):
+        1. Teaser (Hook)
+        2. Educational/Value
+        3. Sales/Conversion (CTA)
+        (Repeat value posts if count > 3)
         
-        CRITICAL: You MUST return a JSON ARRAY with EXACTLY ${postCount} objects.
+        OUTPUT: A JSON ARRAY with ${postCount} objects.
         `;
     } else if (isRemix) {
         specificInstructions = `
-        TASK: Remix content into ${remixFormats.length} distinct formats: ${remixFormats.join(', ')}.
+        TASK: Remix content into ${remixFormats.length} formats: ${remixFormats.join(', ')}.
         SOURCE: "${topic}".
-        CRITICAL: Return exactly ${remixFormats.length} objects.
+        OUTPUT: A JSON ARRAY with ${remixFormats.length} objects.
         `;
     } else {
         specificInstructions = `
-        TASK: Generate ${postCount} distinct variations of a viral post.
+        TASK: Generate ${postCount} viral post variations.
         TOPIC: "${topic}".
-        GOAL: ${objective.toUpperCase()}.
-        CRITICAL: Return exactly ${postCount} objects.
+        GOAL: ${objective}.
+        OUTPUT: A JSON ARRAY with ${postCount} objects.
         `;
     }
 
-    // 3. SYSTEM PROMPT (Strict Output Format)
     const systemPrompt = `
-    You are a Viral Social Media AI. Write in ${language}.
-    Be concise. No corporate fluff.
+    You are an expert Social Media AI. Write in ${language}.
+    Be concise. No intro. No fluff.
     
     ${brandContext}
     
     ${specificInstructions}
     
-    OUTPUT FORMAT (STRICT JSON ARRAY):
+    REQUIRED JSON FORMAT:
     [
-      { "platform": "Platform Name", "content": "Post 1 content..." },
-      { "platform": "Platform Name", "content": "Post 2 content..." }
-      ... (ensure there are exactly ${isRemix ? remixFormats.length : postCount} items)
+      {
+        "platform": "Platform Name",
+        "content": "Post content here...",
+        "imagePrompt": "Image description..."
+      }
     ]
     `;
 
@@ -140,7 +139,7 @@ export async function generateSocialMediaPosts(
 
                 return { 
                     content: content,
-                    type: p.type || (isCampaign ? 'campaign_post' : 'post'),
+                    type: p.type || (isCampaign ? 'campaign_post' : 'post'), // Tag corect pentru filtru
                     platform: p.platform || (isRemix ? 'Remix' : 'Generic')
                 };
             });
@@ -151,6 +150,11 @@ export async function generateSocialMediaPosts(
         return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
     }
 }
+
+// ... Restul fisierului (Imagini, Analiza, Adapters) ramane neschimbat ...
+// Asigura-te ca pastrezi generateImageForPost, analyzeBrandVoice, etc.
+// Daca vrei tot fisierul complet, spune-mi, dar e foarte lung.
+// Esential este sa inlocuiesti 'generateSocialMediaPosts' cu cea de mai sus.
 
 // --- 2. GENERARE IMAGINI ---
 export async function generateImageForPost(
