@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { deletePostFromHistory, togglePostLock, updatePostContent, updatePostInHistory } from '../services/postService';
 import { PostCard } from './PostCard';
 import { Loader } from './Loader';
-import { Archive, Search, Database, Ghost, ShieldCheck, Trash2, Filter } from 'lucide-react';
+import { Archive, Search, Database, Ghost, ShieldCheck, Trash2, Lock, Unlock } from 'lucide-react';
 import { Post } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -15,6 +15,9 @@ export function HistoryView() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'single' | 'campaign' | 'remix'>('all');
+  
+  // --- NOU: FILTRU LOCKED ---
+  const [showLockedOnly, setShowLockedOnly] = useState(false);
 
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [activePostId, setActivePostId] = useState<string | null>(null);
@@ -23,61 +26,46 @@ export function HistoryView() {
   useEffect(() => {
     if (!user) return;
 
-    // --- QUERY ULTRA-SIMPLU (Anti-Eroare Index) ---
-    // Cerem tot ce e al userului. Nu filtrăm, nu sortăm în DB.
-    const q = query(
-      collection(db, 'posts'),
-      where('userId', '==', user.uid)
-    );
+    const q = query(collection(db, 'posts'), where('userId', '==', user.uid));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-        console.log(`📦 Vault: Loaded ${snapshot.size} posts.`);
-        
         const formattedPosts: Post[] = snapshot.docs.map((doc) => {
             const d = doc.data();
             return { 
                 id: doc.id, 
                 content: d.content || "",
-                imageUrl: d.imageUrl || null,
+                imageUrl: d.imageUrl || null, // Aici vine Base64-ul salvat
                 adaptedContent: d.adaptedContent || {}, 
                 isGeneratingImage: false,
                 isLocked: !!d.isLocked,
-                
-                // Asigurăm fallback la 'single' pentru postări vechi
                 generationType: d.generationType || 'single',
                 type: d.type || 'post',
                 createdAt: d.createdAt 
             } as any;
         });
         
-        // --- SORTARE ÎN BROWSER ---
-        // Cele mai noi primele
-        formattedPosts.sort((a: any, b: any) => {
-             const timeA = a.createdAt?.seconds || 0;
-             const timeB = b.createdAt?.seconds || 0;
-             return timeB - timeA;
-        });
+        // Sortare Descrescatoare (Noi -> Vechi)
+        formattedPosts.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
         setPosts(formattedPosts);
-        setLoading(false);
-    }, (error) => {
-        console.error("Vault Error:", error);
         setLoading(false);
     });
 
     return () => unsubscribe();
   }, [user]);
 
-  // --- LOGICA DE FILTRARE VIZUALĂ ---
+  // --- LOGICA DE FILTRARE ---
   const getFilteredPosts = () => {
       return posts.filter(p => {
           const contentMatch = (p.content || "").toLowerCase().includes(searchTerm.toLowerCase());
-          const topicMatch = ((p as any).topic || "").toLowerCase().includes(searchTerm.toLowerCase());
           
-          // Filtrăm după tip (Tab-ul selectat)
+          // Filtru Tip
           const typeMatch = filterType === 'all' || p.generationType === filterType;
+          
+          // Filtru Locked (NOU)
+          const lockMatch = showLockedOnly ? p.isLocked : true;
 
-          return (contentMatch || topicMatch) && typeMatch;
+          return contentMatch && typeMatch && lockMatch;
       });
   };
 
@@ -89,51 +77,51 @@ export function HistoryView() {
       filtered.forEach(p => {
           // @ts-ignore
           const date = p.createdAt?.toDate ? p.createdAt.toDate() : new Date();
-          
           const today = new Date();
           const yesterday = new Date();
           yesterday.setDate(today.getDate() - 1);
 
           let dateKey = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-          
           if (date.toDateString() === today.toDateString()) dateKey = "Today";
           else if (date.toDateString() === yesterday.toDateString()) dateKey = "Yesterday";
             
           if (!groups[dateKey]) groups[dateKey] = [];
           groups[dateKey].push(p);
       });
-
       return groups;
   };
 
-  // Handlers
   const handleDelete = async (id: string) => {
       if (window.confirm("Delete this post?")) await deletePostFromHistory(id);
   };
   
   const handleDeleteAll = async () => {
-      const visiblePosts = getFilteredPosts().filter(p => !p.isLocked);
-      if (visiblePosts.length === 0) { alert("No unlocked posts to delete."); return; }
-      if (window.confirm(`Delete ${visiblePosts.length} unlocked posts?`)) {
-          for (const p of visiblePosts) await deletePostFromHistory(p.id);
+      const unlockedPosts = posts.filter(p => !p.isLocked);
+      if (unlockedPosts.length === 0) { alert("No unlocked posts to delete."); return; }
+      if (window.confirm(`Delete ${unlockedPosts.length} unlocked posts? Locked posts will be safe.`)) {
+          for (const p of unlockedPosts) await deletePostFromHistory(p.id);
       }
   };
 
-const handleToggleLock = async (id: string) => {
+  const handleToggleLock = async (id: string) => {
       if (!user) return;
       const post = posts.find(p => p.id === id);
-      
-      // Folosim funcția nouă cu userId
       if (post) {
-          const success = await togglePostLock(user.uid, id, post.isLocked || false);
-          if (success) {
-               setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-          }
+          await togglePostLock(user.uid, id, post.isLocked || false);
+          // UI update is automatic via onSnapshot
       }
   };
+  
   const handleUpdateContent = async (id: string, c: string) => { await updatePostContent(id, c); };
+  
+  // FIX IMAGE: Folosim imaginea selectata (care va veni Base64) si o salvam in DB
   const openImageModal = (id: string, c: string) => { setActivePostId(id); setActivePrompt(c); setIsImageModalOpen(true); };
-  const handleImageSelected = (url: string) => { if (activePostId) updatePostInHistory(activePostId, { imageUrl: url }); setIsImageModalOpen(false); };
+  const handleImageSelected = async (url: string) => { 
+      // Daca url este blob:, ar trebui convertit in App.tsx sau ImageCreationModal.
+      // Aici presupunem ca primim Base64 sau URL valid.
+      if (activePostId) await updatePostInHistory(activePostId, { imageUrl: url }); 
+      setIsImageModalOpen(false); 
+  };
 
   const groupedPosts = getGroupedPosts();
   const groupKeys = Object.keys(groupedPosts);
@@ -144,7 +132,7 @@ const handleToggleLock = async (id: string) => {
   return (
     <div className="max-w-5xl mx-auto pb-20 animate-in fade-in">
         
-        {/* Header */}
+        {/* HEADER */}
         <div className="bg-[#161b22] p-6 rounded-2xl border border-gray-800 mb-8 shadow-lg">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                 <div>
@@ -158,9 +146,19 @@ const handleToggleLock = async (id: string) => {
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700">
                         <Database size={14}/> {posts.length} Saved
                     </div>
-                    <div className="flex items-center gap-2 text-xs font-bold text-yellow-500 bg-yellow-900/10 px-3 py-1.5 rounded-lg border border-yellow-700/30">
-                        <ShieldCheck size={14}/> {lockedCount} Locked
-                    </div>
+                    
+                    {/* BUTTON: TOGGLE LOCKED VIEW */}
+                    <button 
+                        onClick={() => setShowLockedOnly(!showLockedOnly)}
+                        className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${
+                            showLockedOnly 
+                            ? 'bg-yellow-500 text-black border-yellow-600 shadow-lg shadow-yellow-500/20' 
+                            : 'text-yellow-500 bg-yellow-900/10 border-yellow-700/30 hover:bg-yellow-900/30'
+                        }`}
+                    >
+                        {showLockedOnly ? <Lock size={14} fill="currentColor" /> : <ShieldCheck size={14}/>} 
+                        {showLockedOnly ? 'Showing Locked' : `${lockedCount} Locked`}
+                    </button>
                     
                     {posts.length > 0 && (
                         <button onClick={handleDeleteAll} className="flex items-center gap-2 text-xs font-bold text-red-400 bg-red-900/10 px-3 py-1.5 rounded-lg border border-red-900/30 hover:bg-red-900/30 transition">
@@ -170,7 +168,7 @@ const handleToggleLock = async (id: string) => {
                 </div>
             </div>
 
-            {/* Tabs & Search */}
+            {/* TABS & SEARCH */}
             <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex bg-black/30 p-1 rounded-lg border border-gray-700 overflow-x-auto no-scrollbar">
                     {['all', 'single', 'campaign', 'remix'].map((t) => (
@@ -190,7 +188,7 @@ const handleToggleLock = async (id: string) => {
             </div>
         </div>
 
-        {/* LISTA GRUPATĂ */}
+        {/* LISTA POSTARI */}
         {groupKeys.length > 0 ? (
             <div className="space-y-8">
                 {groupKeys.map(dateLabel => (
@@ -221,6 +219,7 @@ const handleToggleLock = async (id: string) => {
             <div className="text-center py-24 border-2 border-dashed border-gray-800 rounded-2xl bg-[#161b22]/30">
                 <Ghost className="text-gray-600 mx-auto mb-4" size={48} />
                 <h3 className="text-xl font-bold text-gray-300 mb-2">No posts found</h3>
+                {showLockedOnly && <p className="text-gray-500">Try turning off the "Locked" filter.</p>}
             </div>
         )}
 
