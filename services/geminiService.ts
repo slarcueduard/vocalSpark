@@ -63,98 +63,75 @@ function extractJsonArray(text: string): any[] {
 }
 
 // --- 1. GENERARE TEXT (OPTIMIZAT: SPEED & PRIORITY) ---
+// ... importuri si helperi existenti ...
+
 export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
-    // 1. CONTEXT BRAND (Style Modifier)
     let brandContext = '';
     if (brandProfile) {
         brandContext = `
-        STYLE & TONE (Apply this flavor, but do NOT override the Topic):
+        STYLE & TONE:
         - Voice DNA: ${brandProfile.voiceDNA || brandVoice}
-        - Target Audience: ${brandProfile.targetAudience}
-        - Mandatory Hashtags: ${brandProfile.fixedHashtags || ''}
+        - Audience: ${brandProfile.targetAudience}
+        - Hashtags: ${brandProfile.fixedHashtags || ''}
         `;
     }
 
-    // 2. CONSTRUIREA TASK-ULUI (The Core Logic)
     let specificInstructions = "";
     
     if (isCampaign) {
-        // STRATEGIE CAMPANIE: Teaser -> Value -> Sales (Concise & Impactful)
+        // --- FIX CRITIC: Instructiuni Explicite pentru Array ---
         specificInstructions = `
-        TASK: Create a ${postCount}-part Content Campaign.
+        TASK: Create a ${postCount}-part sequential Campaign.
         GOAL: ${objective.toUpperCase()}.
-        TOPIC: "${topic}" (This is PRIORITY #1).
+        TOPIC: "${topic}".
         
-        STRUCTURE (Speed & Impact):
-        1. Post 1 (The Teaser): Short, mysterious, opens a loop. Max 280 chars.
-        2. Post 2-${postCount-1} (The Value): Educational or Story. Solves a specific sub-problem.
-        3. Post ${postCount} (The Close): Direct Call to Action. Sales focused.
+        CRITICAL OUTPUT RULE: You MUST return a JSON ARRAY containing exactly ${postCount} separate objects.
         
-        CRITICAL RULES:
-        - NO fluff, NO intro sentences like "Here is a campaign".
-        - Start directly with the Hook.
-        - Keep sentences under 15 words.
+        STRUCTURE:
+        1. Object 1: Teaser/Hook post.
+        2. Object 2-${postCount-1}: Value/Educational posts.
+        3. Object ${postCount}: Sales/CTA post.
         `;
     } else if (isRemix) {
         specificInstructions = `
-        TASK: Repurpose content into exactly ${remixFormats.length} formats: ${remixFormats.join(', ')}.
-        SOURCE TOPIC: "${topic}".
-        GOAL: ${objective.toUpperCase()}.
-        
-        For each format, adapt the layout perfectly (e.g. LinkedIn = Line breaks, Twitter = Threads).
+        TASK: Remix content into ${remixFormats.length} formats: ${remixFormats.join(', ')}.
+        SOURCE: "${topic}".
+        CRITICAL: Return a JSON ARRAY with ${remixFormats.length} objects, one for each format.
         `;
     } else {
-        // SINGLE POST (Viral Structure)
         specificInstructions = `
-        TASK: Write ${postCount} distinct variations of a viral post.
-        TOPIC: "${topic}" (PRIORITY #1).
+        TASK: Generate ${postCount} variations of a viral post.
+        TOPIC: "${topic}".
         GOAL: ${objective.toUpperCase()}.
-        TONE: ${tone}.
-        
-        FRAMEWORK: Use the "Hook - Value - CTA" framework.
-        - Hook: Grabs attention immediately.
-        - Value: Delivers on the promise.
-        - CTA: Tells them what to do next.
+        CRITICAL: Return a JSON ARRAY with ${postCount} objects.
         `;
     }
 
-    // 3. REGULI GENERALE (Speed Optimization)
     const systemPrompt = `
-    You are a world-class Copywriter.
-    
-    HIERARCHY OF IMPORTANCE:
-    1. USER TOPIC (What to say) - Most Important.
-    2. BRAND VOICE (How to say it) - Important.
-    
-    WRITING RULES (For Speed & Quality):
-    - Write in ${language}.
-    - Be CONCISE. Delete all fluff.
-    - No corporate jargon (e.g. "delve", "landscape", "tapestry").
-    - Use emojis sparingly unless specified in Brand Voice.
-    - Formatting: Use line breaks for readability.
+    You are an expert Social Media AI.
+    Write in ${language}. Be concise. No fluff.
     
     ${brandContext}
     
     ${specificInstructions}
     
-    OUTPUT FORMAT:
-    Return ONLY a raw JSON array. No markdown.
+    OUTPUT JSON FORMAT ONLY:
     [
       {
         "platform": "Platform Name",
-        "content": "The post text...",
-        "imagePrompt": "Detailed visual description for AI image generator..."
-      }
+        "content": "Post text here...",
+        "imagePrompt": "Visual description..."
+      },
+      ... (repeat for required count)
     ]
     `;
 
     try {
         const data = await safeFetch('/api/generate-text', { 
-            prompt: systemPrompt, // Trimitem totul compactat
-            // Parametrii individuali sunt trimisi ca fallback pentru backend-uri care ii folosesc separat
+            prompt: systemPrompt, 
             brandContext: brandContext, 
             language: brandProfile?.language || language || 'English',
             imageBase64, imageMimeType, objective, useRealTime,
@@ -163,6 +140,7 @@ export async function generateSocialMediaPosts(
 
         const parsed = extractJsonArray(data.output);
         
+        // Dubla verificare
         if(Array.isArray(parsed)) {
             return parsed.map((p: any) => {
                 let content = p.content || p.post || p.text || p.body || p;
@@ -170,8 +148,8 @@ export async function generateSocialMediaPosts(
 
                 return { 
                     content: content,
-                    type: p.type || (isCampaign ? 'campaign_post' : 'post'), 
-                    platform: p.platform || 'Generic'
+                    type: p.type || (isCampaign ? 'campaign_post' : 'post'), // Backend-ul poate nu trimite type, il punem noi
+                    platform: p.platform || (isRemix ? 'Remix' : 'Generic')
                 };
             });
         }
@@ -181,6 +159,7 @@ export async function generateSocialMediaPosts(
         return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
     }
 }
+// ... restul fisierului ...
 
 // --- 2. GENERARE IMAGINI (STANDARD CLIENT-SIDE + PREMIUM SERVER-SIDE) ---
 export async function generateImageForPost(
