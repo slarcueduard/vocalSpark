@@ -50,36 +50,43 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
   const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
 
-  // --- FIX: POPULARE DATE (RESET COMPLET LA SCHIMBARE) ---
+  // --- FIX 1: POPULARE DATE (Doar datele persistente) ---
+  // Ruleaza la incarcare, la schimbarea profilului SI la salvare
   useEffect(() => {
     if (currentProfile) {
-        // Date salvate
         setProfileName(currentProfile.name || `Brand #${activeProfileIndex + 1}`);
         setVoiceDNA(currentProfile.voiceDNA || '');
         setIndustry(currentProfile.industry || '');
         setLanguage(currentProfile.language || 'English');
         setTargetAudience(currentProfile.targetAudience || '');
         
-        // Hashtags
         setHashtags(currentProfile.fixedHashtags || '#MyBrand #MyNiche');
         
-        // Culori (cu reset)
         if (currentProfile.brandColors && currentProfile.brandColors.length > 0) {
             setBrandColors(currentProfile.brandColors);
         } else {
             setBrandColors(['#3B82F6', '#8B5CF6', '#FFFFFF']);
         }
 
-        // Logo (cu reset)
         setLogoPreview(currentProfile.logoUrl || null);
-
-        // Date Temporare (Analiza) -> TREBUIE RESETATE
-        setUrlInput('');
-        setTextInput('');
-        setAnalysisMode('personal');
-        setSliders({ tone: 50, emoji: 50, length: 50 });
     }
-  }, [currentProfile, activeProfileIndex]); // Se activeaza cand se schimba profilul
+  }, [currentProfile]); // Scoatem activeProfileIndex de aici ca sa nu faca dublu render
+
+  // --- FIX 2: RESETARE TEMPORARA (Doar cand SCHIMBI profilul) ---
+  // Aici punem lucrurile care trebuie sa dispara cand treci de la Brand A la Brand B
+  // DAR care NU trebuie sa dispara cand dai Save la Brand A.
+  useEffect(() => {
+      // Resetam input-urile de analiza
+      setUrlInput('');
+      setTextInput('');
+      setAnalysisMode('personal');
+      
+      // Resetam sliderele la default (sau le poti salva in DB in viitor)
+      setSliders({ tone: 50, emoji: 50, length: 50 });
+      
+      // Resetam tab-ul la primul
+      setActiveTab('core');
+  }, [activeProfileIndex]); // Ruleaza DOAR cand schimbi indexul (profilul)
 
   // --- HANDLERS ---
   
@@ -160,6 +167,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
       try {
           await onSave(updatedProfile);
+          // Nu mai dam onClose() automat, userul poate vrea sa continue editarea
           alert("Profile Saved Successfully! ✅");
       } catch (error) {
           console.error("Failed to save brand:", error);
@@ -178,9 +186,9 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
       <div className="bg-[#0f1115] w-full max-w-4xl rounded-2xl border border-gray-800 shadow-2xl flex max-h-[90vh] overflow-hidden">
         
         {/* --- LEFT SIDEBAR: PROFILE SELECTOR --- */}
-        <div className="w-64 border-r border-gray-800 bg-[#0a0c10] flex flex-col">
+        <div className="w-64 border-r border-gray-800 bg-[#0a0c10] flex flex-col shrink-0">
             <div className="p-6 border-b border-gray-800">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">Profiles</h3>
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">PROFILES</h3>
                 <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">{allProfiles.length} / {limit} Used</span>
                     {plan === 'creator' && <span className="text-[10px] text-yellow-500 border border-yellow-500/30 px-1.5 rounded">UPGRADE</span>}
@@ -194,8 +202,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         onClick={() => switchProfile(idx)}
                         className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${
                             idx === activeProfileIndex 
-                            ? 'bg-blue-600 text-white shadow-lg' 
-                            : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white'
+                            ? 'bg-blue-600 text-white shadow-lg border border-blue-500/50' 
+                            : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white border border-transparent'
                         }`}
                     >
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${idx === activeProfileIndex ? 'bg-white/20' : 'bg-[#1c1c2e] border border-gray-700'}`}>
@@ -203,7 +211,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         </div>
                         <div className="overflow-hidden w-full">
                             <p className="text-sm font-bold truncate">{p.name}</p>
-                            <p className="text-[10px] opacity-70 truncate">{p.industry || 'No niche'}</p>
+                            <p className={`text-[10px] truncate ${idx === activeProfileIndex ? 'text-blue-200' : 'opacity-50'}`}>{p.industry || 'No niche'}</p>
                         </div>
                     </button>
                 ))}
@@ -212,10 +220,10 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 <button 
                     onClick={addNewProfile}
                     disabled={!canAddMore}
-                    className={`w-full border-2 border-dashed rounded-xl py-3 flex items-center justify-center gap-2 text-xs font-bold transition ${
+                    className={`w-full border-2 border-dashed rounded-xl py-3 flex items-center justify-center gap-2 text-xs font-bold transition mt-2 ${
                         canAddMore 
                         ? 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white' 
-                        : 'border-gray-800 text-gray-600 cursor-not-allowed'
+                        : 'border-gray-800 text-gray-600 cursor-not-allowed opacity-50'
                     }`}
                 >
                     {canAddMore ? <Plus size={14} /> : <Lock size={14} />}
@@ -235,8 +243,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         type="text" 
                         value={profileName}
                         onChange={(e) => setProfileName(e.target.value)}
-                        className="bg-transparent text-xl font-bold text-white outline-none border-b border-transparent hover:border-gray-700 focus:border-blue-500 transition w-full"
-                        placeholder="Profile Name (e.g. Personal)"
+                        className="bg-transparent text-xl font-bold text-white outline-none border-b border-gray-700 hover:border-blue-500 focus:border-blue-500 transition w-full placeholder-gray-600"
+                        placeholder="Name this Profile (e.g. Personal)"
                     />
                     <div className="bg-blue-600/20 p-1.5 rounded-lg"><Sparkles size={16} className="text-blue-500" /></div>
                 </div>
@@ -254,10 +262,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
             {/* Scrollable Form */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-            
-            {/* ... Restul codului pentru taburi (Core, Visuals, Rules) ramane identic ... */}
-            {/* Copiaza continutul tab-urilor din mesajul anterior daca e nevoie, sau lasa ce ai deja daca e functional */}
-            {/* Am inclus doar logica de resetare sus */}
             
             {activeTab === 'core' && (
                 <div className="space-y-6 animate-in fade-in">
