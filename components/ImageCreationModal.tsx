@@ -79,9 +79,12 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
           brandProfile?.brandColors || []
       );
       
+      // FIX PREVIEW: Setam direct URL-ul primit (fie link extern, fie link Pollinations)
+      // Nu mai incercam sa-l convertim aici, lasam tag-ul <img> sa il incarce
       setResultImage(imageUrl);
       
       if (activeTab === 'upload') setActiveTab('generate');
+
     } catch (err: any) {
       console.error(err);
       setError("Failed to generate image.");
@@ -109,14 +112,18 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     setIsProcessing(true);
     try {
         const img = new Image();
-        img.crossOrigin = "anonymous";
+        img.crossOrigin = "anonymous"; // Important pentru canvas
         img.src = target;
+        
+        // Asteptam sa se incarce imaginea in memorie pentru procesare
         await new Promise((r, j) => { img.onload = r; img.onerror = j; });
 
         const canvas = document.createElement('canvas');
-        const MAX_DIM = 1080;
+        const MAX_DIM = 1080; // Rezolutie max pentru optimizare spatiu
         let w = img.width;
         let h = img.height;
+        
+        // Resize inteligent
         if (w > MAX_DIM || h > MAX_DIM) {
             const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
             w = Math.round(w * ratio);
@@ -152,15 +159,14 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                 ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
             }
 
-            // --- FIX UPLOAD: Exportam direct ca Base64 ---
-            // Asta previne expirarea URL-ului blob si asigura salvarea in Vault
+            // EXPORT FINAL: Base64
             const base64Url = canvas.toDataURL('image/jpeg', 0.85);
             onSelectImage(base64Url);
             onClose();
         }
     } catch (error) {
         console.error("Processing error:", error);
-        // Fallback: trimitem imaginea originala daca procesarea esueaza
+        // Fallback extrem: daca crapa canvas-ul, trimitem URL-ul original
         onSelectImage(target);
         onClose();
     } finally {
@@ -260,16 +266,16 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
              {error && <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-xs flex items-center gap-2"><AlertCircle size={14}/> {error}</div>}
         </div>
 
-        {/* RIGHT: Preview */}
+        {/* RIGHT: Preview (Cu Loader Vizual) */}
         <div className="w-full md:w-1/2 bg-black flex flex-col items-center justify-center p-6 relative">
             <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10 bg-black/50 rounded-full"><X size={20}/></button>
             
-            {/* LOADER */}
+            {/* LOADER PENTRU IMAGINE */}
             {isImageLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
                     <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-blue-400 font-bold animate-pulse tracking-widest">CREATING VISUAL...</p>
-                    <p className="text-xs text-gray-500 mt-2">Generating...</p>
+                    <p className="text-xs text-gray-500 mt-2">Standard: ~3s | Premium: ~12s</p>
                 </div>
             )}
 
