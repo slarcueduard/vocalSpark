@@ -5,8 +5,8 @@ import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-// AM ADAUGAT 'Fingerprint' LA IMPORTURI
-import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint } from 'lucide-react'; 
+// AM ADAUGAT 'Dices' PENTRU BUTONUL LUCKY
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -17,8 +17,7 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
-// --- CONFIGURARE LINK PLATA ---
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_..."; // Pune link-ul tau real aici
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_..."; 
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
@@ -45,25 +44,20 @@ const SocialSparkApp: React.FC = () => {
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   
-  // --- FEATURE FLAGS ---
   const [useRealTime, setUseRealTime] = useState(false);
   
-  // --- UI FEEDBACK ---
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // --- MODALE ---
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
   
-  // --- IMAGINE LOGIC ---
   const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null); 
   const [currentPromptForImage, setCurrentPromptForImage] = useState('');
 
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // --- HELPERS ---
   const showVibe = () => {
       setVibeMessage(getRandomVibe());
       setTimeout(() => setVibeMessage(null), 4000);
@@ -81,9 +75,6 @@ const SocialSparkApp: React.FC = () => {
       else { setRemixFormats(prev => [...prev, fmt]); }
   };
 
-  // --- EFFECTS ---
-
-  // 1. Notificări la Login
   useEffect(() => {
       const checkReminders = async () => {
           if (user) {
@@ -97,7 +88,6 @@ const SocialSparkApp: React.FC = () => {
       checkReminders();
   }, [user]);
 
-  // 2. Auto-Sugestie
   useEffect(() => {
     if (!loading && brandProfile?.industry && topic === '' && posts.length === 0 && appMode === 'creator') {
         const lang = brandProfile.language || 'English';
@@ -107,8 +97,6 @@ const SocialSparkApp: React.FC = () => {
         setTopic(templates[Math.floor(Math.random() * templates.length)] || "");
     }
   }, [loading, brandProfile, appMode]); 
-
-  // --- CORE LOGIC ---
 
   const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
       try {
@@ -122,7 +110,6 @@ const SocialSparkApp: React.FC = () => {
       } catch (e) { return null; }
   };
 
-  // Gestionare Modal Imagini
   const openImageModalForPost = (postId: string, content: string) => {
       setActivePostIdForImage(postId);
       setCurrentPromptForImage(content);
@@ -137,18 +124,83 @@ const SocialSparkApp: React.FC = () => {
 
   const handleImageSelected = (url: string) => {
       if (activePostIdForImage) {
-          // Update Post existent
           setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: url } : p));
           updatePostInHistory(activePostIdForImage, { imageUrl: url });
       } else {
-          // Update Input Principal
           setAttachedImage(url);
       }
       setIsImageModalOpen(false);
       setActivePostIdForImage(null);
   };
 
-  // --- GENERATE ---
+  // --- LOGICA I'M FEELING LUCKY (Text Only) ---
+  const handleLuckyGenerate = async () => {
+      if (!checkCredits(1)) { // 1 Credit pentru text simplu
+          if (isTrialExpired) return; 
+          alert(`Insufficient credits! This requires 1 credit.`); 
+          return; 
+      }
+
+      setIsLoading(true); 
+      setError(null);
+      
+      try {
+          // 1. Definim un prompt "Surpriza" care forteaza AI-ul sa fie creativ pe nisa brandului
+          const luckyTopic = "Generate a high-performing, viral post about a trending, controversial, or highly valuable topic specifically for my niche. Surprise me with the angle.";
+          
+          // 2. Apelam functia standard, dar fara imagine si fara Campaign/Remix
+          const generatedPosts = await generateSocialMediaPosts(
+              luckyTopic, 
+              tone, 
+              1, // Doar 1 post
+              brandProfile?.language || 'English',
+              brandProfile?.voiceDNA || '',
+              brandProfile || undefined, 
+              undefined, // Fara imagine (imgData)
+              undefined, // Fara imagine (imgMime)
+              'engagement', // Obiectiv default
+              false, // Fara Real-Time (ca sa fie rapid si ieftin)
+              false, // Nu e campanie
+              false, // Nu e remix
+              []
+          );
+          
+          if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) {
+              throw new Error("AI returned an empty response.");
+          }
+
+          const newPostsData = generatedPosts.map(p => ({ 
+              ...p, 
+              id: crypto.randomUUID(), 
+              adaptedContent: {}, 
+              imageUrl: null, // Asiguram ca nu are imagine
+              isGeneratingImage: false, 
+              isLocked: false,
+              generationType: 'single',
+              type: 'post'
+          }));
+
+          setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
+          setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+          setVibeMessage("🎲 You got lucky! Check this out."); // Mesaj custom
+
+          // Auto-Save
+          if (user) {
+              const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+              for (const postData of newPostsData) {
+                  await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
+              }
+          }
+
+      } catch (err: any) { 
+          console.error("Lucky Error:", err);
+          setError(err.message || 'Failed to generate lucky post.'); 
+      } finally { 
+          setIsLoading(false); 
+      }
+  };
+
+  // --- STANDARD GENERATE ---
   const handleGenerate = async () => {
     if (!topic.trim() && !attachedImage) { 
         setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); 
@@ -253,49 +305,17 @@ const SocialSparkApp: React.FC = () => {
         {vibeMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3"><span className="text-xl">✨</span><span className="font-bold text-sm">{vibeMessage}</span></div>}
         {notification && <div className="fixed top-20 right-6 z-50 animate-in fade-in bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex gap-3 cursor-pointer" onClick={() => setCurrentView('history')}><div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div></div>}
         
-        {/* --- TRIAL EXPIRED OVERLAY --- */}
         {isTrialExpired && (
             <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4">
                 <div className="bg-[#161b22] border border-red-500/50 p-8 rounded-2xl text-center max-w-md w-full shadow-2xl shadow-red-900/20 animate-in fade-in zoom-in duration-300">
-                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Lock size={32} className="text-red-500"/>
-                    </div>
-                    
+                    <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-6"><Lock size={32} className="text-red-500"/></div>
                     <h2 className="text-2xl font-bold text-white mb-2">Trial Expired</h2>
                     <p className="text-gray-400 mb-8">You've used all your free credits. Upgrade to Pro to continue creating viral content.</p>
-                    
                     <div className="space-y-3">
-                        <button 
-                            onClick={() => {
-                                if (STRIPE_PAYMENT_LINK.includes("buy.stripe.com")) {
-                                    window.location.href = STRIPE_PAYMENT_LINK;
-                                } else {
-                                    alert("Dev: Configureaza link-ul Stripe in App.tsx!");
-                                }
-                            }}
-                            className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition shadow-lg shadow-red-900/30"
-                        >
-                            Upgrade to PRO ($12.99)
-                        </button>
-                        
-                        <button 
-                            onClick={() => logout()} 
-                            className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 hover:text-white transition border border-gray-700"
-                        >
-                            Sign Out
-                        </button>
+                        <button onClick={() => { if (STRIPE_PAYMENT_LINK.includes("buy.stripe.com")) { window.location.href = STRIPE_PAYMENT_LINK; } else { alert("Dev: Configureaza link-ul Stripe in App.tsx!"); }}} className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition shadow-lg shadow-red-900/30">Upgrade to PRO ($12.99)</button>
+                        <button onClick={() => logout()} className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 hover:text-white transition border border-gray-700">Sign Out</button>
                     </div>
-
-                    <button 
-                        onClick={() => {
-                            if(confirm("Dev: This will reload. Reset in Firebase manually!")) {
-                                window.location.reload(); 
-                            }
-                        }}
-                        className="mt-8 text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer transition"
-                    >
-                        [Dev Mode: How to Reset?]
-                    </button>
+                    <button onClick={() => { if(confirm("Dev: Reset Credits?")) { window.location.reload(); }}} className="mt-8 text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer transition">[Dev Mode: How to Reset?]</button>
                 </div>
             </div>
         )}
@@ -317,31 +337,21 @@ const SocialSparkApp: React.FC = () => {
                         </header>
                         <div className="space-y-8">
                             <section className="space-y-3">
-                                {/* HEADER CU ACTIVE PERSONA (MODIFICAT AICI) */}
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                         <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> 
                                         {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}
                                     </label>
-
                                     <div className="flex items-center gap-3">
-                                        {/* Brand/Persona Badge */}
                                         {brandProfile && (
                                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                                                 <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
                                                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-900/20 border border-blue-500/30 text-blue-300 text-xs font-medium shadow-sm">
-                                                    <Fingerprint size={12} />
-                                                    <span>{brandProfile.name || "Default"}</span>
+                                                    <Fingerprint size={12} /><span>{brandProfile.name || "Default"}</span>
                                                 </div>
                                             </div>
                                         )}
-
-                                        {/* Image Indicator */}
-                                        {attachedImage && (
-                                            <span className="text-xs text-green-400 flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30">
-                                                <ImageIcon size={12}/> Image Attached
-                                            </span>
-                                        )}
+                                        {attachedImage && <span className="text-xs text-green-400 flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30"><ImageIcon size={12}/> Image Attached</span>}
                                     </div>
                                 </div>
 
@@ -388,9 +398,27 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
                             
-                            <button onClick={handleGenerate} disabled={isLoading || isTrialExpired} className="w-full py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
-                                {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} {isLoading ? (appMode === 'remix' ? 'Remixing...' : isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (appMode === 'remix' ? 'Remix Content ♻️' : isCampaignMode ? 'Generate Campaign 🚀' : 'Craft my Post ✨')}
-                            </button>
+                            <div className="flex gap-3">
+                                {/* BUTON LUCKY (NOU) */}
+                                <button 
+                                    onClick={handleLuckyGenerate} 
+                                    disabled={isLoading || isTrialExpired} 
+                                    className="px-4 py-4 rounded-xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 text-white flex items-center justify-center gap-2 hover:scale-105 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group"
+                                    title="I'm Feeling Lucky (Text Only)"
+                                >
+                                    <Dices className={`w-6 h-6 ${isLoading ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`} />
+                                </button>
+
+                                {/* BUTON STANDARD */}
+                                <button 
+                                    onClick={handleGenerate} 
+                                    disabled={isLoading || isTrialExpired} 
+                                    className="flex-1 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed"
+                                >
+                                    {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />} 
+                                    {isLoading ? (appMode === 'remix' ? 'Remixing...' : isCampaignMode ? 'Launching Campaign...' : 'Creating Magic...') : (appMode === 'remix' ? 'Remix Content ♻️' : isCampaignMode ? 'Generate Campaign 🚀' : 'Craft my Post ✨')}
+                                </button>
+                            </div>
 
                             {error && <div className="p-3 bg-red-900/20 border border-red-800/50 rounded-lg text-red-400 text-sm text-center flex items-center justify-center gap-2"><BriefcaseIcon size={16} /> {error}</div>}
 
