@@ -11,7 +11,8 @@ import {
   getDoc, 
   setDoc, 
   updateDoc, 
-  serverTimestamp 
+  serverTimestamp,
+  increment // <--- IMPORT IMPORTANT
 } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import { BrandProfile, UserProfile } from '../types';
@@ -29,7 +30,7 @@ interface AuthContextType {
   switchProfile: (index: number) => Promise<void>;
   addNewProfile: () => Promise<void>;
   checkCredits: (cost: number) => boolean;
-  isTrialExpired: boolean; // Variabila care blocheaza ecranul
+  isTrialExpired: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
@@ -40,16 +41,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   
-  // State pentru Multi-Profile
   const [allProfiles, setAllProfiles] = useState<BrandProfile[]>([]);
   const [activeProfileIndex, setActiveProfileIndex] = useState(0);
   
   const [loading, setLoading] = useState(true);
-
-  // Derivam profilul activ
   const brandProfile = allProfiles[activeProfileIndex] || null;
 
-  // --- 1. MONITORIZARE LOGIN ---
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -64,33 +61,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
-  // --- 2. FETCH DATA (SAFE MODE: NU SUPRASCRIE DATELE EXISTENTE) ---
   const fetchUserData = async (uid: string) => {
     try {
-      // 1. User Profile (Abonament & Credite)
       const userRef = doc(db, 'users', uid);
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        // DACA EXISTA, IL FOLOSIM (Respectam ce ai pus tu manual in Firebase)
         const data = userSnap.data() as UserProfile;
-        console.log("✅ User Data Loaded from Firebase:", data);
         setUserProfile(data);
       } else {
-        // DOAR DACA NU EXISTA, cream unul default (Trial)
-        console.log("⚠️ New User Detected. Creating default profile...");
         const newProfile: UserProfile = {
           uid,
           email: auth.currentUser?.email || '',
-          credits: 150, // Default Trial Credits
-          subscriptionTier: 'creator', // Default Tier
+          credits: 150,
+          subscriptionTier: 'creator',
           createdAt: new Date().toISOString()
         };
         await setDoc(userRef, newProfile);
         setUserProfile(newProfile);
       }
 
-      // 2. Brand Profiles
       const brandRef = doc(db, 'brands', uid);
       const brandSnap = await getDoc(brandRef);
 
@@ -100,7 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAllProfiles(data.profiles);
             setActiveProfileIndex(data.activeIndex || 0);
         } else {
-            // Migrare date vechi
             const migratedProfile: BrandProfile = {
                 name: data.name || 'Personal Brand',
                 industry: data.industry || '',
@@ -116,7 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await setDoc(brandRef, { profiles: [migratedProfile], activeIndex: 0 }, { merge: true });
         }
       } else {
-        // Default Brand
         const defaultProfile: BrandProfile = {
           name: 'Personal Brand',
           industry: '',
@@ -160,7 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const limit = tier === 'agency' ? 5 : (tier === 'pro' ? 2 : 1);
       
       if (allProfiles.length >= limit) {
-          alert(`Upgrade to add more profiles. Your ${tier.toUpperCase()} plan limit is ${limit}.`);
+          alert(`Upgrade to add more profiles.`);
           return;
       }
 
@@ -201,29 +189,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // --- LOGICA DE PLATA ---
+  // --- LOGICA DE PLATA (CRITIC - REPARAT) ---
   const checkCredits = (cost: number) => {
     if (!userProfile) return false;
-    if (userProfile.credits >= cost) {
-      const newCredits = userProfile.credits - cost;
+    
+    // Asiguram ca e numar
+    const currentCredits = Number(userProfile.credits);
+    if (isNaN(currentCredits)) return false;
+
+    if (currentCredits >= cost) {
+      // 1. Calculam noul total local pentru UI instant
+      const newCredits = currentCredits - cost;
+      
+      console.log(`💰 DEDUCTING: ${cost} | OLD: ${currentCredits} | NEW: ${newCredits}`);
+
+      // 2. Updatam starea locala
       setUserProfile({ ...userProfile, credits: newCredits });
       
+      // 3. Updatam Firebase ATOMIC (Increment cu minus) - Asta previne bug-uri de suprascriere
       if (user) {
         const userRef = doc(db, 'users', user.uid);
-        updateDoc(userRef, { credits: newCredits });
+        // "Scade costul din ce e in baza de date" - e mult mai sigur
+        updateDoc(userRef, { credits: increment(-cost) });
       }
       return true;
     }
+    
+    console.warn("⚠️ Not enough credits:", currentCredits, "Cost:", cost);
     return false;
   };
 
-  // --- LOGICA NOUA PENTRU BLOCARE (TRIAL EXPIRED) ---
-  // Blocam ecranul DOAR DACA userul este pe plan 'trial' (sau creator default) SI nu are credite.
-  // Daca este 'pro' sau 'agency', nu blocam ecranul, doar nu va putea genera (checkCredits va da false).
-  
   const currentCredits = userProfile?.credits ?? 0;
   const currentTier = userProfile?.subscriptionTier || 'creator';
-
   const isTrialExpired = currentCredits <= 0 && (currentTier === 'trial' || currentTier === 'creator');
 
   return (
