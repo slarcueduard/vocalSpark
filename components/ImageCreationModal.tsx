@@ -52,10 +52,8 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   useEffect(() => {
       return () => {
           if (uploadedImageBlob) URL.revokeObjectURL(uploadedImageBlob);
-          // Curatam si blob-ul generat daca exista
-          if (resultImage && resultImage.startsWith('blob:')) URL.revokeObjectURL(resultImage);
       }
-  }, [uploadedImageBlob, resultImage]);
+  }, [uploadedImageBlob]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -80,17 +78,12 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
           initialPrompt, 
           brandProfile?.brandColors || []
       );
-
-      // --- FIX PREVIEW: Convertim URL-ul extern in Blob local imediat ---
-      // Asta rezolva problema imaginilor "rupte" din cauza CORS sau expiry
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const localUrl = URL.createObjectURL(blob);
       
-      setResultImage(localUrl);
+      setResultImage(imageUrl);
+      
       if (activeTab === 'upload') setActiveTab('generate');
-
     } catch (err: any) {
+      console.error(err);
       setError("Failed to generate image.");
       setIsImageLoading(false);
     } finally {
@@ -112,15 +105,6 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
   const handleUseImage = async () => {
     const target = activeTab === 'upload' ? uploadedImageBlob : resultImage;
     if (!target) return;
-
-    const needsFilter = activeTab === 'upload' && selectedPhotoFilter !== 'normal';
-    const needsLogo = applyLogo && brandProfile?.logoUrl;
-
-    if (!needsFilter && !needsLogo) {
-        onSelectImage(target); // Trimitem Blob-ul direct la App.tsx (care il va converti in Base64)
-        onClose();
-        return;
-    }
 
     setIsProcessing(true);
     try {
@@ -144,17 +128,21 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
-            if (needsFilter) ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
+            // Aplicam Filtrele
+            if (activeTab === 'upload' && selectedPhotoFilter !== 'normal') {
+                 ctx.filter = PHOTO_FILTERS.find(f => f.id === selectedPhotoFilter)?.filter || 'none';
+            }
             ctx.drawImage(img, 0, 0, w, h);
             
-            if (needsLogo && brandProfile?.logoUrl) {
+            // Aplicam Logo-ul (daca e selectat)
+            if (applyLogo && brandProfile?.logoUrl) {
                 ctx.filter = 'none';
                 const logoImg = new Image();
                 logoImg.crossOrigin = "anonymous";
                 logoImg.src = brandProfile.logoUrl;
                 await new Promise(r => { logoImg.onload = r; logoImg.onerror = r; });
                 
-                const logoW = w * 0.2;
+                const logoW = w * 0.2; // 20% din latime
                 const scale = logoW / logoImg.width;
                 const logoH = logoImg.height * scale;
                 const pad = w * 0.05;
@@ -164,18 +152,18 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                 ctx.drawImage(logoImg, w - logoW - pad, h - logoH - pad, logoW, logoH);
             }
 
-            canvas.toBlob((blob) => {
-                if (blob) {
-                    onSelectImage(URL.createObjectURL(blob));
-                    onClose();
-                }
-                setIsProcessing(false);
-            }, 'image/jpeg', 0.85);
+            // --- FIX UPLOAD: Exportam direct ca Base64 ---
+            // Asta previne expirarea URL-ului blob si asigura salvarea in Vault
+            const base64Url = canvas.toDataURL('image/jpeg', 0.85);
+            onSelectImage(base64Url);
+            onClose();
         }
     } catch (error) {
         console.error("Processing error:", error);
+        // Fallback: trimitem imaginea originala daca procesarea esueaza
         onSelectImage(target);
         onClose();
+    } finally {
         setIsProcessing(false);
     }
   };
@@ -272,16 +260,16 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
              {error && <div className="mt-4 p-3 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-xs flex items-center gap-2"><AlertCircle size={14}/> {error}</div>}
         </div>
 
-        {/* RIGHT: Preview (Cu Loader Vizual) */}
+        {/* RIGHT: Preview */}
         <div className="w-full md:w-1/2 bg-black flex flex-col items-center justify-center p-6 relative">
             <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10 bg-black/50 rounded-full"><X size={20}/></button>
             
-            {/* LOADER PENTRU IMAGINE */}
+            {/* LOADER */}
             {isImageLoading && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20">
                     <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-blue-400 font-bold animate-pulse tracking-widest">CREATING VISUAL...</p>
-                    <p className="text-xs text-gray-500 mt-2">Standard: ~3s | Premium: ~12s</p>
+                    <p className="text-xs text-gray-500 mt-2">Generating...</p>
                 </div>
             )}
 
