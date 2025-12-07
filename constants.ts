@@ -17,6 +17,13 @@ export const TONES = [
   { value: Tone.Urgent, label: '🔥 Urgent / FOMO' }
 ];
 
+export const OBJECTIVES = [
+  { value: 'engagement', label: '💬 Engagement / Viral' },
+  { value: 'sales', label: '💰 Sales / Conversion' },
+  { value: 'awareness', label: '📣 Brand Awareness' },
+  { value: 'educational', label: '📚 Value / How-to' },
+  { value: 'storytelling', label: '📖 Personal Story' }
+];
 export const PERSON_STYLES = [
   { value: 'Face Retouch', label: 'Face Retouch' },
   { value: 'Sharpen Portrait', label: 'Sharpen Portrait' },
