@@ -11,15 +11,15 @@ interface PricingModalProps {
 // --- CONFIGURARE LINK-URI STRIPE (PUNE LINKURILE TALE AICI) ---
 const STRIPE_LINKS = {
     plans: {
-        creator: "LINK_STRIPE_CREATOR", // $4.99
-        pro: "LINK_STRIPE_PRO",         // $11.99
-        agency: "LINK_STRIPE_AGENCY"    // $29.99
+        creator: "https://buy.stripe.com/6oUbJ1equ7RR7S99n8aAw02", // $4.99
+        pro: "https://buy.stripe.com/bJe6oH0zEb434FX56SaAw00",         // $11.99
+        agency: "https://buy.stripe.com/bJe7sLbei7RR5K142OaAw01"    // $29.99
     },
     credits: {
-        small: "LINK_STRIPE_500_CREDITS",  // $5.00
-        large: "LINK_STRIPE_1500_CREDITS"  // $12.99
+        small: "https://buy.stripe.com/6oUbJ13LQgon1tL2YKaAw04",  // $5.00
+        large: "https://buy.stripe.com/aFa5kDbei2xxb4lfLwaAw03"  // $12.99
     },
-    founder: "LINK_STRIPE_LTD" // $97 (Optional)
+    founder: "https://buy.stripe.com/5kQ3cvbei0pp1tL1UGaAw05" // $97 (Optional)
 };
 
 export function PricingModal({ isOpen, onClose }: PricingModalProps) {
