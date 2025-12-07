@@ -33,6 +33,9 @@ export interface BrandProfile {
   // toneScore?: number;
   // logoUrl?: string;
   // brandColors?: string[];
+  toneScore?: number;
+  emojiScore?: number;
+  lengthScore?: number;
 }
 
 export interface Post {
