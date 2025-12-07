@@ -61,11 +61,22 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       setError(null);
-      if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
-      else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
-      else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
+      setPosts([]); // <--- FIX: Golim lista cand schimbam modul
+      
+      if (mode === 'single') { 
+          setAppMode('creator'); 
+          setIsCampaignMode(false); 
+      }
+      else if (mode === 'campaign') { 
+          setAppMode('creator'); 
+          setIsCampaignMode(true); 
+      }
+      else if (mode === 'remix') { 
+          setAppMode('remix'); 
+          setIsCampaignMode(false); 
+      }
   };
 
   const toggleRemixFormat = (fmt: string) => {
