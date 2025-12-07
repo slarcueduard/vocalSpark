@@ -62,52 +62,100 @@ function extractJsonArray(text: string): any[] {
     }
 }
 
-// --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
-// --- 3. TEXT (Generare Postări & Campanii & Remix) ---
+// --- 1. GENERARE TEXT (OPTIMIZAT: SPEED & PRIORITY) ---
 export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
-    // Construim contextul
-    let contextString = '';
+    // 1. CONTEXT BRAND (Style Modifier)
+    let brandContext = '';
     if (brandProfile) {
-        contextString = `VOICE DNA: ${brandProfile.voiceDNA || brandVoice}. TARGET AUDIENCE: ${brandProfile.targetAudience}. HASHTAGS: ${brandProfile.fixedHashtags}.`;
+        brandContext = `
+        STYLE & TONE (Apply this flavor, but do NOT override the Topic):
+        - Voice DNA: ${brandProfile.voiceDNA || brandVoice}
+        - Target Audience: ${brandProfile.targetAudience}
+        - Mandatory Hashtags: ${brandProfile.fixedHashtags || ''}
+        `;
     }
 
-    // --- CONSTRUIREA PROMPTULUI INTERN (LOGICA NOUA) ---
-    // Asta se facea in backend API, dar daca folosim safeFetch cu prompt direct, trebuie sa specificam aici
-    // Daca backend-ul tau (/api/generate-text) face doar pass-through la Gemini, atunci logica e ok aici.
-    
+    // 2. CONSTRUIREA TASK-ULUI (The Core Logic)
     let specificInstructions = "";
     
     if (isCampaign) {
+        // STRATEGIE CAMPANIE: Teaser -> Value -> Sales (Concise & Impactful)
         specificInstructions = `
-        TASK: Generate a **CAMPAIGN of exactly ${postCount} DISTINCT posts**.
-        This represents a chronological sequence (Story Arc).
+        TASK: Create a ${postCount}-part Content Campaign.
+        GOAL: ${objective.toUpperCase()}.
+        TOPIC: "${topic}" (This is PRIORITY #1).
         
-        Structure:
-        - Post 1: The Hook / Problem (Teaser)
-        - Post 2-${postCount-1}: Value / Education / Story
-        - Post ${postCount}: The Solution / Sales / CTA
+        STRUCTURE (Speed & Impact):
+        1. Post 1 (The Teaser): Short, mysterious, opens a loop. Max 280 chars.
+        2. Post 2-${postCount-1} (The Value): Educational or Story. Solves a specific sub-problem.
+        3. Post ${postCount} (The Close): Direct Call to Action. Sales focused.
         
-        IMPORTANT: Return a JSON ARRAY containing exactly ${postCount} objects. Do not merge them.
+        CRITICAL RULES:
+        - NO fluff, NO intro sentences like "Here is a campaign".
+        - Start directly with the Hook.
+        - Keep sentences under 15 words.
         `;
     } else if (isRemix) {
-        specificInstructions = `TASK: Remix the source content into these formats: ${remixFormats.join(', ')}. Return exactly ${remixFormats.length} distinct posts.`;
+        specificInstructions = `
+        TASK: Repurpose content into exactly ${remixFormats.length} formats: ${remixFormats.join(', ')}.
+        SOURCE TOPIC: "${topic}".
+        GOAL: ${objective.toUpperCase()}.
+        
+        For each format, adapt the layout perfectly (e.g. LinkedIn = Line breaks, Twitter = Threads).
+        `;
     } else {
-        specificInstructions = `TASK: Generate ${postCount} variations of a single post.`;
+        // SINGLE POST (Viral Structure)
+        specificInstructions = `
+        TASK: Write ${postCount} distinct variations of a viral post.
+        TOPIC: "${topic}" (PRIORITY #1).
+        GOAL: ${objective.toUpperCase()}.
+        TONE: ${tone}.
+        
+        FRAMEWORK: Use the "Hook - Value - CTA" framework.
+        - Hook: Grabs attention immediately.
+        - Value: Delivers on the promise.
+        - CTA: Tells them what to do next.
+        `;
     }
 
-    // Adaugam obiectivul in prompt
-    specificInstructions += `\nOBJECTIVE: ${objective} (Optimize for this goal).`;
+    // 3. REGULI GENERALE (Speed Optimization)
+    const systemPrompt = `
+    You are a world-class Copywriter.
+    
+    HIERARCHY OF IMPORTANCE:
+    1. USER TOPIC (What to say) - Most Important.
+    2. BRAND VOICE (How to say it) - Important.
+    
+    WRITING RULES (For Speed & Quality):
+    - Write in ${language}.
+    - Be CONCISE. Delete all fluff.
+    - No corporate jargon (e.g. "delve", "landscape", "tapestry").
+    - Use emojis sparingly unless specified in Brand Voice.
+    - Formatting: Use line breaks for readability.
+    
+    ${brandContext}
+    
+    ${specificInstructions}
+    
+    OUTPUT FORMAT:
+    Return ONLY a raw JSON array. No markdown.
+    [
+      {
+        "platform": "Platform Name",
+        "content": "The post text...",
+        "imagePrompt": "Detailed visual description for AI image generator..."
+      }
+    ]
+    `;
 
     try {
-        // Trimitem promptul combinat
-        const fullPrompt = `${specificInstructions}\n\nTOPIC: "${topic}"`;
-
         const data = await safeFetch('/api/generate-text', { 
-            prompt: fullPrompt, // Trimitem totul ca prompt daca backend-ul e simplu
-            brandContext: contextString, 
+            prompt: systemPrompt, // Trimitem totul compactat
+            // Parametrii individuali sunt trimisi ca fallback pentru backend-uri care ii folosesc separat
+            brandContext: brandContext, 
             language: brandProfile?.language || language || 'English',
             imageBase64, imageMimeType, objective, useRealTime,
             isCampaign, postCount, isRemix, remixFormats 
@@ -116,8 +164,6 @@ export async function generateSocialMediaPosts(
         const parsed = extractJsonArray(data.output);
         
         if(Array.isArray(parsed)) {
-            // Validare extra: Daca am cerut 3 si am primit 1, poate e un array gresit
-            // Dar de obicei Gemini respecta daca promptul e clar "JSON ARRAY"
             return parsed.map((p: any) => {
                 let content = p.content || p.post || p.text || p.body || p;
                 if (typeof content !== 'string') content = JSON.stringify(content);
@@ -136,8 +182,7 @@ export async function generateSocialMediaPosts(
     }
 }
 
-// --- 2. GENERARE IMAGINI ---
-// --- 2. GENERARE IMAGINI (UPDATED) ---
+// --- 2. GENERARE IMAGINI (STANDARD CLIENT-SIDE + PREMIUM SERVER-SIDE) ---
 export async function generateImageForPost(
     postText: string, 
     isPremium: boolean = false, 
@@ -145,28 +190,27 @@ export async function generateImageForPost(
     brandColors: string[] = []
 ): Promise<string> {
     
-    // A. STANDARD (FLUX) - Generare Directa Client-Side (Fara erori de server)
+    // A. STANDARD (FLUX) - Generare Directa Client-Side
     if (!isPremium) {
-        // Curatam promptul pentru URL
         const cleanPrompt = encodeURIComponent(`${postText} ${topicContext}`.slice(0, 500));
-        // Folosim Pollinations.ai (Flux) direct
+        // Adaugam un seed random ca sa fie diferita mereu
         return `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
     }
 
-    // B. PREMIUM (DALL-E 3) - Trece prin Server (Vercel API)
+    // B. PREMIUM (DALL-E 3) - Trece prin Server
     try {
         const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
 
         const data = await safeFetch('/api/generate-image', { 
             prompt: imagePrompt,
-            isPremium: true, // Fortam flag-ul
+            isPremium: true,
             topic: topicContext,
             brandColors: brandColors
         });
         
         const imageUrl = data.imageUrl;
 
-        // Proxy pentru DALL-E (ca sa nu expire linkul sau sa avem CORS)
+        // Proxy DALL-E (optional, pentru a evita expirarea linkurilor)
         if (imageUrl.startsWith('http')) {
             try {
                 const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
@@ -186,18 +230,16 @@ export async function generateImageForPost(
     }
 }
 
-// --- 3. ANALIZĂ BRAND (NOU & UNIFICAT) ---
+// --- 3. ANALIZĂ BRAND (UNIFICAT) ---
 export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
   if (!content || content.length < 10) {
-    throw new Error("Content is too short. Please paste at least one full post.");
+    throw new Error("Content is too short.");
   }
 
   const taskDescription = mode === 'influencer' 
     ? "You are a Ghostwriter. REVERSE ENGINEER the writing style of this influencer to clone it."
     : "You are a Brand Strategist. Analyze this content to build a Brand Voice profile.";
 
-  // Trimitem acest prompt special către același endpoint '/api/generate-text'
-  // Dar îi spunem să returneze JSON-ul de analiză, nu o postare
   const prompt = `
     ${taskDescription}
     
@@ -215,11 +257,8 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
   `;
 
   try {
-    // Reutilizam safeFetch catre API-ul existent
-    // Nu mai avem nevoie de 'model' aici, API-ul se ocupa
     const data = await safeFetch('/api/generate-text', { 
         prompt: prompt,
-        // Hack: Trimitem parametri simpli ca să nu declanșeze logica de postări din API
         postCount: 1, 
         isCampaign: false 
     });
@@ -229,7 +268,6 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
 
   } catch (error) {
     console.error("Error analyzing brand voice:", error);
-    // Fallback
     return {
       niche: "General",
       audience: "General Audience",
@@ -241,7 +279,7 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
   }
 };
 
-// --- 4. UTILS (Adapters) ---
+// --- UTILS ---
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {
         const data = await safeFetch('/api/generate-text', { 
@@ -259,8 +297,6 @@ export async function refinePostContent(content: string, type: RefinementType): 
 }
 
 export async function autoGenerateBrandProfile(rawContent: string): Promise<BrandProfile> {
-    // Aceasta e versiunea veche, dar o păstrăm pentru compatibilitate dacă mai e folosită
-    // De fapt, face cam același lucru cu analyzeBrandVoice, dar returnează alt format
     try {
         const analysis = await analyzeBrandVoice(rawContent, 'personal');
         return {
