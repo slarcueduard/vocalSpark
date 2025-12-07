@@ -63,22 +63,50 @@ function extractJsonArray(text: string): any[] {
 }
 
 // --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
+// --- 3. TEXT (Generare Postări & Campanii & Remix) ---
 export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
-    // Construim contextul complet al brandului
+    // Construim contextul
     let contextString = '';
     if (brandProfile) {
-        contextString = `VOICE DNA: ${brandProfile.voiceDNA || brandVoice}. 
-                         TARGET AUDIENCE: ${brandProfile.targetAudience || brandProfile.description}. 
-                         HASHTAGS: ${brandProfile.fixedHashtags || ''}.
-                         RULES: Do not use banned words if specified.`;
+        contextString = `VOICE DNA: ${brandProfile.voiceDNA || brandVoice}. TARGET AUDIENCE: ${brandProfile.targetAudience}. HASHTAGS: ${brandProfile.fixedHashtags}.`;
     }
 
+    // --- CONSTRUIREA PROMPTULUI INTERN (LOGICA NOUA) ---
+    // Asta se facea in backend API, dar daca folosim safeFetch cu prompt direct, trebuie sa specificam aici
+    // Daca backend-ul tau (/api/generate-text) face doar pass-through la Gemini, atunci logica e ok aici.
+    
+    let specificInstructions = "";
+    
+    if (isCampaign) {
+        specificInstructions = `
+        TASK: Generate a **CAMPAIGN of exactly ${postCount} DISTINCT posts**.
+        This represents a chronological sequence (Story Arc).
+        
+        Structure:
+        - Post 1: The Hook / Problem (Teaser)
+        - Post 2-${postCount-1}: Value / Education / Story
+        - Post ${postCount}: The Solution / Sales / CTA
+        
+        IMPORTANT: Return a JSON ARRAY containing exactly ${postCount} objects. Do not merge them.
+        `;
+    } else if (isRemix) {
+        specificInstructions = `TASK: Remix the source content into these formats: ${remixFormats.join(', ')}. Return exactly ${remixFormats.length} distinct posts.`;
+    } else {
+        specificInstructions = `TASK: Generate ${postCount} variations of a single post.`;
+    }
+
+    // Adaugam obiectivul in prompt
+    specificInstructions += `\nOBJECTIVE: ${objective} (Optimize for this goal).`;
+
     try {
+        // Trimitem promptul combinat
+        const fullPrompt = `${specificInstructions}\n\nTOPIC: "${topic}"`;
+
         const data = await safeFetch('/api/generate-text', { 
-            prompt: topic, 
+            prompt: fullPrompt, // Trimitem totul ca prompt daca backend-ul e simplu
             brandContext: contextString, 
             language: brandProfile?.language || language || 'English',
             imageBase64, imageMimeType, objective, useRealTime,
@@ -88,13 +116,15 @@ export async function generateSocialMediaPosts(
         const parsed = extractJsonArray(data.output);
         
         if(Array.isArray(parsed)) {
+            // Validare extra: Daca am cerut 3 si am primit 1, poate e un array gresit
+            // Dar de obicei Gemini respecta daca promptul e clar "JSON ARRAY"
             return parsed.map((p: any) => {
                 let content = p.content || p.post || p.text || p.body || p;
                 if (typeof content !== 'string') content = JSON.stringify(content);
 
                 return { 
                     content: content,
-                    type: p.type || 'post', 
+                    type: p.type || (isCampaign ? 'campaign_post' : 'post'), 
                     platform: p.platform || 'Generic'
                 };
             });
