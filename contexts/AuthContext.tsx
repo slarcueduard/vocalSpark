@@ -46,7 +46,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const [loading, setLoading] = useState(true);
   const brandProfile = allProfiles[activeProfileIndex] || null;
+// ... în interiorul AuthProvider ...
 
+  const checkCredits = (cost: number) => {
+    if (!userProfile) return false;
+    
+    const currentCredits = Number(userProfile.credits);
+    
+    // Protectie: Daca costul e 0 sau negativ, nu facem nimic
+    if (cost <= 0) return true;
+
+    if (!isNaN(currentCredits) && currentCredits >= cost) {
+      
+      // --- LOGGING: Arata in consola cand se scad banii ---
+      console.warn(`💸 SCADERE CREDITE! Cost: ${cost} | Ramas: ${currentCredits - cost}`);
+      // ----------------------------------------------------
+
+      const newCredits = currentCredits - cost;
+      setUserProfile({ ...userProfile, credits: newCredits });
+      
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        updateDoc(userRef, { credits: increment(-cost) });
+      }
+      return true;
+    }
+    
+    console.error("❌ Insufficient funds. Need:", cost, "Have:", currentCredits);
+    return false;
+  };
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
