@@ -21,7 +21,8 @@ const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_...";
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-  const { user, brandProfile, saveBrandProfile, checkCredits, isTrialExpired, loading, userProfile, logout } = useAuth();
+  // AM ADAUGAT 'refundCredits' AICI
+  const { user, brandProfile, saveBrandProfile, checkCredits, refundCredits, isTrialExpired, loading, userProfile, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -92,35 +93,33 @@ const SocialSparkApp: React.FC = () => {
     }
   }, [loading, brandProfile, appMode]); 
 
-  // --- FIX CRITIC: COMPRESOR IMAGINE (CANVAS) ---
-  // Transforma ORICE url (blob sau http) intr-un Base64 mic (sub 500KB) compatibil cu Firestore
-  const compressImage = async (imageUrl: string): Promise<string> => {
-      return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = "Anonymous"; // Important pentru imagini externe
-          img.onload = () => {
-              const canvas = document.createElement('canvas');
-              const MAX_WIDTH = 800; // Reducem rezolutia pentru a incapea in DB
-              const scaleSize = MAX_WIDTH / img.width;
-              canvas.width = MAX_WIDTH;
-              canvas.height = img.height * scaleSize;
+  // --- IMAGINE HELPER: BLOB TO BASE64 (PENTRU VAULT) ---
+  const convertBlobUrlToBase64 = async (blobUrl: string): Promise<string> => {
+      try {
+          const response = await fetch(blobUrl);
+          const blob = await response.blob();
+          return new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+          });
+      } catch (e) {
+          console.error("Error converting blob:", e);
+          return blobUrl;
+      }
+  };
 
-              const ctx = canvas.getContext('2d');
-              if (!ctx) { reject("Canvas context error"); return; }
-              
-              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-              
-              // Exportam ca JPEG calitate 60% (optimizare maxima)
-              const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
-              resolve(dataUrl);
-          };
-          img.onerror = (err) => {
-              console.error("Image load error for compression", err);
-              // Fallback: returnam originalul daca nu putem comprima (desi e riscant pt DB)
-              resolve(imageUrl); 
-          };
-          img.src = imageUrl;
-      });
+  const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
+      try {
+          const response = await fetch(url);
+          const blob = await response.blob();
+          return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve({ data: (reader.result as string).split(',')[1], mimeType: blob.type });
+              reader.readAsDataURL(blob);
+          });
+      } catch (e) { return null; }
   };
 
   const openImageModalForPost = (postId: string, content: string) => {
@@ -135,26 +134,21 @@ const SocialSparkApp: React.FC = () => {
       setIsImageModalOpen(true);
   };
 
-  // --- HANDLE IMAGE SELECTION (CU COMPRESIE) ---
   const handleImageSelected = async (url: string) => {
-      setIsLoading(true); // Aratam un mic loading cat timp comprimam
-      try {
-          const persistentUrl = await compressImage(url);
-          
-          if (activePostIdForImage) {
-              setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
-              await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
-          } else {
-              setAttachedImage(persistentUrl);
-          }
-      } catch (e) {
-          console.error("Failed to process image:", e);
-          alert("Could not process image. Try a smaller one.");
-      } finally {
-          setIsLoading(false);
-          setIsImageModalOpen(false);
-          setActivePostIdForImage(null);
+      let persistentUrl = url;
+      // Convertim Blob in Base64
+      if (url.startsWith('blob:')) {
+          persistentUrl = await convertBlobUrlToBase64(url);
       }
+
+      if (activePostIdForImage) {
+          setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
+          await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
+      } else {
+          setAttachedImage(persistentUrl);
+      }
+      setIsImageModalOpen(false);
+      setActivePostIdForImage(null);
   };
 
   const handleLuckyGenerate = async () => {
@@ -190,7 +184,10 @@ const SocialSparkApp: React.FC = () => {
                   await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
               }
           }
-      } catch (err: any) { setError(err.message || 'Failed to generate lucky post.'); } 
+      } catch (err: any) { 
+          setError(err.message || 'Failed to generate lucky post.'); 
+          refundCredits(1); // Refund daca esueaza
+      } 
       finally { setIsLoading(false); }
   };
 
@@ -213,14 +210,21 @@ const SocialSparkApp: React.FC = () => {
     try {
       let imgData = undefined, imgMime = undefined;
       
-      // Procesam imaginea pentru trimitere la AI (aici pastram Base64-ul deja comprimat)
       if (attachedImage) {
           if (attachedImage.startsWith('data:')) {
               const parts = attachedImage.split(',');
               imgData = parts[1];
               imgMime = parts[0].split(':')[1].split(';')[0];
-          } 
-          // Nu mai avem nevoie de alte conversii, 'attachedImage' e garantat base64 din handleImageSelected
+          } else if (attachedImage.startsWith('blob:')) {
+              const base64 = await convertBlobUrlToBase64(attachedImage);
+              const parts = base64.split(',');
+              imgData = parts[1];
+              imgMime = parts[0].split(':')[1].split(';')[0];
+              setAttachedImage(base64);
+          } else {
+              const converted = await urlToBase64(attachedImage);
+              if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
+          }
       }
 
       const generatedPosts = await generateSocialMediaPosts(
@@ -250,7 +254,10 @@ const SocialSparkApp: React.FC = () => {
               await savePostToHistory(user.uid, postData, topic, limit);
           }
       }
-    } catch (err: any) { setError(err.message || 'Failed to generate content.'); } 
+    } catch (err: any) { 
+        setError(err.message || 'Failed to generate content.');
+        refundCredits(cost); // REFUND AUTOMAT DACA ESUEAZA
+    } 
     finally { setIsLoading(false); }
   };
 
