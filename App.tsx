@@ -362,26 +362,66 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
 
-                            {/* --- CONTROLS GRID UPDATED (3 COLUMNS: GOAL, TONE, PLATFORM) --- */}
+{/* --- CONTROLS GRID (ALIGNED) --- */}
                             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                
+                                {/* 1. GOAL */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1"><Target size={12}/> Goal</label>
-                                    <select value={objective} onChange={(e) => setObjective(e.target.value as PostObjective)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
-                                        {OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                                    </select>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4">
+                                        <Target size={12}/> Goal
+                                    </label>
+                                    <div className="relative">
+                                        <select 
+                                            value={objective} 
+                                            onChange={(e) => setObjective(e.target.value as PostObjective)} 
+                                            className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600"
+                                        >
+                                            {OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {/* 2. TONE */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Tone</label>
-                                    <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
-                                        {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                                    </select>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4">
+                                        <SparklesIcon className="w-3 h-3"/> Tone
+                                    </label>
+                                    <div className="relative">
+                                        <select 
+                                            value={tone} 
+                                            onChange={(e) => setTone(e.target.value as Tone)} 
+                                            className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600"
+                                        >
+                                            {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                {/* 3. PLATFORM */}
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Platform</label>
-                                    <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
-                                        {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                                    </select>
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4">
+                                        <Globe size={12}/> Platform
+                                    </label>
+                                    <div className="relative">
+                                        <select 
+                                            value={selectedPlatform} 
+                                            onChange={(e) => setSelectedPlatform(e.target.value as Platform)} 
+                                            className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600"
+                                        >
+                                            {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                                            <svg width="10" height="6" viewBox="0 0 10 6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                        </div>
+                                    </div>
                                 </div>
+
                             </section>
                             
                             <div className="flex gap-3">
