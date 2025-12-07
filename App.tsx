@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
 import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
-import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
+import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants'; // Importam OBJECTIVES
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices } from 'lucide-react'; 
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target } from 'lucide-react'; 
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -16,6 +16,7 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 
+// --- CONFIGURARE LINK PLATA ---
 const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_..."; 
 
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
@@ -32,7 +33,10 @@ const SocialSparkApp: React.FC = () => {
   const [topic, setTopic] = useState('');
   const [tone, setTone] = useState<Tone>(Tone.Inspirational);
   const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
+  
+  // State pentru Obiectiv (Default Engagement)
   const [objective, setObjective] = useState<PostObjective>('engagement');
+  
   const [campaignCount, setCampaignCount] = useState(3);
   const [remixFormats, setRemixFormats] = useState<string[]>(['LinkedIn Post', 'Twitter Thread']);
   
@@ -92,7 +96,7 @@ const SocialSparkApp: React.FC = () => {
     }
   }, [loading, brandProfile, appMode]); 
 
-  // --- IMAGINE HELPER: COMPRESIE BASE64 ---
+  // --- IMAGINE HELPER ---
   const compressImage = async (imageUrl: string): Promise<string> => {
       return new Promise((resolve, reject) => {
           const img = new Image();
@@ -111,7 +115,7 @@ const SocialSparkApp: React.FC = () => {
           };
           img.onerror = (err) => {
               console.error("Image load error", err);
-              resolve(imageUrl); // Fallback
+              resolve(imageUrl);
           };
           img.src = imageUrl;
       });
@@ -129,10 +133,8 @@ const SocialSparkApp: React.FC = () => {
       setIsImageModalOpen(true);
   };
 
-  // --- HANDLE IMAGE SELECTION (CU COMPRESIE) ---
   const handleImageSelected = async (url: string) => {
-      setIsLoading(true); 
-      
+      setIsLoading(true);
       try {
           const persistentUrl = await compressImage(url);
           
@@ -143,8 +145,8 @@ const SocialSparkApp: React.FC = () => {
               setAttachedImage(persistentUrl);
           }
       } catch (e) {
-          console.error("Failed to process image:", e);
-          setAttachedImage(url); // Fallback
+          console.error("Image Error:", e);
+          setAttachedImage(url); 
       } finally {
           setIsLoading(false);
           setIsImageModalOpen(false);
@@ -161,7 +163,8 @@ const SocialSparkApp: React.FC = () => {
 
       setIsLoading(true); setError(null);
       try {
-          const luckyTopic = "Generate a high-performing, viral post about a trending, controversial, or highly valuable topic specifically for my niche. Surprise me with the angle.";
+          // Lucky foloseste obiectivul 'Viral/Engagement' implicit, sau poti randomiza
+          const luckyTopic = "Generate a high-performing, viral post about a trending topic in my niche. Surprise me.";
           
           const generatedPosts = await generateSocialMediaPosts(
               luckyTopic, tone, 1, brandProfile?.language || 'English', brandProfile?.voiceDNA || '',
@@ -211,7 +214,6 @@ const SocialSparkApp: React.FC = () => {
     try {
       let imgData = undefined, imgMime = undefined;
       
-      // Imaginea atasata e deja procesata (Base64) daca vine din handleImageSelected
       if (attachedImage) {
           if (attachedImage.startsWith('data:')) {
               const parts = attachedImage.split(',');
@@ -220,9 +222,12 @@ const SocialSparkApp: React.FC = () => {
           }
       }
 
+      // TRIMITEREA OBIECTIVULUI CATRE AI
       const generatedPosts = await generateSocialMediaPosts(
           topic, tone, count, brandProfile?.language || 'English', brandProfile?.voiceDNA || '',
-          brandProfile || undefined, imgData, imgMime, objective, useRealTime, isCampaignMode, appMode === 'remix', remixFormats
+          brandProfile || undefined, imgData, imgMime, 
+          objective, // <--- AICI FOLOSIM OBIECTIVUL SELECTAT
+          useRealTime, isCampaignMode, appMode === 'remix', remixFormats
       );
       
       if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) throw new Error("AI returned an empty response.");
@@ -304,7 +309,6 @@ const SocialSparkApp: React.FC = () => {
                         </header>
                         <div className="space-y-8">
                             <section className="space-y-3">
-                                {/* HEADER CU FIX PENTRU PREVIEW IMAGINE */}
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                         <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> 
@@ -321,18 +325,10 @@ const SocialSparkApp: React.FC = () => {
                                                 </div>
                                             </div>
                                         )}
-
                                         {attachedImage && (
                                             <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
-                                                <span className="text-xs text-green-400 flex items-center gap-1">
-                                                    <ImageIcon size={12}/> Image Attached
-                                                </span>
-                                                <button 
-                                                    onClick={() => setAttachedImage(null)} 
-                                                    className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"
-                                                >
-                                                    <X size={10} />
-                                                </button>
+                                                <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>
+                                                <button onClick={() => setAttachedImage(null)} className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"><X size={10} /></button>
                                             </div>
                                         )}
                                     </div>
@@ -366,15 +362,22 @@ const SocialSparkApp: React.FC = () => {
                                 </div>
                             </section>
 
-                            <section className="grid grid-cols-2 gap-4">
+                            {/* --- CONTROLS GRID UPDATED (3 COLUMNS: GOAL, TONE, PLATFORM) --- */}
+                            <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Tone of Voice</label>
+                                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1"><Target size={12}/> Goal</label>
+                                    <select value={objective} onChange={(e) => setObjective(e.target.value as PostObjective)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
+                                        {OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Tone</label>
                                     <select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
                                         {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Preview Platform</label>
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Platform</label>
                                     <select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-lg px-3 py-3 outline-none text-sm">
                                         {PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
                                     </select>
@@ -429,10 +432,7 @@ const SocialSparkApp: React.FC = () => {
                     </div>
                 </div>
                 <div className="hidden xl:block w-[400px] shrink-0">
-                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} 
-                    // FIX CRITIC: Prioritate Imagine Atasata (Draft) vs Postare Activa
-                    imageUrl={attachedImage || activePost?.imageUrl || null} 
-                    isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
+                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={activePost?.imageUrl || attachedImage || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
                 </div>
             </div>
         )}
