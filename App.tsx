@@ -339,8 +339,20 @@ const SocialSparkApp: React.FC = () => {
                                                 </div>
                                             </div>
                                         )}
-                                        {attachedImage && <span className="text-xs text-green-400 flex items-center gap-1 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30"><ImageIcon size={12}/> Image Attached</span>}
-                                    </div>
+                                       {/* Image Indicator with Close Button */}
+{attachedImage && (
+    <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
+        <span className="text-xs text-green-400 flex items-center gap-1">
+            <ImageIcon size={12}/> Image Attached
+        </span>
+        <button 
+            onClick={() => setAttachedImage(null)} 
+            className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"
+        >
+            <X size={10} />
+        </button>
+    </div>
+)}
                                 </div>
 
                                 <div className="relative group">
