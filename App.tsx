@@ -21,7 +21,6 @@ const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_...";
 const HOOKS: ViralHook[] = ['Straight to the Point','Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation','Unpopular Opinion','Day in the Life','Hack / Trick'];
 
 const SocialSparkApp: React.FC = () => {
-  // AM ADAUGAT 'refundCredits' AICI
   const { user, brandProfile, saveBrandProfile, checkCredits, refundCredits, isTrialExpired, loading, userProfile, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,33 +92,29 @@ const SocialSparkApp: React.FC = () => {
     }
   }, [loading, brandProfile, appMode]); 
 
-  // --- IMAGINE HELPER: BLOB TO BASE64 (PENTRU VAULT) ---
-  const convertBlobUrlToBase64 = async (blobUrl: string): Promise<string> => {
-      try {
-          const response = await fetch(blobUrl);
-          const blob = await response.blob();
-          return new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
-          });
-      } catch (e) {
-          console.error("Error converting blob:", e);
-          return blobUrl;
-      }
-  };
-
-  const urlToBase64 = async (url: string): Promise<{data: string, mimeType: string} | null> => {
-      try {
-          const response = await fetch(url);
-          const blob = await response.blob();
-          return new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve({ data: (reader.result as string).split(',')[1], mimeType: blob.type });
-              reader.readAsDataURL(blob);
-          });
-      } catch (e) { return null; }
+  // --- IMAGINE HELPER: COMPRESIE BASE64 ---
+  const compressImage = async (imageUrl: string): Promise<string> => {
+      return new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = "Anonymous"; 
+          img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_WIDTH = 800; 
+              const scaleSize = MAX_WIDTH / img.width;
+              canvas.width = MAX_WIDTH;
+              canvas.height = img.height * scaleSize;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) { reject("Canvas error"); return; }
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+              resolve(dataUrl);
+          };
+          img.onerror = (err) => {
+              console.error("Image load error", err);
+              resolve(imageUrl); // Fallback
+          };
+          img.src = imageUrl;
+      });
   };
 
   const openImageModalForPost = (postId: string, content: string) => {
@@ -134,35 +129,20 @@ const SocialSparkApp: React.FC = () => {
       setIsImageModalOpen(true);
   };
 
-  // --- FIX FINAL IMAGINI VAULT: Fortam compresia pentru ORICE tip de imagine ---
-  // --- HANDLE IMAGE SELECTION (CU COMPRESIE) ---
   const handleImageSelected = async (url: string) => {
-      setIsLoading(true); 
-      
+      setIsLoading(true);
       try {
-          // 1. Convertim ORICE url (blob/http) in Base64 comprimat
           const persistentUrl = await compressImage(url);
           
           if (activePostIdForImage) {
-              // CAZ A: Imagine pentru un Post DEJA generat
-              console.log("Saving image to post:", activePostIdForImage);
-              
-              setPosts(prev => prev.map(p => 
-                  p.id === activePostIdForImage 
-                  ? { ...p, imageUrl: persistentUrl } // Update local instant
-                  : p
-              ));
-              
-              // Salvare in Firebase
+              setPosts(prev => prev.map(p => p.id === activePostIdForImage ? { ...p, imageUrl: persistentUrl } : p));
               await updatePostInHistory(activePostIdForImage, { imageUrl: persistentUrl });
           } else {
-              // CAZ B: Imagine pentru Input Principal (viitorul post)
-              console.log("Attaching image to main input");
               setAttachedImage(persistentUrl);
           }
       } catch (e) {
-          console.error("Failed to process image:", e);
-          alert("Could not process image. Try a smaller one.");
+          console.error("Image Error:", e);
+          setAttachedImage(url); // Fallback
       } finally {
           setIsLoading(false);
           setIsImageModalOpen(false);
@@ -205,7 +185,7 @@ const SocialSparkApp: React.FC = () => {
           }
       } catch (err: any) { 
           setError(err.message || 'Failed to generate lucky post.'); 
-          refundCredits(1); // Refund daca esueaza
+          refundCredits(1);
       } 
       finally { setIsLoading(false); }
   };
@@ -229,20 +209,12 @@ const SocialSparkApp: React.FC = () => {
     try {
       let imgData = undefined, imgMime = undefined;
       
+      // Imaginea atasata e deja procesata (Base64) daca vine din handleImageSelected
       if (attachedImage) {
           if (attachedImage.startsWith('data:')) {
               const parts = attachedImage.split(',');
               imgData = parts[1];
               imgMime = parts[0].split(':')[1].split(';')[0];
-          } else if (attachedImage.startsWith('blob:')) {
-              const base64 = await convertBlobUrlToBase64(attachedImage);
-              const parts = base64.split(',');
-              imgData = parts[1];
-              imgMime = parts[0].split(':')[1].split(';')[0];
-              setAttachedImage(base64);
-          } else {
-              const converted = await urlToBase64(attachedImage);
-              if(converted) { imgData = converted.data; imgMime = converted.mimeType; }
           }
       }
 
@@ -274,8 +246,8 @@ const SocialSparkApp: React.FC = () => {
           }
       }
     } catch (err: any) { 
-        setError(err.message || 'Failed to generate content.');
-        refundCredits(cost); // REFUND AUTOMAT DACA ESUEAZA
+        setError(err.message || 'Failed to generate content.'); 
+        refundCredits(cost);
     } 
     finally { setIsLoading(false); }
   };
@@ -330,40 +302,46 @@ const SocialSparkApp: React.FC = () => {
                         </header>
                         <div className="space-y-8">
                             <section className="space-y-3">
+                                {/* HEADER: ACTIVE PERSONA + IMAGE INDICATOR */}
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                         <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> 
                                         {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}
                                     </label>
+
                                     <div className="flex items-center gap-3">
+                                        {/* Brand/Persona Badge */}
                                         {brandProfile && (
                                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                                                 <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
                                                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-900/20 border border-blue-500/30 text-blue-300 text-xs font-medium shadow-sm">
-                                                    <Fingerprint size={12} /><span>{brandProfile.name || "Default"}</span>
+                                                    <Fingerprint size={12} />
+                                                    <span>{brandProfile.name || "Default"}</span>
                                                 </div>
                                             </div>
                                         )}
-                                       {/* Image Indicator with Close Button */}
-{attachedImage && (
-    <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
-        <span className="text-xs text-green-400 flex items-center gap-1">
-            <ImageIcon size={12}/> Image Attached
-        </span>
-        <button 
-            onClick={() => setAttachedImage(null)} 
-            className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"
-        >
-            <X size={10} />
-        </button>
-    </div>
-)}
+
+                                        {/* Image Indicator (FIXED: Close Button + Green Style) */}
+                                        {attachedImage && (
+                                            <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
+                                                <span className="text-xs text-green-400 flex items-center gap-1">
+                                                    <ImageIcon size={12}/> Image Attached
+                                                </span>
+                                                <button 
+                                                    onClick={() => setAttachedImage(null)} 
+                                                    className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"
+                                                >
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="relative group">
                                     <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={appMode === 'remix' ? 6 : 3} placeholder={appMode === 'remix' ? "Paste content to remix..." : "E.g. 3 tips for crypto..."} className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" />
                                     <div className="absolute bottom-3 right-3 flex gap-2">
-                                        {attachedImage ? <button onClick={() => setAttachedImage(null)} className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover/img:opacity-100"><X size={14} className="text-white"/></button> : <button onClick={openImageModalGlobal} className="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-all border border-transparent hover:border-gray-600"><ImageIcon size={20} /></button>}
+                                        {attachedImage ? null : <button onClick={openImageModalGlobal} className="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-all border border-transparent hover:border-gray-600"><ImageIcon size={20} /></button>}
                                     </div>
                                 </div>
 
