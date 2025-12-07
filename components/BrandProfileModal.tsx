@@ -3,7 +3,7 @@ import {
   X, Sparkles, Link as LinkIcon, 
   Upload, Hash, Palette, Check, RefreshCw, 
   User, UserCheck, Copy, Ban, MessageSquare, Plus, Trash2,
-  Lock, ChevronRight
+  Lock
 } from 'lucide-react';
 import { BrandProfile } from '../types';
 import { analyzeBrandVoice } from '../services/geminiService';
@@ -23,7 +23,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   
   const [activeTab, setActiveTab] = useState<Tab>('core');
   const [isSaving, setIsSaving] = useState(false);
-  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode>('personal');
@@ -31,7 +30,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
   const [textInput, setTextInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // -- STATE-URILE BRANDULUI --
+  // State Brand
   const [profileName, setProfileName] = useState('My Brand');
   const [voiceDNA, setVoiceDNA] = useState('');
   const [industry, setIndustry] = useState('');
@@ -50,7 +49,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
   const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
 
-  // --- POPULARE DATE ---
+  // Populare Data
   useEffect(() => {
     if (currentProfile) {
         setProfileName(currentProfile.name || `Brand #${activeProfileIndex + 1}`);
@@ -58,7 +57,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         setIndustry(currentProfile.industry || '');
         setLanguage(currentProfile.language || 'English');
         setTargetAudience(currentProfile.targetAudience || '');
-        
         setHashtags(currentProfile.fixedHashtags || '#MyBrand #MyNiche');
         
         if (currentProfile.brandColors && currentProfile.brandColors.length > 0) {
@@ -77,7 +75,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     }
   }, [currentProfile]); 
 
-  // --- RESETARE TEMPORARA ---
+  // Resetare la schimbare profil
   useEffect(() => {
       setUrlInput('');
       setTextInput('');
@@ -85,7 +83,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
       setActiveTab('core');
   }, [activeProfileIndex]);
 
-  // --- HANDLERS ---
   const handleAnalyze = async () => {
     const contentToAnalyze = textInput || urlInput;
     if (!contentToAnalyze || contentToAnalyze.length < 10) {
@@ -139,15 +136,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
   const handleSave = async () => {
       setIsSaving(true);
-      
-      const finalVoiceDNA = `
-        ${voiceDNA}
-        ---
-        WRITING RULES:
-        1. NEVER use these words: ${bannedWords}.
-        2. Call to Action style: ${ctaStyle}.
-        3. Mandatory Hashtags: ${hashtags}.
-      `;
+      const finalVoiceDNA = `${voiceDNA}\n---\nWRITING RULES:\n1. NEVER use these words: ${bannedWords}.\n2. Call to Action style: ${ctaStyle}.\n3. Mandatory Hashtags: ${hashtags}.`;
 
       const updatedProfile: BrandProfile = {
           name: profileName,
@@ -183,44 +172,27 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4">
       <div className="bg-[#0f1115] w-full max-w-4xl h-full md:h-auto md:max-h-[90vh] md:rounded-2xl border border-gray-800 shadow-2xl flex flex-col md:flex-row overflow-hidden">
         
-        {/* === MOBILE PROFILE SELECTOR (VISIBLE ONLY ON MOBILE) === */}
-        <div className="md:hidden bg-[#0a0c10] border-b border-gray-800 p-3 shrink-0">
-            <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                {/* Profile Chips */}
-                {allProfiles.map((p, idx) => (
-                    <button 
-                        key={idx}
-                        onClick={() => switchProfile(idx)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${
-                            idx === activeProfileIndex 
-                            ? 'bg-blue-600 border-blue-500 text-white' 
-                            : 'bg-[#1c1c2e] border-gray-700 text-gray-400'
-                        }`}
-                    >
-                        <div className={`w-4 h-4 rounded flex items-center justify-center text-[8px] ${idx === activeProfileIndex ? 'bg-white/20' : 'bg-black/30'}`}>
-                            {p.name?.[0]?.toUpperCase()}
-                        </div>
-                        {p.name}
-                    </button>
-                ))}
-
-                {/* Add New Chip */}
+        {/* === 1. MOBILE PROFILE SELECTOR (BARA ORIZONTALA DOAR PE MOBIL) === */}
+        <div className="md:hidden bg-[#0a0c10] border-b border-gray-800 p-3 shrink-0 flex items-center gap-3 overflow-x-auto custom-scrollbar">
+            {allProfiles.map((p, idx) => (
                 <button 
-                    onClick={addNewProfile}
-                    disabled={!canAddMore}
-                    className={`flex items-center justify-center w-8 h-8 rounded-full border border-dashed shrink-0 ${
-                        canAddMore ? 'border-gray-500 text-gray-400' : 'border-gray-800 text-gray-700'
+                    key={idx}
+                    onClick={() => switchProfile(idx)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${
+                        idx === activeProfileIndex 
+                        ? 'bg-blue-600 border-blue-500 text-white' 
+                        : 'bg-[#1c1c2e] border-gray-700 text-gray-400'
                     }`}
                 >
-                    <Plus size={14} />
+                    {p.name}
                 </button>
-            </div>
-            <div className="text-[10px] text-gray-500 text-center mt-1">
-                {allProfiles.length} / {limit} Profiles Used
-            </div>
+            ))}
+            <button onClick={addNewProfile} disabled={!canAddMore} className={`w-8 h-8 rounded-full border border-dashed flex items-center justify-center shrink-0 ${canAddMore ? 'border-gray-500 text-gray-400' : 'opacity-30'}`}>
+                <Plus size={14} />
+            </button>
         </div>
 
-        {/* === DESKTOP SIDEBAR (VISIBLE ONLY ON MD+) === */}
+        {/* === 2. DESKTOP PROFILE SELECTOR (SIDEBAR STANGA) === */}
         <div className="hidden md:flex w-64 border-r border-gray-800 bg-[#0a0c10] flex-col shrink-0">
             <div className="p-6 border-b border-gray-800">
                 <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-1">PROFILES</h3>
@@ -251,22 +223,13 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                     </button>
                 ))}
 
-                <button 
-                    onClick={addNewProfile}
-                    disabled={!canAddMore}
-                    className={`w-full border-2 border-dashed rounded-xl py-3 flex items-center justify-center gap-2 text-xs font-bold transition mt-2 ${
-                        canAddMore 
-                        ? 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white' 
-                        : 'border-gray-800 text-gray-600 cursor-not-allowed opacity-50'
-                    }`}
-                >
-                    {canAddMore ? <Plus size={14} /> : <Lock size={14} />}
-                    {canAddMore ? 'New Brand Profile' : `Limit Reached (${limit})`}
+                <button onClick={addNewProfile} disabled={!canAddMore} className={`w-full border-2 border-dashed rounded-xl py-3 flex items-center justify-center gap-2 text-xs font-bold transition mt-2 ${canAddMore ? 'border-gray-700 text-gray-400 hover:border-gray-500 hover:text-white' : 'border-gray-800 text-gray-600 cursor-not-allowed opacity-50'}`}>
+                    {canAddMore ? <Plus size={14} /> : <Lock size={14} />} {canAddMore ? 'New Brand Profile' : `Limit Reached (${limit})`}
                 </button>
             </div>
         </div>
 
-        {/* === MAIN CONTENT (RIGHT SIDE) === */}
+        {/* === 3. MAIN FORM AREA (RIGHT) === */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#0f1115]">
             
             {/* Header */}
@@ -277,7 +240,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         type="text" 
                         value={profileName}
                         onChange={(e) => setProfileName(e.target.value)}
-                        className="bg-transparent text-lg md:text-xl font-bold text-white outline-none border-b border-gray-700 hover:border-blue-500 focus:border-blue-500 transition w-full placeholder-gray-600"
+                        className="bg-transparent text-lg md:text-xl font-bold text-white outline-none border-b border-transparent hover:border-gray-700 focus:border-blue-500 transition w-full placeholder-gray-600"
                         placeholder="Profile Name (e.g. Personal)"
                     />
                     <div className="bg-blue-600/20 p-1.5 rounded-lg shrink-0"><Sparkles size={16} className="text-blue-500" /></div>
@@ -297,13 +260,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             {/* Scrollable Form */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
                 
-                {/* --- TAB CONTENT (Identic cu inainte) --- */}
+                {/* TAB: CORE */}
                 {activeTab === 'core' && (
                     <div className="space-y-6 animate-in fade-in">
-                        {/* Magic Analyzer */}
                         <div className={`border rounded-xl p-4 md:p-5 relative overflow-hidden transition-colors duration-300 ${analysisMode === 'influencer' ? 'bg-[#1a1625] border-purple-500/30' : 'bg-[#161b22] border-blue-900/30'}`}>
                             <div className={`absolute top-0 left-0 w-1 h-full ${analysisMode === 'influencer' ? 'bg-purple-600' : 'bg-blue-600'}`}></div>
-                            <div className="flex bg-black/20 p-1 rounded-lg w-max mb-4">
+                            <div className="flex flex-wrap gap-2 bg-black/20 p-1 rounded-lg w-max mb-4">
                                 <button onClick={() => setAnalysisMode('personal')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'personal' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><User size={12} /> Analyze Me</button>
                                 <button onClick={() => setAnalysisMode('influencer')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'influencer' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><UserCheck size={12} /> Clone Influencer</button>
                             </div>
@@ -354,6 +316,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                     </div>
                 )}
 
+                {/* TAB: VISUALS */}
                 {activeTab === 'visuals' && (
                     <div className="space-y-6 animate-in fade-in">
                         <div>
@@ -388,6 +351,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                     </div>
                 )}
 
+                {/* TAB: RULES */}
                 {activeTab === 'rules' && (
                     <div className="space-y-6 animate-in fade-in">
                         <div className="bg-red-900/10 border border-red-900/30 p-4 rounded-xl">
