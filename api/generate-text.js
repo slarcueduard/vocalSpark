@@ -23,51 +23,51 @@ export default async function handler(req, res) {
     if (isRemix && remixFormats) count = remixFormats.length;
 
     const COST = useRealTime ? 10 : (1 * count);
-    
+
     const { userRef, userData } = await verifyUserAndCredits(req, COST);
     const tier = userData.subscriptionTier || 'trial';
 
     // 2. SELECTIE MODEL
     let client = openai;
-    let model = "gpt-4o-mini"; 
+    let model = "gpt-4o-mini";
 
     if (useRealTime) {
-        if (tier === 'creator' || tier === 'trial') return res.status(403).json({ error: "Real-Time is PRO." });
-        client = perplexity;
-        model = "sonar-reasoning-pro";
+      if (tier === 'creator' || tier === 'trial') return res.status(403).json({ error: "Real-Time is PRO." });
+      client = perplexity;
+      model = "sonar-reasoning-pro";
     } else if (tier === 'trial' || tier === 'pro' || tier === 'agency') {
-        model = "gpt-4o";
+      model = "gpt-4o";
     }
 
     // 3. PROMPT ENGINEERING
     const targetLanguage = language || 'English';
-    
+
     let systemPrompt = `You are an expert Social Media Manager. 
     CRITICAL: Write strictly in ${targetLanguage}.
-    OUTPUT FORMAT: You must return a valid JSON ARRAY of objects. Each object MUST have a "content" key.`;
+    OUTPUT FORMAT: You must return a valid JSON OBJECT with a "posts" key containing an array.`;
 
     let userMessage = prompt;
 
     if (isRemix) {
-        systemPrompt += `
+      systemPrompt += `
         TASK: Repurpose content into: ${remixFormats?.join(', ')}.
-        STRUCTURE: [{"platform": "Name", "content": "The text...", "type": "post"}]
+        STRUCTURE: { "posts": [{"platform": "Name", "content": "The text...", "type": "post"}] }
         `;
-        userMessage = `SOURCE: ${prompt}`;
+      userMessage = `SOURCE: ${prompt}`;
     } else if (isCampaign) {
-        systemPrompt += `
+      systemPrompt += `
         TASK: Create a ${count}-post campaign.
-        STRUCTURE: [{"content": "Post 1..."}, {"content": "Post 2..."}]
+        STRUCTURE: { "posts": [{"content": "Post 1..."}, {"content": "Post 2..."}] }
         `;
     } else {
-        // SINGLE POST - AICI ERA PROBLEMA
-        systemPrompt += `
+      // SINGLE POST
+      systemPrompt += `
         TASK: Write ONE high-impact post.
         GOAL: ${objective || 'Engagement'}.
-        STRUCTURE: [{"content": "Write the post text here..."}]
+        STRUCTURE: { "posts": [{"content": "Write the post text here..."}] }
         `;
-        
-        if (platform) systemPrompt += `\nPlatform: ${platform}`;
+
+      if (platform) systemPrompt += `\nPlatform: ${platform}`;
     }
 
     if (brandContext) systemPrompt += `\n\nBrand Voice: ${brandContext}`;
@@ -84,21 +84,21 @@ export default async function handler(req, res) {
     });
 
     const output = completion.choices[0].message.content;
-    
+
     // 5. SCĂDERE CREDITE
     await deductCredits(userRef, COST);
 
     // Parsăm aici să fim siguri că e ok înainte de a trimite
     let jsonOutput;
     try {
-        jsonOutput = JSON.parse(output);
-        // OpenAI pune uneori array-ul într-o cheie gen "posts" sau "content"
-        const finalData = jsonOutput.posts || jsonOutput.content || jsonOutput; 
-        
-        return res.status(200).json({ output: JSON.stringify(finalData) });
+      jsonOutput = JSON.parse(output);
+      // OpenAI pune uneori array-ul într-o cheie gen "posts" sau "content"
+      const finalData = jsonOutput.posts || jsonOutput.content || jsonOutput;
+
+      return res.status(200).json({ output: JSON.stringify(finalData) });
     } catch (e) {
-        // Dacă nu e JSON, trimitem brut (frontend-ul va încerca să repare)
-        return res.status(200).json({ output });
+      // Dacă nu e JSON, trimitem brut (frontend-ul va încerca să repare)
+      return res.status(200).json({ output });
     }
 
   } catch (error) {
