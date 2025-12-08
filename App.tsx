@@ -39,7 +39,7 @@ const SocialSparkApp: React.FC = () => {
   const [remixFormats, setRemixFormats] = useState<string[]>(['LinkedIn Post', 'Twitter Thread']);
   
   const [attachedImage, setAttachedImage] = useState<string | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]); // Aici tinem TOATE posturile sesiunii
+  const [posts, setPosts] = useState<Post[]>([]); 
   
   const [useRealTime, setUseRealTime] = useState(false);
   const [vibeMessage, setVibeMessage] = useState<string | null>(null);
@@ -54,17 +54,14 @@ const SocialSparkApp: React.FC = () => {
   const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // --- LOGICA FILTRARE VIZUALA (Fix pentru problema ta) ---
+  // --- LOGICA FILTRARE VIZUALA ---
   const visiblePosts = posts.filter(post => {
-      // 1. Daca suntem in REMIX, aratam doar Remix
       if (appMode === 'remix') {
           return post.generationType === 'remix';
       }
-      // 2. Daca suntem in CAMPAIGN, aratam doar Campaign
       if (isCampaignMode) {
           return post.generationType === 'campaign' || post.generationType === 'campaign_post';
       }
-      // 3. Altfel (Single), aratam Single sau generic
       return post.generationType === 'single' || post.generationType === 'post' || !post.generationType;
   });
 
@@ -73,22 +70,11 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
- const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       setError(null);
-      
-      if (mode === 'single') { 
-          setAppMode('creator'); 
-          setIsCampaignMode(false); 
-      }
-      else if (mode === 'campaign') { 
-          setAppMode('creator'); 
-          setIsCampaignMode(true);
-          setCampaignCount(3); // <--- FIX: Fortam minim 3 postari la intrarea in campanie
-      }
-      else if (mode === 'remix') { 
-          setAppMode('remix'); 
-          setIsCampaignMode(false); 
-      }
+      if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
+      else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
+      else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
   };
 
   const toggleRemixFormat = (fmt: string) => {
@@ -246,8 +232,7 @@ const SocialSparkApp: React.FC = () => {
           isGeneratingImage: false, isLocked: false, generationType: genType, type: p.type || 'post'
       }));
 
-      // Adaugam noile postari la lista existenta
-      setPosts(prev => [...newPostsData, ...prev]);
+      setPosts(prev => [...newPostsData, ...prev].slice(0, 10));
       setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       showVibe();
 
@@ -319,23 +304,18 @@ const SocialSparkApp: React.FC = () => {
                                         <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span> 
                                         {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}
                                     </label>
-
                                     <div className="flex items-center gap-3">
                                         {brandProfile && (
                                             <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                                                 <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
                                                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-900/20 border border-blue-500/30 text-blue-300 text-xs font-medium shadow-sm">
-                                                    <Fingerprint size={12} />
-                                                    <span>{brandProfile.name || "Default"}</span>
+                                                    <Fingerprint size={12} /><span>{brandProfile.name || "Default"}</span>
                                                 </div>
                                             </div>
                                         )}
-
                                         {attachedImage && (
                                             <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
-                                                <span className="text-xs text-green-400 flex items-center gap-1">
-                                                    <ImageIcon size={12}/> Image Attached
-                                                </span>
+                                                <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12}/> Image Attached</span>
                                                 <button onClick={() => setAttachedImage(null)} className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"><X size={10} /></button>
                                             </div>
                                         )}
@@ -359,32 +339,16 @@ const SocialSparkApp: React.FC = () => {
                                         </div>
                                     </section>
                                 )}
-                       {isCampaignMode && appMode === 'creator' && (
-      <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
-          <div className="flex justify-between items-center mb-2">
-              <label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2">
-                  <BriefcaseIcon size={14} /> Campaign Length
-              </label>
-              <span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">
-                  {campaignCount} Posts
-              </span>
-          </div>
-          {/* FIX: Adaugam step={1} si value explicit */}
-          <input 
-              type="range" 
-              min="3" 
-              max={userProfile?.subscriptionTier === 'agency' ? 10 : 5} // Limitam putin max-ul pentru a evita Timeout 504
-              step={1}
-              value={campaignCount} 
-              onChange={(e) => setCampaignCount(parseInt(e.target.value))} 
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" 
-          />
-          <div className="flex justify-between text-[10px] text-gray-500 mt-1">
-              <span>3 (Min)</span>
-              <span>{userProfile?.subscriptionTier === 'agency' ? 10 : 5} (Max)</span>
-          </div>
-      </section>
-  )}
+                                {isCampaignMode && appMode === 'creator' && (
+                                    <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
+                                        <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2"><BriefcaseIcon size={14} /> Campaign Length</label><span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">{campaignCount} Posts</span></div>
+                                        <input type="range" min="3" max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} value={campaignCount} onChange={(e) => setCampaignCount(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
+                                    </section>
+                                )}
+                                <div className="flex items-center justify-between mt-2 px-1">
+                                    {isPremiumUser ? <label className="flex items-center gap-2 cursor-pointer group"><div className="relative"><input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" /><div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div></div><span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}><Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span></span></label> : <div className="flex items-center gap-2 opacity-50 cursor-not-allowed"><Globe size={12} /><span className="text-xs text-gray-500">Real-Time Data (PRO)</span></div>}
+                                </div>
+                            </section>
 
                             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
@@ -448,7 +412,7 @@ const SocialSparkApp: React.FC = () => {
                     </div>
                 </div>
                 <div className="hidden xl:block w-[400px] shrink-0">
-                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={previewContent} imageUrl={attachedImage || activePost?.imageUrl || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
+                    <div className="sticky top-6"><PhonePreview platform={selectedPlatform} content={attachedImage || activePost?.imageUrl || null} isGenerating={isLoading} isImageGenerating={activePost?.isGeneratingImage || false} topic={topic} userName={user?.displayName || user?.email?.split('@')[0]} userImage={user?.photoURL} /></div>
                 </div>
             </div>
         )}
