@@ -63,79 +63,66 @@ function extractJsonArray(text: string): any[] {
 }
 
 // --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
+// --- 3. TEXT (Generare Postări & Campanii & Remix) ---
 export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
-    // 1. BRAND CONTEXT
     let brandContext = '';
     if (brandProfile) {
         brandContext = `
-        Voice DNA: ${brandProfile.voiceDNA || brandVoice || "Professional"}
+        Voice: ${brandProfile.voiceDNA || brandVoice || "Professional"}
         Audience: ${brandProfile.targetAudience || "General"}
         Hashtags: ${brandProfile.fixedHashtags || ''}
         `;
     }
 
-    // 2. LOGICA STRICTA PENTRU NUMARUL DE POSTARI
     let specificInstructions = "";
-    let countInstruction = "";
     
     if (isCampaign) {
-        // --- FIX CRITIC PENTRU CAMPANIE ---
-        countInstruction = `REQUIRED OUTPUT: A JSON Array containing EXACTLY ${postCount} separate post objects.`;
-        
+        // --- FIX 504: Cerem postari SCURTE pentru viteza ---
         specificInstructions = `
-        TASK: Create a sequential Social Media Campaign of ${postCount} posts.
-        TOPIC: "${topic}"
-        GOAL: ${objective}
+        TASK: Create a ${postCount}-part Campaign.
+        TOPIC: "${topic}".
+        GOAL: ${objective}.
         
-        CAMPAIGN FLOW (You must generate ALL ${postCount} posts now):
-        - Post 1: Teaser / Hook (Create curiosity)
-        - Post 2 to ${postCount - 1}: Value / Education / Trust building
-        - Post ${postCount}: The Close / Sales / CTA
+        STRUCTURE (Return EXACTLY ${postCount} items):
+        1. Hook/Teaser (Max 30 words)
+        2-${postCount-1}. Value/Tips (Max 60 words each)
+        ${postCount}. Sales/CTA (Max 40 words)
         
-        DO NOT merge them into one post. Split them into specific days/steps.
+        Keep it punchy. Speed is priority.
         `;
     } else if (isRemix) {
-        countInstruction = `REQUIRED OUTPUT: A JSON Array containing EXACTLY ${remixFormats.length} objects.`;
         specificInstructions = `
-        TASK: Remix content into these ${remixFormats.length} formats: ${remixFormats.join(', ')}.
-        SOURCE: "${topic}"
+        TASK: Remix into ${remixFormats.length} formats: ${remixFormats.join(', ')}.
+        SOURCE: "${topic}".
+        Keep each format concise and native to the platform.
         `;
     } else {
-        countInstruction = `REQUIRED OUTPUT: A JSON Array containing EXACTLY ${postCount} variations.`;
         specificInstructions = `
-        TASK: Generate ${postCount} distinct viral post variations.
-        TOPIC: "${topic}"
-        GOAL: ${objective}
+        TASK: Generate ${postCount} viral variations.
+        TOPIC: "${topic}".
+        GOAL: ${objective}.
+        Max 60 words per post.
         `;
     }
 
-    // 3. SYSTEM PROMPT (Strict JSON Enforcement)
     const systemPrompt = `
     You are an expert Social Media AI. Write in ${language}.
-    Be concise. No intro. No fluff.
+    CRITICAL: Be CONCISE. No fluff. No intros.
     
     ${brandContext}
     
     ${specificInstructions}
     
-    ${countInstruction}
-    
-    STRICT JSON STRUCTURE:
+    OUTPUT MUST BE A VALID JSON ARRAY ONLY:
     [
       {
         "platform": "Platform Name",
-        "content": "Post 1 content here...",
-        "imagePrompt": "Description for image..."
-      },
-      {
-        "platform": "Platform Name",
-        "content": "Post 2 content here...",
-        "imagePrompt": "Description for image..."
+        "content": "Post content...",
+        "imagePrompt": "Visual description..."
       }
-      ... (continue until you have exactly ${isRemix ? remixFormats.length : postCount} items)
     ]
     `;
 
@@ -151,13 +138,18 @@ export async function generateSocialMediaPosts(
         const parsed = extractJsonArray(data.output);
         
         if(Array.isArray(parsed)) {
+            // Validare lungime array
+            if (isCampaign && parsed.length !== postCount) {
+                console.warn(`AI returned ${parsed.length} posts, expected ${postCount}.`);
+            }
+
             return parsed.map((p: any) => {
                 let content = p.content || p.post || p.text || p.body || p;
                 if (typeof content !== 'string') content = JSON.stringify(content);
 
                 return { 
                     content: content,
-                    type: p.type || (isCampaign ? 'campaign_post' : 'post'), 
+                    type: p.type || (isCampaign ? 'campaign_post' : 'post'),
                     platform: p.platform || (isRemix ? 'Remix' : 'Generic')
                 };
             });
@@ -165,7 +157,9 @@ export async function generateSocialMediaPosts(
         return [];
 
     } catch (e: any) {
-        return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
+        // Logica de eroare mai clara
+        console.error("Gemini Error:", e);
+        return [{ content: `⚠️ Error: ${e.message}. Try generating fewer posts.`, type: 'error' }];
     }
 }
 
