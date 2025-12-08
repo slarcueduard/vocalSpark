@@ -73,12 +73,22 @@ const SocialSparkApp: React.FC = () => {
       setTimeout(() => setVibeMessage(null), 4000);
   };
 
-  const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
+ const handleSwitchMode = (mode: 'single' | 'campaign' | 'remix') => {
       setError(null);
-      // NU mai stergem postarile (setPosts([])), doar schimbam filtrul
-      if (mode === 'single') { setAppMode('creator'); setIsCampaignMode(false); }
-      else if (mode === 'campaign') { setAppMode('creator'); setIsCampaignMode(true); }
-      else if (mode === 'remix') { setAppMode('remix'); setIsCampaignMode(false); }
+      
+      if (mode === 'single') { 
+          setAppMode('creator'); 
+          setIsCampaignMode(false); 
+      }
+      else if (mode === 'campaign') { 
+          setAppMode('creator'); 
+          setIsCampaignMode(true);
+          setCampaignCount(3); // <--- FIX: Fortam minim 3 postari la intrarea in campanie
+      }
+      else if (mode === 'remix') { 
+          setAppMode('remix'); 
+          setIsCampaignMode(false); 
+      }
   };
 
   const toggleRemixFormat = (fmt: string) => {
@@ -349,16 +359,32 @@ const SocialSparkApp: React.FC = () => {
                                         </div>
                                     </section>
                                 )}
-                                {isCampaignMode && appMode === 'creator' && (
-                                    <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
-                                        <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2"><BriefcaseIcon size={14} /> Campaign Length</label><span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">{campaignCount} Posts</span></div>
-                                        <input type="range" min="3" max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} value={campaignCount} onChange={(e) => setCampaignCount(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
-                                    </section>
-                                )}
-                                <div className="flex items-center justify-between mt-2 px-1">
-                                    {isPremiumUser ? <label className="flex items-center gap-2 cursor-pointer group"><div className="relative"><input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" /><div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div></div><span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}><Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span></span></label> : <div className="flex items-center gap-2 opacity-50 cursor-not-allowed"><Globe size={12} /><span className="text-xs text-gray-500">Real-Time Data (PRO)</span></div>}
-                                </div>
-                            </section>
+                       {isCampaignMode && appMode === 'creator' && (
+      <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
+          <div className="flex justify-between items-center mb-2">
+              <label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2">
+                  <BriefcaseIcon size={14} /> Campaign Length
+              </label>
+              <span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">
+                  {campaignCount} Posts
+              </span>
+          </div>
+          {/* FIX: Adaugam step={1} si value explicit */}
+          <input 
+              type="range" 
+              min="3" 
+              max={userProfile?.subscriptionTier === 'agency' ? 10 : 5} // Limitam putin max-ul pentru a evita Timeout 504
+              step={1}
+              value={campaignCount} 
+              onChange={(e) => setCampaignCount(parseInt(e.target.value))} 
+              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" 
+          />
+          <div className="flex justify-between text-[10px] text-gray-500 mt-1">
+              <span>3 (Min)</span>
+              <span>{userProfile?.subscriptionTier === 'agency' ? 10 : 5} (Max)</span>
+          </div>
+      </section>
+  )}
 
                             <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
