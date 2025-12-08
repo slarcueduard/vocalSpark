@@ -37,24 +37,32 @@ async function safeFetch(url: string, body: any) {
 // --- HELPER: Extract JSON (Robust) ---
 function extractJsonArray(text: string): any[] {
     try {
-        // Curatam markdown
+        // 1. Curățăm Markdown-ul
         let cleanText = text.replace(/```json|```/g, '').trim();
-        // Curatam eventuale texte inainte/dupa JSON
+        
+        // 2. Extragem doar partea de array [...]
         const firstBracket = cleanText.indexOf('[');
         const lastBracket = cleanText.lastIndexOf(']');
         
         if (firstBracket !== -1 && lastBracket !== -1) {
             cleanText = cleanText.substring(firstBracket, lastBracket + 1);
+        } else {
+            // Dacă nu găsește [], poate e un singur obiect {}
+            const firstBrace = cleanText.indexOf('{');
+            const lastBrace = cleanText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                const singleObj = JSON.parse(cleanText.substring(firstBrace, lastBrace + 1));
+                // Verificăm dacă obiectul are o cheie "posts" sau "campaign"
+                if (singleObj.posts && Array.isArray(singleObj.posts)) return singleObj.posts;
+                return [singleObj];
+            }
         }
 
         let parsed = JSON.parse(cleanText);
 
-        // Tratare cazuri particulare de raspuns
-        if (parsed.posts && Array.isArray(parsed.posts)) return parsed.posts;
-        if (parsed.campaign && Array.isArray(parsed.campaign)) return parsed.campaign;
         if (Array.isArray(parsed)) return parsed;
+        if (parsed.posts && Array.isArray(parsed.posts)) return parsed.posts;
         
-        // Daca a returnat un singur obiect, il fortam intr-un array
         return [parsed];
     } catch (e) {
         console.error("JSON Parse Error. Raw text:", text);
@@ -63,67 +71,87 @@ function extractJsonArray(text: string): any[] {
 }
 
 // --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
-// --- 3. TEXT (Generare Postări & Campanii & Remix) ---
 export async function generateSocialMediaPosts(
   topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
 ): Promise<any[]> {
     
+    // 1. BRAND CONTEXT
     let brandContext = '';
     if (brandProfile) {
         brandContext = `
-        Voice: ${brandProfile.voiceDNA || brandVoice || "Professional"}
-        Audience: ${brandProfile.targetAudience || "General"}
-        Hashtags: ${brandProfile.fixedHashtags || ''}
+        Voice Style: ${brandProfile.voiceDNA || brandVoice || "Professional"}
+        Target Audience: ${brandProfile.targetAudience || "General"}
+        Hashtags to include: ${brandProfile.fixedHashtags || ''}
         `;
     }
 
+    // 2. CONSTRUIREA SCHELETULUI JSON (AICI ESTE FIX-UL)
+    // Generăm un string de exemplu care are EXACT numărul de elemente cerut
+    let jsonSkeleton = "";
+    const targetCount = isRemix ? remixFormats.length : postCount;
+
+    if (isCampaign) {
+        // Pentru campanie, construim structura logica
+        let items = [];
+        for (let i = 1; i <= targetCount; i++) {
+            let role = "Middle post (Value)";
+            if (i === 1) role = "Teaser/Hook";
+            if (i === targetCount) role = "Sales/CTA";
+            
+            items.push(`
+            {
+              "platform": "Generic",
+              "content": "Write Post ${i} content here (${role}). Keep it concise.",
+              "imagePrompt": "Image for Post ${i}"
+            }`);
+        }
+        jsonSkeleton = `[\n${items.join(',\n')}\n]`;
+
+    } else {
+        // Pentru single/remix
+        let items = [];
+        for (let i = 1; i <= targetCount; i++) {
+            items.push(`{ "platform": "Generic", "content": "Variation ${i}...", "imagePrompt": "..." }`);
+        }
+        jsonSkeleton = `[ ${items.join(', ')} ]`;
+    }
+
+    // 3. LOGICA TASK-ULUI
     let specificInstructions = "";
     
     if (isCampaign) {
-        // --- FIX 504: Cerem postari SCURTE pentru viteza ---
         specificInstructions = `
-        TASK: Create a ${postCount}-part Campaign.
-        TOPIC: "${topic}".
-        GOAL: ${objective}.
+        TASK: You are creating a **Sequential Content Campaign** of exactly ${targetCount} posts.
+        TOPIC: "${topic}"
+        GOAL: ${objective}
         
-        STRUCTURE (Return EXACTLY ${postCount} items):
-        1. Hook/Teaser (Max 30 words)
-        2-${postCount-1}. Value/Tips (Max 60 words each)
-        ${postCount}. Sales/CTA (Max 40 words)
-        
-        Keep it punchy. Speed is priority.
+        It is VITAL that you return separate objects for each day of the campaign.
+        Do NOT merge them into one text.
         `;
     } else if (isRemix) {
         specificInstructions = `
-        TASK: Remix into ${remixFormats.length} formats: ${remixFormats.join(', ')}.
-        SOURCE: "${topic}".
-        Keep each format concise and native to the platform.
+        TASK: Remix content into ${targetCount} formats: ${remixFormats.join(', ')}.
+        SOURCE: "${topic}"
         `;
     } else {
         specificInstructions = `
-        TASK: Generate ${postCount} viral variations.
-        TOPIC: "${topic}".
-        GOAL: ${objective}.
-        Max 60 words per post.
+        TASK: Generate ${targetCount} unique viral post variations.
+        TOPIC: "${topic}"
+        GOAL: ${objective}
         `;
     }
 
     const systemPrompt = `
     You are an expert Social Media AI. Write in ${language}.
-    CRITICAL: Be CONCISE. No fluff. No intros.
     
     ${brandContext}
     
     ${specificInstructions}
     
-    OUTPUT MUST BE A VALID JSON ARRAY ONLY:
-    [
-      {
-        "platform": "Platform Name",
-        "content": "Post content...",
-        "imagePrompt": "Visual description..."
-      }
-    ]
+    IMPORTANT: You must follow this EXACT JSON Structure format with ${targetCount} items:
+    ${jsonSkeleton}
+    
+    Return ONLY valid JSON.
     `;
 
     try {
@@ -138,28 +166,33 @@ export async function generateSocialMediaPosts(
         const parsed = extractJsonArray(data.output);
         
         if(Array.isArray(parsed)) {
-            // Validare lungime array
-            if (isCampaign && parsed.length !== postCount) {
-                console.warn(`AI returned ${parsed.length} posts, expected ${postCount}.`);
-            }
+            // Validare extra: Dacă e campanie și avem doar 1 post, dar am cerut mai multe
+            // AI-ul a "comasat" totul. Putem încerca să spargem manual textul dacă e cazul
+            // Dar noua metodă cu Schelet JSON ar trebui să prevină asta.
 
-            return parsed.map((p: any) => {
+            return parsed.map((p: any, index: number) => {
                 let content = p.content || p.post || p.text || p.body || p;
                 if (typeof content !== 'string') content = JSON.stringify(content);
 
+                // Determinam tipul si platforma
+                let type = 'post';
+                if (isCampaign) type = 'campaign_post';
+                if (isRemix) type = 'remix';
+
+                let platform = p.platform || 'Generic';
+                if (isRemix && remixFormats[index]) platform = remixFormats[index];
+
                 return { 
                     content: content,
-                    type: p.type || (isCampaign ? 'campaign_post' : 'post'),
-                    platform: p.platform || (isRemix ? 'Remix' : 'Generic')
+                    type: type,
+                    platform: platform
                 };
             });
         }
         return [];
 
     } catch (e: any) {
-        // Logica de eroare mai clara
-        console.error("Gemini Error:", e);
-        return [{ content: `⚠️ Error: ${e.message}. Try generating fewer posts.`, type: 'error' }];
+        return [{ content: `⚠️ Error: ${e.message}`, type: 'error' }];
     }
 }
 
