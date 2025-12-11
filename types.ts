@@ -19,7 +19,7 @@ export enum Tone {
 
 export type AppMode = 'creator' | 'business' | 'remix';
 export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
-export type RefinementType = 'makeShorter' | 'addEmojis' | 'askQuestion' | 'formal';
+export type RefinementType = 'makeShorter' | 'makeLonger' | 'professional' | 'casual' | 'addEmojis' | 'addHashtags' | 'askQuestion';
 export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'traffic';
 export type GenerationType = 'single' | 'campaign' | 'remix';
 
@@ -47,21 +47,12 @@ export interface Post {
   isLocked?: boolean;
   scheduledDate?: any;
   isPublished?: boolean;
-  generationType?: GenerationType; 
-  type?: string; 
+  generationType?: GenerationType;
+  type?: string;
   isSaved?: boolean;
-}
-
-export interface UserProfile {
-  uid: string;
-  email: string | null;
-  subscriptionTier: SubscriptionTier;
-  subscriptionStatus: 'active' | 'expired' | 'cancelled' | 'lifetime';
-  trialStartDate?: any;
-  credits: number; 
-  imageCount?: number; 
-  createdAt?: any;
-  isFounder?: boolean;
+  parentId?: string; // ID-ul postării originale pentru Follow-up
+  platform?: string;
+  imagePrompt?: string;
 }
 
 // --- CONFIGURATION & PLANS ---
@@ -84,17 +75,17 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     credits: 1000, // Upgrade masiv la 1000
     label: '5 Days Full Access',
     features: [
-        '1,000 Credits (5 Days)', 
-        'Full GPT-4o Intelligence', 
-        'Premium DALL-E 3 Images', 
-        'Remix Mode Unlocked',
-        'Real-Time Data'
+      '1,000 Credits (5 Days)',
+      'Full GPT-4o Intelligence',
+      'Premium DALL-E 3 Images',
+      'Remix Mode Unlocked',
+      'Real-Time Data'
     ],
     detailedFeatures: [
-        'No Credit Card Required',
-        'Test all Agency features',
-        'Auto-cancel after 5 days',
-        'One-time use per user'
+      'No Credit Card Required',
+      'Test all Agency features',
+      'Auto-cancel after 5 days',
+      'One-time use per user'
     ]
   },
   creator: {

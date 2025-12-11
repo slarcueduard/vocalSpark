@@ -1,10 +1,10 @@
 import { Post, Tone, Platform, RefinementType, BrandProfile, PostObjective } from "../types";
-import { auth } from "./firebase"; 
+import { auth } from "./firebase";
 
 // --- HELPER: Auth Headers ---
 async function getAuthHeader() {
     const user = auth.currentUser;
-    if (!user) return {}; 
+    if (!user) return {};
     const token = await user.getIdToken();
     return {
         'Content-Type': 'application/json',
@@ -21,7 +21,7 @@ async function safeFetch(url: string, body: any) {
             headers: headers as any,
             body: JSON.stringify(body)
         });
-        
+
         if (!response.ok) {
             // Daca serverul da timeout (504) sau eroare
             const errorText = await response.text();
@@ -29,11 +29,11 @@ async function safeFetch(url: string, body: any) {
         }
 
         const text = await response.text();
-        try { 
-            return JSON.parse(text); 
-        } catch (e) { 
+        try {
+            return JSON.parse(text);
+        } catch (e) {
             console.error("Invalid JSON response:", text);
-            throw new Error("AI response was not valid JSON."); 
+            throw new Error("AI response was not valid JSON.");
         }
     } catch (error: any) {
         console.error(`Fetch failed for ${url}:`, error);
@@ -47,7 +47,7 @@ function extractJsonArray(text: string): any[] {
         let cleanText = text.replace(/```json|```/g, '').trim();
         const firstBracket = cleanText.indexOf('[');
         const lastBracket = cleanText.lastIndexOf(']');
-        
+
         if (firstBracket !== -1 && lastBracket !== -1) {
             cleanText = cleanText.substring(firstBracket, lastBracket + 1);
         }
@@ -60,15 +60,15 @@ function extractJsonArray(text: string): any[] {
     } catch (e) {
         console.error("JSON Parse Error:", text);
         // Returnam un array gol ca sa nu crape UI-ul, dar logam eroarea
-        return []; 
+        return [];
     }
 }
 
 // --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
 export async function generateSocialMediaPosts(
-  topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = []
+    topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = ""
 ): Promise<any[]> {
-    
+
     // 1. BRAND CONTEXT (Scurt si la obiect)
     let brandContext = '';
     if (brandProfile) {
@@ -81,7 +81,7 @@ export async function generateSocialMediaPosts(
 
     // 2. CONFIGURARE TASK (SPEED OPTIMIZED)
     let specificInstructions = "";
-    
+
     if (isCampaign) {
         // --- PROMPT CAMPANIE OPTIMIZAT PENTRU VITEZA (NO 504 ERROR) ---
         specificInstructions = `
@@ -103,6 +103,18 @@ export async function generateSocialMediaPosts(
         SOURCE: "${topic}"
         CONSTRAINT: Short & Native formats.
         REQUIRED OUTPUT: A JSON Array with ${remixFormats.length} objects.
+        `;
+    } else if (isFollowUp) {
+        specificInstructions = `
+        TASK: Write a logical follow-up/sequel to the provided SOURCE content.
+        SOURCE: "${parentContent.substring(0, 500)}"
+        
+        CRITICAL STYLE INSTRUCTION:
+        - You MUST match the tone, voice, sentence structure, and formatting of the SOURCE exactly.
+        - If the source uses emojis, use them. If it's formal, remain formal.
+        - Treat this as "Part 2" or a deep-dive response to the original.
+        
+        REQUIRED OUTPUT: A JSON Array with 1 object.
         `;
     } else {
         specificInstructions = `
@@ -132,22 +144,23 @@ export async function generateSocialMediaPosts(
     `;
 
     try {
-        const data = await safeFetch('/api/generate-text', { 
-            prompt: systemPrompt, 
+        const data = await safeFetch('/api/generate-text', {
+            prompt: systemPrompt,
             // Nu mai trimitem contextul separat pentru a reduce latenta, totul e in prompt
             // Dar pastram parametrii tehnici
             language: language,
             imageBase64, imageMimeType, objective, useRealTime,
-            isCampaign, postCount, isRemix, remixFormats 
+            isCampaign, postCount, isRemix, remixFormats,
+            isFollowUp, parentContent
         });
 
         const parsed = extractJsonArray(data.output);
-        
+
         if (parsed.length === 0) {
             throw new Error("AI returned empty content. Try a shorter topic.");
         }
 
-        if(Array.isArray(parsed)) {
+        if (Array.isArray(parsed)) {
             return parsed.map((p: any, index: number) => {
                 let content = p.content || p.post || p.text || p.body || p;
                 if (typeof content !== 'string') content = JSON.stringify(content);
@@ -155,9 +168,9 @@ export async function generateSocialMediaPosts(
                 let platform = p.platform || 'Generic';
                 if (isRemix && remixFormats[index]) platform = remixFormats[index];
 
-                return { 
+                return {
                     content: content,
-                    type: isCampaign ? 'campaign' : (isRemix ? 'remix' : 'single'), 
+                    type: isCampaign ? 'campaign' : (isRemix ? 'remix' : 'single'),
                     platform: platform
                 };
             });
@@ -176,12 +189,12 @@ export async function generateSocialMediaPosts(
 
 // --- 2. GENERARE IMAGINI ---
 export async function generateImageForPost(
-    postText: string, 
-    isPremium: boolean = false, 
-    topicContext: string = '', 
+    postText: string,
+    isPremium: boolean = false,
+    topicContext: string = '',
     brandColors: string[] = []
 ): Promise<string> {
-    
+
     // A. STANDARD (FLUX)
     if (!isPremium) {
         const cleanPrompt = encodeURIComponent(`${postText} ${topicContext}`.slice(0, 500));
@@ -192,13 +205,13 @@ export async function generateImageForPost(
     try {
         const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
 
-        const data = await safeFetch('/api/generate-image', { 
+        const data = await safeFetch('/api/generate-image', {
             prompt: imagePrompt,
             isPremium: true,
             topic: topicContext,
             brandColors: brandColors
         });
-        
+
         const imageUrl = data.imageUrl;
 
         if (imageUrl.startsWith('http')) {
@@ -216,21 +229,21 @@ export async function generateImageForPost(
         return imageUrl;
     } catch (e) {
         console.error("Premium Image Gen Failed:", e);
-        throw e; 
+        throw e;
     }
 }
 
 // --- 3. ANALIZĂ BRAND ---
 export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
-  if (!content || content.length < 10) {
-    throw new Error("Content is too short.");
-  }
+    if (!content || content.length < 10) {
+        throw new Error("Content is too short.");
+    }
 
-  const taskDescription = mode === 'influencer' 
-    ? "You are a Ghostwriter. REVERSE ENGINEER the writing style."
-    : "You are a Brand Strategist. Analyze this content.";
+    const taskDescription = mode === 'influencer'
+        ? "You are a Ghostwriter. REVERSE ENGINEER the writing style."
+        : "You are a Brand Strategist. Analyze this content.";
 
-  const prompt = `
+    const prompt = `
     ${taskDescription}
     CONTENT: "${content.substring(0, 3000)}"
 
@@ -245,42 +258,42 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
     }
   `;
 
-  try {
-    const data = await safeFetch('/api/generate-text', { 
-        prompt: prompt,
-        postCount: 1, 
-        isCampaign: false 
-    });
-    const cleanJson = data.output.replace(/```json|```/g, '').trim();
-    return JSON.parse(cleanJson);
-  } catch (error) {
-    console.error("Error analyzing brand voice:", error);
-    return {
-      niche: "General",
-      audience: "General Audience",
-      tone_score: 50,
-      emoji_score: 50,
-      length_score: 50,
-      voice_description: "Professional yet accessible."
-    };
-  }
+    try {
+        const data = await safeFetch('/api/generate-text', {
+            prompt: prompt,
+            postCount: 1,
+            isCampaign: false
+        });
+        const cleanJson = data.output.replace(/```json|```/g, '').trim();
+        return JSON.parse(cleanJson);
+    } catch (error) {
+        console.error("Error analyzing brand voice:", error);
+        return {
+            niche: "General",
+            audience: "General Audience",
+            tone_score: 50,
+            emoji_score: 50,
+            length_score: 50,
+            voice_description: "Professional yet accessible."
+        };
+    }
 };
 
 // --- UTILS ---
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {
-        const data = await safeFetch('/api/generate-text', { 
-            prompt: `Adapt for ${platform}: "${originalContent}"` 
+        const data = await safeFetch('/api/generate-text', {
+            prompt: `Adapt for ${platform}: "${originalContent}"`
         });
         return data.output;
-    } catch(e) { return originalContent; }
+    } catch (e) { return originalContent; }
 }
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
     try {
         const data = await safeFetch('/api/generate-text', { prompt: `Rewrite (${type}): "${content}"` });
         return data.output;
-    } catch(e) { return content; }
+    } catch (e) { return content; }
 }
 
 export async function autoGenerateBrandProfile(rawContent: string): Promise<BrandProfile> {

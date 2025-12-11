@@ -15,12 +15,13 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount } = req.body;
+    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount, isFollowUp, parentContent } = req.body;
 
     // 1. CALCUL COST
     let count = 1;
     if (isCampaign) count = postCount || 3;
     if (isRemix && remixFormats) count = remixFormats.length;
+    // Follow-up is single post cost (1)
 
     const COST = useRealTime ? 10 : (1 * count);
 
@@ -59,6 +60,14 @@ export default async function handler(req, res) {
         TASK: Create a ${count}-post campaign.
         STRUCTURE: { "posts": [{"content": "Post 1..."}, {"content": "Post 2..."}] }
         `;
+    } else if (isFollowUp) {
+      systemPrompt += `
+        TASK: Write a logical follow-up/sequel to the provided SOURCE content.
+        CRITICAL: MATCH THE TONE, VOICE, AND FORMAT OF THE SOURCE EXACTLY.
+        Treat this as "Part 2" or a deep-dive response to the original.
+        STRUCTURE: { "posts": [{"content": "Follow-up text..."}] }
+        `;
+      userMessage = `SOURCE: ${parentContent || prompt}`;
     } else {
       // SINGLE POST
       systemPrompt += `
