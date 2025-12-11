@@ -45,11 +45,21 @@ async function safeFetch(url: string, body: any) {
 function extractJsonArray(text: string): any[] {
     try {
         let cleanText = text.replace(/```json|```/g, '').trim();
+
+        // Try finding the first '[' and last ']'
         const firstBracket = cleanText.indexOf('[');
         const lastBracket = cleanText.lastIndexOf(']');
 
         if (firstBracket !== -1 && lastBracket !== -1) {
             cleanText = cleanText.substring(firstBracket, lastBracket + 1);
+        } else {
+            // Backup: Maybe it returned a single object not in array?
+            const firstBrace = cleanText.indexOf('{');
+            const lastBrace = cleanText.lastIndexOf('}');
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+                // We will parse it and wrap in array below
+            }
         }
 
         let parsed = JSON.parse(cleanText);
@@ -59,8 +69,15 @@ function extractJsonArray(text: string): any[] {
         return [parsed];
     } catch (e) {
         console.error("JSON Parse Error:", text);
-        // Returnam un array gol ca sa nu crape UI-ul, dar logam eroarea
-        return [];
+        // Attempt a regex fix for common issues (trailing commas)
+        try {
+            const fixed = text.replace(/,\s*([\]}])/g, '$1');
+            const parsed = JSON.parse(fixed);
+            if (Array.isArray(parsed)) return parsed;
+            return [parsed];
+        } catch (e2) {
+            return [];
+        }
     }
 }
 
@@ -69,65 +86,84 @@ export async function generateSocialMediaPosts(
     topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = ""
 ): Promise<any[]> {
 
-    // 1. BRAND CONTEXT (Scurt si la obiect)
-    let brandContext = '';
+    // 1. BRAND CONTEXT (Deep Personalization)
+    let brandContext = 'VOICE: Professional, but conversational.';
     if (brandProfile) {
         brandContext = `
-        Identity: ${brandProfile.voiceDNA || brandVoice || "Professional"}
-        Audience: ${brandProfile.targetAudience || "General"}
-        Keywords: ${brandProfile.fixedHashtags || ''}
+        YOUR IDENTITY (Adopt this persona completely):
+        - Voice/Style: ${brandProfile.voiceDNA || brandVoice || "Authentic and Relatable"}
+        - Target Audience: ${brandProfile.targetAudience || "General Public"}
+        - Signature Keywords: ${brandProfile.fixedHashtags || ''}
+        
+        MANDATORY BEHAVIOR:
+        - Write EXACTLY as this person/brand would speak. 
+        - Use their vocabulary, their sentence structure, and their rhythm.
+        - If the Voice is "Witty", be genuinely funny. If "Professional", be concise and sharp.
         `;
     }
 
-    // 2. CONFIGURARE TASK (SPEED OPTIMIZED)
+    // 2. CONFIGURARE TASK (Human-Centric & Speed Optimized)
     let specificInstructions = "";
 
     if (isCampaign) {
-        // --- PROMPT CAMPANIE OPTIMIZAT PENTRU VITEZA (NO 504 ERROR) ---
         specificInstructions = `
-        TASK: Generate a ${postCount}-part Campaign Sequence.
+        TASK: Create a ${postCount}-part Campaign Sequence.
         TOPIC: "${topic}"
         GOAL: ${objective}
         
-        STRUCTURE:
-        - Post 1: Hook/Teaser
-        - Middle Posts: Value/Education
-        - Last Post: Sales/CTA
+        HUMAN STRATEGY:
+        - Treat this as a story unfolding over ${postCount} posts.
+        - Post 1: Hook the reader (short, intriguing).
+        - Middle Posts: Add value/insight (don't lecture).
+        - Last Post: Call to action (natural, not salesy).
         
         CONSTRAINT: Keep each post UNDER 60 WORDS. Be punchy. 
         REQUIRED OUTPUT: A JSON Array with exactly ${postCount} objects.
         `;
     } else if (isRemix) {
         specificInstructions = `
-        TASK: Remix content into ${remixFormats.length} formats: ${remixFormats.join(', ')}.
+        TASK: Remix content into ${remixFormats.length} distinct native formats: ${remixFormats.join(', ')}.
         SOURCE: "${topic}"
-        CONSTRAINT: Short & Native formats.
+        CONSTRAINT: Adapt specifically to the culture of each platform (e.g., LinkedIn = Professional insight, Twitter = punchy thread).
         REQUIRED OUTPUT: A JSON Array with ${remixFormats.length} objects.
         `;
     } else if (isFollowUp) {
         specificInstructions = `
-        TASK: Write a logical follow-up/sequel to the provided SOURCE content.
-        SOURCE: "${parentContent.substring(0, 500)}"
+        TASK: Write a direct SEQUEL (Part 2) to the source text.
+        SOURCE: "${parentContent.substring(0, 800)}"
         
-        CRITICAL STYLE INSTRUCTION:
-        - You MUST match the tone, voice, sentence structure, and formatting of the SOURCE exactly.
-        - If the source uses emojis, use them. If it's formal, remain formal.
-        - Treat this as "Part 2" or a deep-dive response to the original.
+        INSTRUCTIONS:
+        - Continue the story/topic naturally.
+        - Match the exact tone and style.
+        - Start with a transition like "Furthermore..." or "Update:".
         
-        REQUIRED OUTPUT: A JSON Array with 1 object.
+        OUTPUT FORMAT: JSON Array with 1 object.
         `;
     } else {
         specificInstructions = `
-        TASK: Generate ${postCount} viral variations.
+        TASK: Ghostwrite ${postCount} viral social media posts.
         TOPIC: "${topic}"
         GOAL: ${objective}
-        CONSTRAINT: Max 50 words per variation.
+        
+        HUMAN RULES:
+        - NO predictable AI patterns (e.g., "In this fast-paced world...").
+        - NO bullet points unless absolutely necessary.
+        - Vary sentence length. Use fragments. Be real.
+        - LIMIT: Max 280 characters per post (unless LinkedIn is specified).
+        
         REQUIRED OUTPUT: A JSON Array with ${postCount} objects.
         `;
     }
 
     const systemPrompt = `
-    You are a Fast Social Media AI. Write in ${language}.
+    ROLE: You are an elite Social Media Ghostwriter. You write like a HUMAN, not an AI.
+    LANGUAGE: ${language}
+    
+    CRITICAL "ANTI-BOT" RULES:
+    1. NEVER start with "Here are..." or "In this post...".
+    2. NEVER use buzzwords like "delve", "unlock", "elevate", "game-changer" unless sarcastic.
+    3. WRITE LIKE A HUMAN: Use casual transitions, ask questions, be opinionated.
+    4. LENGTH PRIORITY: SHORT IS BETTER. Kill the fluff.
     
     ${brandContext}
     
@@ -137,8 +173,8 @@ export async function generateSocialMediaPosts(
     [
       {
         "platform": "Generic",
-        "content": "Short text here...",
-        "imagePrompt": "Visual description..."
+        "content": "Text...",
+        "imagePrompt": "Visual..."
       }
     ]
     `;
@@ -197,7 +233,9 @@ export async function generateImageForPost(
 
     // A. STANDARD (FLUX)
     if (!isPremium) {
-        const cleanPrompt = encodeURIComponent(`${postText} ${topicContext}`.slice(0, 500));
+        // Fix: Standard images should not be forced to use brand colors literally to avoid weird artifacts.
+        // We only use the core post text and style context, ignoring specific brand color logic for standard mode.
+        const cleanPrompt = encodeURIComponent(`${postText}`.slice(0, 500));
         return `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
     }
 
@@ -300,6 +338,7 @@ export async function autoGenerateBrandProfile(rawContent: string): Promise<Bran
     try {
         const analysis = await analyzeBrandVoice(rawContent, 'personal');
         return {
+            name: 'New Brand Profile',
             industry: analysis.niche,
             language: 'English',
             voiceDNA: analysis.voice_description,

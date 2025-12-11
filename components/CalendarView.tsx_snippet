@@ -1,0 +1,15 @@
+    const handlePostClick = (p: any) => {
+        if (p.type === 'event') {
+            const choice = window.confirm(`Manage Event: "${p.topic}"\n\nDo you want to create content (posts/campaign) for this event?`);
+            if (choice && onNavigateToCreate) {
+                const eventDate = p.scheduledDate ? getSafeDate(p.scheduledDate) : getSafeDate(p.createdAt);
+                onNavigateToCreate({
+                    title: p.topic || "Untitled Event",
+                    description: p.content,
+                    date: eventDate
+                });
+            }
+        } else {
+            if (onNavigateToVault) onNavigateToVault();
+        }
+    };

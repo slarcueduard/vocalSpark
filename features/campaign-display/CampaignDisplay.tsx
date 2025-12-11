@@ -13,6 +13,7 @@ interface CampaignDisplayProps {
   onRefinePost: (postId: string, type: RefinementType, content: string) => Promise<void>;
   onDeletePost: (postId: string) => void;
   onToggleLock: (postId: string) => void;
+  onSchedule: (postId: string, date: Date) => Promise<void>;
 }
 
 const CampaignDisplay: React.FC<CampaignDisplayProps> = ({
@@ -24,6 +25,7 @@ const CampaignDisplay: React.FC<CampaignDisplayProps> = ({
   onRefinePost,
   onDeletePost,
   onToggleLock,
+  onSchedule,
 }) => {
   return (
     <>
@@ -40,15 +42,16 @@ const CampaignDisplay: React.FC<CampaignDisplayProps> = ({
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {posts.map(post => (
-          <PostCard 
-            key={post.id} 
-            post={post} 
+          <PostCard
+            key={post.id}
+            post={post}
             isRefining={refiningPostId === post.id}
             onGenerateImage={onGenerateImage}
             onAdaptPost={onAdaptPost}
             onRefinePost={onRefinePost}
             onDelete={onDeletePost}
             onToggleLock={onToggleLock}
+            onSchedule={onSchedule}
           />
         ))}
       </div>

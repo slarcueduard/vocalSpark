@@ -18,10 +18,23 @@ export enum Tone {
 }
 
 export type AppMode = 'creator' | 'business' | 'remix';
-export type SubscriptionTier = 'trial' | 'creator' | 'pro' | 'agency';
+export type SubscriptionTier = 'trial' | 'pro' | 'agency';
 export type RefinementType = 'makeShorter' | 'makeLonger' | 'professional' | 'casual' | 'addEmojis' | 'addHashtags' | 'askQuestion';
 export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'traffic';
+export type ViralHook = 'Straight to the Point' | 'Storytime' | 'Controversial' | 'Behind the Scenes' | 'Myth vs Fact' | 'Transformation' | 'Unpopular Opinion' | 'Day in the Life' | 'Hack / Trick';
 export type GenerationType = 'single' | 'campaign' | 'remix';
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+  subscriptionTier?: SubscriptionTier;
+  credits?: number;
+  trialStartDate?: string;
+  trialEndDate?: string;
+  subscriptionStatus?: 'active' | 'trial' | 'none';
+  brandProfile?: BrandProfile;
+}
 
 export interface BrandProfile {
   name: string;
@@ -29,13 +42,14 @@ export interface BrandProfile {
   targetAudience: string;
   language: string;
   voiceDNA: string; // Aici stocăm analiza AI (Ton, Stil etc.)
-  // Opțional, poți adăuga și astea pentru viitor, dar nu e obligatoriu acum:
-  // toneScore?: number;
-  // logoUrl?: string;
-  // brandColors?: string[];
   toneScore?: number;
   emojiScore?: number;
   lengthScore?: number;
+  // Added fields to support BrandProfileModal and GeminiService
+  description?: string;
+  brandColors?: string[];
+  logoUrl?: string | null;
+  fixedHashtags?: string;
 }
 
 export interface Post {
@@ -44,6 +58,8 @@ export interface Post {
   imageUrl?: string | null;
   isGeneratingImage?: boolean;
   adaptedContent: Partial<Record<Platform, string>>;
+  linkedEventId?: string;
+  linkedEventTitle?: string;
   isLocked?: boolean;
   scheduledDate?: any;
   isPublished?: boolean;
@@ -72,7 +88,7 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     id: 'trial',
     name: 'Pro Trial', // Nume nou
     price: 0,
-    credits: 1000, // Upgrade masiv la 1000
+    credits: 150, // Updated: More reasonable trial allocation
     label: '5 Days Full Access',
     features: [
       '1,000 Credits (5 Days)',
@@ -88,39 +104,18 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       'One-time use per user'
     ]
   },
-  creator: {
-    id: 'creator',
-    name: 'Creator',
-    price: 4.99,
-    credits: 600,
-    label: 'Starter',
-    features: [
-      '600 Credits / mo',
-      'Standard AI Images (Fast)',
-      'Platform Optimizer',
-      '1 Brand Voice Profile',
-      'GPT-4o Mini (Standard)'
-    ],
-    detailedFeatures: [
-      'Ideal for solopreneurs',
-      'No Watermark',
-      'Basic Remixing',
-      'Email Support',
-      'Cancel Anytime'
-    ]
-  },
   pro: {
     id: 'pro',
     name: 'Pro',
-    price: 11.99,
+    price: 12.99, // Updated: New entry-level price
     credits: 2000,
-    label: 'Growth',
+    label: 'Standard',
     highlight: true,
     features: [
       '2,000 Credits / mo',
       'Real-Time News (Perplexity)',
       'Premium DALL-E 3 Images',
-      '3 Brand Voice Profiles',
+      '2 Brand Voice Profiles', // Updated: Reduced from 3
       'GPT-4o Intelligence (Max)'
     ],
     detailedFeatures: [
@@ -135,13 +130,13 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     id: 'agency',
     name: 'Agency',
     price: 29.99,
-    credits: 7000,
+    credits: 5000, // Updated: Reduced from 7000
     label: 'Scale',
     features: [
-      '7,000 Credits / mo',
+      '5,000 Credits / mo', // Updated
       'Real-Time News (Perplexity)',
       'Bulk Content Generation',
-      'Unlimited Brand Voices',
+      '5 Brand Voice Profiles', // Updated: From Unlimited to 5
       'Logo Injection'
     ],
     detailedFeatures: [

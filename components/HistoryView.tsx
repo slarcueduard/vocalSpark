@@ -10,8 +10,10 @@ import { db } from '../services/firebase';
 import { ImageCreationModal } from './ImageCreationModal';
 import { generateSocialMediaPosts } from '../services/geminiService';
 
-export function HistoryView() {
+export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: () => void }) {
     const { user } = useAuth();
+    // ... (lines 15-296 same) ...
+
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -23,6 +25,7 @@ export function HistoryView() {
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [activePostId, setActivePostId] = useState<string | null>(null);
     const [activePrompt, setActivePrompt] = useState('');
+    const [generatingFollowUpId, setGeneratingFollowUpId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!user) return;
@@ -43,7 +46,10 @@ export function HistoryView() {
                     type: d.type || 'post',
                     createdAt: d.createdAt,
                     parentId: d.parentId,
-                    platform: d.platform
+                    platform: d.platform,
+                    linkedEventId: d.linkedEventId,
+                    linkedEventTitle: d.linkedEventTitle,
+                    scheduledDate: d.scheduledDate ? (d.scheduledDate.toDate ? d.scheduledDate.toDate() : new Date(d.scheduledDate)) : null
                 } as any;
             });
 
@@ -128,12 +134,13 @@ export function HistoryView() {
 
     const handleFollowUp = async (parentId: string, parentContent: string) => {
         if (!user) return;
+        // Optional: Remove confirm if we want instant action, but kept for safety.
+        // const confirmGen = window.confirm("Generate a follow-up post? (1 Credit)");
+        // if (!confirmGen) return; 
 
-        const confirmGen = window.confirm("Generate a follow-up post based on this one? (Costs 1 Credit)");
-        if (!confirmGen) return;
-
-        setLoading(true);
+        setGeneratingFollowUpId(parentId);
         try {
+            console.log("Starting Follow-up Generation for Parent:", parentId);
             const generated = await generateSocialMediaPosts(
                 "Follow-up",
                 Tone.Professional,
@@ -151,27 +158,46 @@ export function HistoryView() {
                 true,
                 parentContent
             );
+            console.log("Generated Content:", generated);
 
             if (generated && generated.length > 0) {
                 const newPost = generated[0];
 
+                const parentPost = posts.find(p => p.id === parentId);
+                const inheritedType = parentPost?.generationType || 'single';
+
                 const postToSave: any = {
                     content: newPost.content,
                     type: 'post',
-                    generationType: 'single',
+                    generationType: inheritedType, // Inherit so it shows up in the same filter tab
                     imageUrl: null,
                     adaptedContent: {},
                     isLocked: false,
-                    parentId: parentId,
+                    parentId: parentId, // Ensure link is established
                     platform: newPost.platform || 'Generic'
                 };
 
-                await savePostToHistory(user.uid, postToSave, "Follow-up Post");
+                if (!newPost.content || newPost.content.trim().length === 0) {
+                    throw new Error("Generated content was empty.");
+                }
+
+                console.log("Saving to DB:", postToSave);
+                const savedId = await savePostToHistory(user.uid, postToSave, "Follow-up Post");
+
+                if (!savedId) {
+                    throw new Error("Database save failed (Validation or Network).");
+                }
+
+                console.log("Saved successfully, ID:", savedId);
+            } else {
+                console.warn("No content generated");
+                alert("AI returned no content. This happens occasionally. Please try again.");
             }
         } catch (e: any) {
-            alert("Failed to generate follow-up: " + e.message);
+            console.error("Follow-up Error:", e);
+            alert("Error: " + (e.message || "Something went wrong"));
         } finally {
-            setLoading(false);
+            setGeneratingFollowUpId(null);
         }
     };
 
@@ -242,30 +268,94 @@ export function HistoryView() {
             {/* LISTA POSTARI */}
             {groupKeys.length > 0 ? (
                 <div className="space-y-8">
-                    {groupKeys.map(dateLabel => (
-                        <div key={dateLabel}>
-                            <div className="flex items-center gap-4 mb-4">
-                                <h3 className="text-lg font-bold text-gray-300">{dateLabel}</h3>
-                                <div className="h-px bg-gray-800 flex-1"></div>
+                    {groupKeys.map(dateLabel => {
+                        // 1. Identificam Parent Posts (cele care nu au parentId sau parentId nu e in lista curenta)
+                        const todaysPosts = groupedPosts[dateLabel];
+                        const allIds = new Set(todaysPosts.map(p => p.id));
+
+                        const rootPosts = todaysPosts.filter(p => !p.parentId || !allIds.has(p.parentId));
+
+                        // 2. Mapare Children pentru randare usoara
+                        const childrenMap: Record<string, Post[]> = {};
+                        todaysPosts.filter(p => p.parentId && allIds.has(p.parentId)).forEach(p => {
+                            if (!childrenMap[p.parentId!]) childrenMap[p.parentId!] = [];
+                            childrenMap[p.parentId!].push(p);
+                        });
+
+                        return (
+                            <div key={dateLabel}>
+                                <div className="flex items-center gap-4 mb-4">
+                                    <h3 className="text-lg font-bold text-gray-300">{dateLabel}</h3>
+                                    <div className="h-px bg-gray-800 flex-1"></div>
+                                </div>
+                                <div className="grid grid-cols-1 gap-6">
+                                    {rootPosts.map(post => {
+                                        const isGeneratingThis = generatingFollowUpId === post.id;
+
+                                        return (
+                                            <div key={post.id} className="flex flex-col gap-4">
+                                                {/* PARENT POST */}
+                                                <div className={`transition-all duration-500 ease-in-out ${isGeneratingThis ? 'scale-95 opacity-80' : ''}`}>
+                                                    <PostCard
+                                                        post={post}
+                                                        isRefining={false}
+                                                        onGenerateImage={openImageModal}
+                                                        onAdaptPost={() => { }}
+                                                        onRefinePost={() => { }}
+                                                        onDelete={handleDelete}
+                                                        onToggleLock={handleToggleLock}
+                                                        onManualEdit={handleUpdateContent}
+                                                        onFollowUp={handleFollowUp}
+                                                        onNavigateToCalendar={onNavigateToCalendar}
+                                                    />
+                                                </div>
+
+                                                {/* CHILDREN (FOLLOW-UPS) */}
+                                                {childrenMap[post.id]?.map(childPost => (
+                                                    <div key={childPost.id} className="pl-6 md:pl-12 relative animate-in fade-in slide-in-from-top-2">
+                                                        {/* Connector Line */}
+                                                        <div className="absolute left-0 top-[-20px] bottom-1/2 w-6 border-l-2 border-b-2 border-gray-700 rounded-bl-2xl"></div>
+
+                                                        <div className="relative border-2 border-cyan-500/30 rounded-2xl overflow-hidden shadow-lg shadow-cyan-900/10 hover:border-cyan-500/60 transition-colors">
+                                                            <div className="absolute top-0 left-0 bg-cyan-900/40 text-cyan-200 text-[10px] font-bold px-2 py-0.5 rounded-br-lg z-10 border-r border-b border-cyan-500/30">
+                                                                Follow-up
+                                                            </div>
+                                                            <PostCard
+                                                                post={childPost}
+                                                                isRefining={false}
+                                                                onGenerateImage={openImageModal}
+                                                                onAdaptPost={() => { }}
+                                                                onRefinePost={() => { }}
+                                                                onDelete={handleDelete}
+                                                                onToggleLock={handleToggleLock}
+                                                                onManualEdit={handleUpdateContent}
+                                                                onFollowUp={handleFollowUp}
+                                                                onNavigateToCalendar={onNavigateToCalendar}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                                {/* GENERATING SKELETON (SHOWN WHEN GENERATING FOLLOW UP) */}
+                                                {isGeneratingThis && (
+                                                    <div className="pl-6 md:pl-12 relative animate-in zoom-in fade-in duration-500">
+                                                        {/* Connector Line */}
+                                                        <div className="absolute left-0 top-[-20px] bottom-1/2 w-6 border-l-2 border-b-2 border-cyan-500/50 rounded-bl-2xl"></div>
+
+                                                        <div className="relative border-2 border-cyan-500/30 border-dashed rounded-2xl overflow-hidden bg-[#161b22]/50 p-6 flex flex-col items-center justify-center gap-3 min-h-[150px]">
+                                                            <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin"></div>
+                                                            <p className="text-cyan-400 font-bold text-sm animate-pulse">Drafting Part 2...</p>
+                                                            <p className="text-xs text-gray-500">Analyzing style & continuity</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div className="grid grid-cols-1 gap-6">
-                                {groupedPosts[dateLabel].map(post => (
-                                    <PostCard
-                                        key={post.id}
-                                        post={post}
-                                        isRefining={false}
-                                        onGenerateImage={openImageModal}
-                                        onAdaptPost={() => { }}
-                                        onRefinePost={() => { }}
-                                        onDelete={handleDelete}
-                                        onToggleLock={handleToggleLock}
-                                        onManualEdit={handleUpdateContent}
-                                        onFollowUp={handleFollowUp}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="text-center py-24 border-2 border-dashed border-gray-800 rounded-2xl bg-[#161b22]/30">

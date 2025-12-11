@@ -3,22 +3,23 @@ import {
     Copy, Share2, Trash2, Calendar, Check,
     Lock, Unlock, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
     Linkedin, Twitter, Instagram, Facebook, Wand2, MessageCircle, Hash, Smile,
-    ArrowRightCircle, MoveRight
+    ArrowRightCircle, MoveRight, ArrowUpRight
 } from 'lucide-react';
 import { Post, Platform, RefinementType } from '../types';
 
 interface PostCardProps {
     post: Post;
     isRefining?: boolean;
-    onGenerateImage: (id: string, content: string) => void;
-    onAdaptPost: (id: string, platform: Platform, content: string) => void;
-    onRefinePost: (id: string, type: RefinementType, content: string) => void;
-    onDelete: (id: string) => void;
-    onToggleLock: (id: string) => void;
-    onManualEdit: (id: string, newContent: string) => void;
-    onSchedule?: (id: string, date: Date) => void;
-    onMarkPublished?: (id: string) => void;
-    onFollowUp?: (id: string, content: string) => void;
+    onGenerateImage: (id: string, content: string) => void | Promise<void>;
+    onAdaptPost: (id: string, platform: Platform, content: string) => void | Promise<void>;
+    onRefinePost: (id: string, type: RefinementType, content: string) => void | Promise<void>;
+    onDelete: (id: string) => void | Promise<void>;
+    onToggleLock: (id: string) => void | Promise<void>;
+    onManualEdit: (id: string, newContent: string) => void | Promise<void>;
+    onSchedule?: (id: string, date: Date) => void | Promise<void>;
+    onMarkPublished?: (id: string) => void | Promise<void>;
+    onFollowUp?: (id: string, content: string) => void | Promise<void>;
+    onNavigateToCalendar?: () => void;
 }
 
 export function PostCard({
@@ -31,8 +32,11 @@ export function PostCard({
     onToggleLock,
     onManualEdit,
     onSchedule,
-    onFollowUp
+    onFollowUp,
+    onNavigateToCalendar
 }: PostCardProps) {
+
+
 
     const [isEditing, setIsEditing] = useState(false);
     const [editContent, setEditContent] = useState(post.content);
@@ -61,7 +65,7 @@ export function PostCard({
             } catch (err) { console.log('Share canceled'); }
         } else {
             handleCopy();
-            alert("Content copied to clipboard!");
+            // alert("Content copied to clipboard!"); // Removed in favor of UI feedback
         }
     };
 
@@ -117,6 +121,19 @@ export function PostCard({
                         <span className="text-[10px] flex items-center gap-1 text-green-400 border border-green-900/30 bg-green-900/10 px-2 py-1 rounded">
                             <Calendar size={10} /> {new Date(post.scheduledDate).toLocaleDateString()}
                         </span>
+                    )}
+
+                    {post.linkedEventId && (
+                        <button
+                            onClick={() => onNavigateToCalendar && onNavigateToCalendar()}
+                            className={`text-[10px] flex items-center gap-1 text-orange-400 border border-orange-900/30 bg-orange-900/10 px-2 py-1 rounded transition-all hover:bg-orange-900/30 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-900/20 active:scale-95 ${onNavigateToCalendar ? 'cursor-pointer' : 'cursor-default'}`}
+                            title="View in Calendar"
+                        >
+                            <Calendar size={10} />
+                            <span className="font-bold">{post.linkedEventTitle || "Planned Event"}</span>
+                            {post.scheduledDate && <span className="opacity-75">({new Date(post.scheduledDate).toLocaleDateString()})</span>}
+                            {onNavigateToCalendar && <ArrowUpRight size={10} className="ml-0.5 opacity-60" />}
+                        </button>
                     )}
                 </div>
 
@@ -251,10 +268,11 @@ export function PostCard({
                                     {/* Share Button (NEW) */}
                                     <button
                                         onClick={handleShare}
-                                        className="flex items-center gap-2 px-3 py-2 bg-[#21262d] border border-gray-700 hover:border-gray-500 rounded-lg text-xs font-bold text-gray-300 transition hover:text-white"
+                                        className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-bold transition ${copied ? 'bg-green-600 border-green-500 text-white' : 'bg-[#21262d] border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white'}`}
                                         title="Share / Copy to Clipboard"
                                     >
-                                        <Share2 size={14} /> Share
+                                        {copied ? <Check size={14} /> : <Share2 size={14} />}
+                                        {copied ? 'Copied!' : 'Share'}
                                     </button>
 
                                     {/* Magic Button (NEW) */}
