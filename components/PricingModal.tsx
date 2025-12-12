@@ -11,7 +11,7 @@ interface PricingModalProps {
 // --- CONFIGURARE LINK-URI STRIPE (PUNE LINKURILE TALE AICI) ---
 const STRIPE_LINKS = {
     plans: {
-        pro: "https://buy.stripe.com/bJe6oH0zEb434FX56SaAw00",         // $12.99 (UPDATE THIS)
+        pro: "https://buy.stripe.com/8x2cN51DI9ZZ3BTczkaAw06",         // $12.99/month
         agency: "https://buy.stripe.com/bJe7sLbei7RR5K142OaAw01"    // $29.99
     },
     credits: {

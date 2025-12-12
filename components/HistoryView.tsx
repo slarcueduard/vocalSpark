@@ -8,10 +8,10 @@ import { Post, Tone } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { ImageCreationModal } from './ImageCreationModal';
-import { generateSocialMediaPosts } from '../services/geminiService';
+import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from '../services/geminiService';
 
 export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: () => void }) {
-    const { user } = useAuth();
+    const { user, checkCredits, refundCredits, userProfile } = useAuth();
     // ... (lines 15-296 same) ...
 
     const [posts, setPosts] = useState<Post[]>([]);
@@ -134,9 +134,12 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
 
     const handleFollowUp = async (parentId: string, parentContent: string) => {
         if (!user) return;
-        // Optional: Remove confirm if we want instant action, but kept for safety.
-        // const confirmGen = window.confirm("Generate a follow-up post? (1 Credit)");
-        // if (!confirmGen) return; 
+
+        // Check credits before generating (1 credit needed)
+        if (!checkCredits(1)) {
+            alert("Insufficient credits! Follow-up generation requires 1 credit.");
+            return;
+        }
 
         setGeneratingFollowUpId(parentId);
         try {
@@ -169,11 +172,11 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                 const postToSave: any = {
                     content: newPost.content,
                     type: 'post',
-                    generationType: inheritedType, // Inherit so it shows up in the same filter tab
+                    generationType: inheritedType,
                     imageUrl: null,
                     adaptedContent: {},
                     isLocked: false,
-                    parentId: parentId, // Ensure link is established
+                    parentId: parentId,
                     platform: newPost.platform || 'Generic'
                 };
 
@@ -182,15 +185,21 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                 }
 
                 console.log("Saving to DB:", postToSave);
-                const savedId = await savePostToHistory(user.uid, postToSave, "Follow-up Post");
+
+                // Use proper limit based on user tier
+                const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+                const savedId = await savePostToHistory(user.uid, postToSave, "Follow-up Post", limit);
 
                 if (!savedId) {
+                    // Refund credit if save failed
+                    refundCredits(1);
                     throw new Error("Database save failed (Validation or Network).");
                 }
 
                 console.log("Saved successfully, ID:", savedId);
             } else {
                 console.warn("No content generated");
+                refundCredits(1); // Refund if no content generated
                 alert("AI returned no content. This happens occasionally. Please try again.");
             }
         } catch (e: any) {
@@ -221,8 +230,10 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* Vault Counter with Limit */}
                         <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700">
-                            <Database size={14} /> {posts.length} Saved
+                            <Database size={14} />
+                            {posts.length} / {userProfile?.subscriptionTier === 'agency' ? '100' : '25'} Saved
                         </div>
 
                         {/* BUTTON: TOGGLE LOCKED VIEW */}
@@ -300,13 +311,40 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                                                         post={post}
                                                         isRefining={false}
                                                         onGenerateImage={openImageModal}
-                                                        onAdaptPost={() => { }}
-                                                        onRefinePost={() => { }}
+                                                        onAdaptPost={async (id, platform, content) => {
+                                                            if (!checkCredits(1)) {
+                                                                alert("Insufficient credits! Platform adaptation costs 1 credit.");
+                                                                return;
+                                                            }
+                                                            try {
+                                                                const adapted = await adaptPostForPlatform(content, platform);
+                                                                await handleUpdateContent(id, adapted);
+                                                            } catch (error) {
+                                                                console.error("Adaptation error:", error);
+                                                                refundCredits(1);
+                                                                alert("Failed to adapt post. Please try again.");
+                                                            }
+                                                        }}
+                                                        onRefinePost={async (id, type, content) => {
+                                                            if (!checkCredits(1)) {
+                                                                alert("Insufficient credits! Refinements cost 1 credit.");
+                                                                return;
+                                                            }
+                                                            try {
+                                                                const refined = await refinePostContent(content, type);
+                                                                await handleUpdateContent(id, refined);
+                                                            } catch (error) {
+                                                                console.error("Refinement error:", error);
+                                                                refundCredits(1);
+                                                                alert("Failed to refine post. Please try again.");
+                                                            }
+                                                        }}
                                                         onDelete={handleDelete}
                                                         onToggleLock={handleToggleLock}
                                                         onManualEdit={handleUpdateContent}
                                                         onFollowUp={handleFollowUp}
                                                         onNavigateToCalendar={onNavigateToCalendar}
+                                                        brandProfile={userProfile?.brandProfile}
                                                     />
                                                 </div>
 
@@ -324,13 +362,40 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                                                                 post={childPost}
                                                                 isRefining={false}
                                                                 onGenerateImage={openImageModal}
-                                                                onAdaptPost={() => { }}
-                                                                onRefinePost={() => { }}
+                                                                onAdaptPost={async (id, platform, content) => {
+                                                                    if (!checkCredits(1)) {
+                                                                        alert("Insufficient credits! Platform adaptation costs 1 credit.");
+                                                                        return;
+                                                                    }
+                                                                    try {
+                                                                        const adapted = await adaptPostForPlatform(content, platform);
+                                                                        await handleUpdateContent(id, adapted);
+                                                                    } catch (error) {
+                                                                        console.error("Adaptation error:", error);
+                                                                        refundCredits(1);
+                                                                        alert("Failed to adapt post.");
+                                                                    }
+                                                                }}
+                                                                onRefinePost={async (id, type, content) => {
+                                                                    if (!checkCredits(1)) {
+                                                                        alert("Insufficient credits! Refinements cost 1 credit.");
+                                                                        return;
+                                                                    }
+                                                                    try {
+                                                                        const refined = await refinePostContent(content, type);
+                                                                        await handleUpdateContent(id, refined);
+                                                                    } catch (error) {
+                                                                        console.error("Refinement error:", error);
+                                                                        refundCredits(1);
+                                                                        alert("Failed to refine post.");
+                                                                    }
+                                                                }}
                                                                 onDelete={handleDelete}
                                                                 onToggleLock={handleToggleLock}
                                                                 onManualEdit={handleUpdateContent}
                                                                 onFollowUp={handleFollowUp}
                                                                 onNavigateToCalendar={onNavigateToCalendar}
+                                                                brandProfile={userProfile?.brandProfile}
                                                             />
                                                         </div>
                                                     </div>

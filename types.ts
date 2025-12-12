@@ -50,6 +50,7 @@ export interface BrandProfile {
   brandColors?: string[];
   logoUrl?: string | null;
   fixedHashtags?: string;
+  links?: string[]; // Up to 2 URLs (website, social profiles, etc.)
 }
 
 export interface Post {

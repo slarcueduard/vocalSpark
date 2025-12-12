@@ -323,15 +323,60 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
         const data = await safeFetch('/api/generate-text', {
             prompt: `Adapt for ${platform}: "${originalContent}"`
         });
-        return data.output;
-    } catch (e) { return originalContent; }
+        let output = data.output;
+
+        // Check if output is JSON formatted (same fix as refinePostContent)
+        if (typeof output === 'string' && output.trim().startsWith('[{')) {
+            try {
+                const parsed = JSON.parse(output);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    output = parsed[0].content || parsed[0].post || parsed[0].text || parsed[0];
+                }
+            } catch (parseError) {
+                const match = output.match(/"content"\s*:\s*"([^"]+)"/);
+                if (match && match[1]) {
+                    output = match[1];
+                }
+            }
+        }
+
+        return typeof output === 'string' ? output : originalContent;
+    } catch (e) {
+        console.error('Adaptation error:', e);
+        return originalContent;
+    }
 }
+
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
     try {
         const data = await safeFetch('/api/generate-text', { prompt: `Rewrite (${type}): "${content}"` });
-        return data.output;
-    } catch (e) { return content; }
+        let output = data.output;
+
+        // Check if output is JSON formatted
+        if (typeof output === 'string' && output.trim().startsWith('[{')) {
+            try {
+                // Parse JSON array
+                const parsed = JSON.parse(output);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Extract content from first object
+                    output = parsed[0].content || parsed[0].post || parsed[0].text || parsed[0];
+                }
+            } catch (parseError) {
+                // If JSON parsing fails, try regex extraction
+                const match = output.match(/"content"\s*:\s*"([^"]+)"/);
+                if (match && match[1]) {
+                    output = match[1];
+                }
+            }
+        }
+
+        // Return cleaned output
+        return typeof output === 'string' ? output : content;
+    } catch (e) {
+        console.error('Refinement error:', e);
+        return content;
+    }
 }
 
 export async function autoGenerateBrandProfile(rawContent: string): Promise<BrandProfile> {

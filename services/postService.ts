@@ -14,12 +14,12 @@ import {
 import { db } from './firebase';
 import { Post } from '../types';
 
-// 1. SAVE (Cu Logica de Rotire "FIFO" - First In First Out, dar protejând Pinned)
+// 1. SAVE (With Limit Check - No Auto-Deletion)
 export const savePostToHistory = async (
   userId: string,
   post: Post,
   topic: string,
-  limit: number = 20
+  limit: number = 25 // Updated default to 25 for Pro
 ): Promise<string | null> => {
 
   if (!userId || !post.content) return null;
@@ -27,7 +27,18 @@ export const savePostToHistory = async (
   try {
     const postsRef = collection(db, 'posts');
 
-    // A. SALVĂM ÎNTÂI (Prioritate 0 - Siguranța Datelor)
+    // A. CHECK LIMIT BEFORE SAVING (Don't delete, just prevent save)
+    const userPostsQuery = query(postsRef, where('userId', '==', userId));
+    const snapshot = await getDocs(userPostsQuery);
+    const currentCount = snapshot.size;
+
+    // If at or over limit, prevent saving (user must manually delete)
+    if (currentCount >= limit) {
+      alert(`Vault limit reached! You have ${currentCount}/${limit} posts. Delete some unlocked posts to save new content.`);
+      return null;
+    }
+
+    // B. SAVE THE POST
     const docData = {
       userId,
       content: post.content || "",
@@ -37,7 +48,7 @@ export const savePostToHistory = async (
       topic: topic || 'Untitled',
       createdAt: serverTimestamp(),
       scheduledDate: post.scheduledDate || null,
-      isLocked: false, // Default neblocat
+      isLocked: false, // Default unlocked
       isPublished: false,
       generationType: post.generationType || 'single',
       type: post.type || 'post',
@@ -56,12 +67,6 @@ export const savePostToHistory = async (
 
     console.log("✅ Post saved. ID:", docRef.id);
 
-    // B. CURĂȚENIE INTELIGENTĂ (Async)
-    // Nu blocăm thread-ul principal, facem asta în fundal
-    // Transmitem ID-ul curent pentru a NU fi sters accidental (cat timp timestamp-ul e null/0)
-    cleanUpVault(userId, limit, docRef.id);
-
-
     return docRef.id;
 
   } catch (e) {
@@ -70,54 +75,8 @@ export const savePostToHistory = async (
   }
 };
 
-// Funcție separată de curățenie (nu o exportăm, e internă)
-async function cleanUpVault(userId: string, limit: number, ignoreId?: string) {
-  try {
-    const postsRef = collection(db, 'posts');
-    // Luăm toate postările userului (fără sortare în DB ca să nu ceară index)
-    const q = query(postsRef, where('userId', '==', userId));
-    const snapshot = await getDocs(q);
 
-    const allPosts = snapshot.docs.map(d => ({ id: d.id, ...d.data(), ref: d.ref }));
-
-    // Filtrăm doar pe cele NEBLOCATE (Disposable)
-    // Cele blocate (isLocked == true) sunt imune la ștergere
-    // Cele blocate (isLocked == true) sau cel tocmai creat sunt imune la ștergere
-    // @ts-ignore
-    const disposablePosts = allPosts.filter(p => !p.isLocked && p.id !== ignoreId);
-
-    // Le sortăm manual: Cele mai VECHI la început
-    disposablePosts.sort((a: any, b: any) => {
-      const timeA = a.createdAt?.seconds || 0;
-      const timeB = b.createdAt?.seconds || 0;
-      return timeA - timeB; // Ascending (Oldest first)
-    });
-
-    // Verificăm dacă depășim limita
-    // Notă: Limita se aplică la total, sau doar la cele neblocate? 
-    // De obicei: Total Posts = Locked + Unlocked. 
-    // Dacă Total > Limit, ștergem din Unlocked.
-
-    const totalPostsCount = allPosts.length;
-
-    if (totalPostsCount > limit) {
-      const numberToDelete = totalPostsCount - limit;
-      // Ștergem primele N cele mai vechi care nu sunt blocate
-      // Dacă nu avem destule neblocate, nu ștergem nimic (userul are doar locked items)
-      const toDelete = disposablePosts.slice(0, numberToDelete);
-
-      for (const p of toDelete) {
-        await deleteDoc(p.ref);
-        console.log("🗑️ Auto-deleted old post:", p.id);
-      }
-    }
-
-  } catch (e) {
-    console.warn("Cleanup warning:", e);
-  }
-}
-
-// 2. TOGGLE LOCK (Cu limita de 5)
+// 2. TOGGLE LOCK (With limit of 5)
 export const togglePostLock = async (userId: string, postId: string, currentStatus: boolean): Promise<boolean> => {
   try {
     // Dacă vrea să blocheze (să dea Pin), verificăm dacă are deja 5

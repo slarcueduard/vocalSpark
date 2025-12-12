@@ -20,6 +20,7 @@ interface PostCardProps {
     onMarkPublished?: (id: string) => void | Promise<void>;
     onFollowUp?: (id: string, content: string) => void | Promise<void>;
     onNavigateToCalendar?: () => void;
+    brandProfile?: any; // Add brandProfile prop
 }
 
 export function PostCard({
@@ -33,7 +34,8 @@ export function PostCard({
     onManualEdit,
     onSchedule,
     onFollowUp,
-    onNavigateToCalendar
+    onNavigateToCalendar,
+    brandProfile
 }: PostCardProps) {
 
 
@@ -47,6 +49,8 @@ export function PostCard({
 
     // State pentru meniul Magic
     const [showMagicMenu, setShowMagicMenu] = useState(false);
+    const [magicLoading, setMagicLoading] = useState<string | null>(null); // Track which magic option is loading
+    const [showUrlSubmenu, setShowUrlSubmenu] = useState(false);
 
     const handleCopy = () => {
         navigator.clipboard.writeText(post.content);
@@ -187,6 +191,13 @@ export function PostCard({
                                 >
                                     <Sparkles size={14} /> Regenerate
                                 </button>
+                                <a
+                                    href={post.imageUrl}
+                                    download="social-spark-image.png"
+                                    className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all"
+                                >
+                                    <ImageIcon size={14} /> Download
+                                </a>
                             </div>
                         </>
                     ) : (
@@ -232,25 +243,181 @@ export function PostCard({
 
                     {/* === ACTION BAR === */}
 
-                    {/* MAGIC MENU (EXPANDABLE) */}
+                    {/* === MAGIC MENU (REDESIGNED) === */}
                     {showMagicMenu && !isEditing && (
-                        <div className="mb-4 p-3 bg-[#1c1c2e] rounded-xl border border-purple-500/30 animate-in fade-in slide-in-from-bottom-2 grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {/* Emojis */}
-                            <button onClick={() => onRefinePost(post.id, 'addEmojis', post.content)} className="flex items-center justify-center gap-2 p-2 rounded hover:bg-white/5 text-[10px] text-gray-400 hover:text-purple-400 transition">
-                                <Smile size={12} /> Add Emojis
-                            </button>
-                            {/* Hashtags */}
-                            <button onClick={() => onRefinePost(post.id, 'addHashtags', post.content)} className="flex items-center justify-center gap-2 p-2 rounded hover:bg-white/5 text-[10px] text-gray-400 hover:text-blue-400 transition">
-                                <Hash size={12} /> Hashtags
-                            </button>
-                            {/* Question */}
-                            <button onClick={() => onRefinePost(post.id, 'askQuestion', post.content)} className="flex items-center justify-center gap-2 p-2 rounded hover:bg-white/5 text-[10px] text-gray-400 hover:text-green-400 transition">
-                                <MessageCircle size={12} /> Ask Question
-                            </button>
-                            {/* Shorter */}
-                            <button onClick={() => onRefinePost(post.id, 'makeShorter', post.content)} className="flex items-center justify-center gap-2 p-2 rounded hover:bg-white/5 text-[10px] text-gray-400 hover:text-orange-400 transition">
-                                <ChevronDown size={12} /> Shorten
-                            </button>
+                        <div className="mb-4 p-4 bg-gradient-to-br from-[#1c1c2e] to-[#161b22] rounded-2xl border border-purple-500/30 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-xs font-bold text-purple-400 uppercase tracking-wider flex items-center gap-2">
+                                    <Wand2 size={14} className="animate-pulse" />
+                                    Magic Tools
+                                </h4>
+                                <button
+                                    onClick={() => setShowMagicMenu(false)}
+                                    className="text-gray-500 hover:text-white transition"
+                                >
+                                    <ChevronUp size={14} />
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                {/* Add Emojis */}
+                                <button
+                                    onClick={async () => {
+                                        setMagicLoading('emojis');
+                                        await onRefinePost(post.id, 'addEmojis', post.content);
+                                        setMagicLoading(null);
+                                    }}
+                                    disabled={magicLoading !== null}
+                                    className="group relative bg-[#0f1115] hover:bg-purple-900/20 border border-gray-800 hover:border-purple-500/50 rounded-xl p-3 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                                >
+                                    {magicLoading === 'emojis' ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="text-[10px] text-gray-400">Processing...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-center mb-2">
+                                                <div className="p-2 bg-purple-500/20 rounded-lg group-hover:scale-110 transition">
+                                                    <Smile size={16} className="text-purple-400" />
+                                                </div>
+                                            </div>
+                                            <p className="text-[11px] font-bold text-white mb-0.5">Add Emojis</p>
+                                            <p className="text-[9px] text-gray-500">Make it fun</p>
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Add Hashtags */}
+                                <button
+                                    onClick={async () => {
+                                        setMagicLoading('hashtags');
+                                        await onRefinePost(post.id, 'addHashtags', post.content);
+                                        setMagicLoading(null);
+                                    }}
+                                    disabled={magicLoading !== null}
+                                    className="group relative bg-[#0f1115] hover:bg-blue-900/20 border border-gray-800 hover:border-blue-500/50 rounded-xl p-3 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                                >
+                                    {magicLoading === 'hashtags' ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="text-[10px] text-gray-400">Processing...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-center mb-2">
+                                                <div className="p-2 bg-blue-500/20 rounded-lg group-hover:scale-110 transition">
+                                                    <Hash size={16} className="text-blue-400" />
+                                                </div>
+                                            </div>
+                                            <p className="text-[11px] font-bold text-white mb-0.5">Add Hashtags</p>
+                                            <p className="text-[9px] text-gray-500">4 new tags</p>
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Ask Question */}
+                                <button
+                                    onClick={async () => {
+                                        setMagicLoading('question');
+                                        await onRefinePost(post.id, 'askQuestion', post.content);
+                                        setMagicLoading(null);
+                                    }}
+                                    disabled={magicLoading !== null}
+                                    className="group relative bg-[#0f1115] hover:bg-green-900/20 border border-gray-800 hover:border-green-500/50 rounded-xl p-3 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                                >
+                                    {magicLoading === 'question' ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="text-[10px] text-gray-400">Processing...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-center mb-2">
+                                                <div className="p-2 bg-green-500/20 rounded-lg group-hover:scale-110 transition">
+                                                    <MessageCircle size={16} className="text-green-400" />
+                                                </div>
+                                            </div>
+                                            <p className="text-[11px] font-bold text-white mb-0.5">Ask Question</p>
+                                            <p className="text-[9px] text-gray-500">Boost engagement</p>
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Shorten */}
+                                <button
+                                    onClick={async () => {
+                                        setMagicLoading('shorten');
+                                        await onRefinePost(post.id, 'makeShorter', post.content);
+                                        setMagicLoading(null);
+                                    }}
+                                    disabled={magicLoading !== null}
+                                    className="group relative bg-[#0f1115] hover:bg-orange-900/20 border border-gray-800 hover:border-orange-500/50 rounded-xl p-3 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                                >
+                                    {magicLoading === 'shorten' ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="text-[10px] text-gray-400">Processing...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-center mb-2">
+                                                <div className="p-2 bg-orange-500/20 rounded-lg group-hover:scale-110 transition">
+                                                    <ChevronDown size={16} className="text-orange-400" />
+                                                </div>
+                                            </div>
+                                            <p className="text-[11px] font-bold text-white mb-0.5">Shorten</p>
+                                            <p className="text-[9px] text-gray-500">Keep voice</p>
+                                        </>
+                                    )}
+                                </button>
+
+                                {/* Add URL */}
+                                {brandProfile?.links && brandProfile.links.filter((l: string) => l).length > 0 ? (
+                                    <div className="relative col-span-2 md:col-span-1">
+                                        <button
+                                            onClick={() => setShowUrlSubmenu(!showUrlSubmenu)}
+                                            disabled={magicLoading !== null}
+                                            className="w-full group relative bg-[#0f1115] hover:bg-cyan-900/20 border border-gray-800 hover:border-cyan-500/50 rounded-xl p-3 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                                        >
+                                            <div className="flex items-center justify-center mb-2">
+                                                <div className="p-2 bg-cyan-500/20 rounded-lg group-hover:scale-110 transition">
+                                                    <ArrowRightCircle size={16} className="text-cyan-400" />
+                                                </div>
+                                            </div>
+                                            <p className="text-[11px] font-bold text-white mb-0.5">Add URL</p>
+                                            <p className="text-[9px] text-gray-500">{brandProfile.links.filter((l: string) => l).length} saved</p>
+                                        </button>
+
+                                        {/* URL Submenu */}
+                                        {showUrlSubmenu && (
+                                            <div className="absolute bottom-full left-0 right-0 mb-2 bg-[#0a0c10] border border-cyan-500/30 rounded-xl p-2 shadow-2xl animate-in fade-in slide-in-from-bottom-2 z-10">
+                                                <p className="text-[9px] text-gray-500 uppercase font-bold mb-2 px-2">Select URL to add:</p>
+                                                {brandProfile.links.filter((l: string) => l).map((link: string, idx: number) => (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            const newContent = `${post.content}\n\n🔗 ${link}`;
+                                                            onManualEdit(post.id, newContent);
+                                                            setShowUrlSubmenu(false);
+                                                            setShowMagicMenu(false);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 rounded-lg hover:bg-cyan-900/20 text-[10px] text-white border border-transparent hover:border-cyan-500/30 transition mb-1 last:mb-0 truncate"
+                                                    >
+                                                        <span className="text-cyan-400 font-bold">Link #{idx + 1}:</span>
+                                                        <span className="ml-2 text-gray-400">{link.length > 30 ? link.substring(0, 30) + '...' : link}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="col-span-2 md:col-span-1 bg-[#0f1115] border border-dashed border-gray-800 rounded-xl p-3 flex flex-col items-center justify-center opacity-50">
+                                        <ArrowRightCircle size={16} className="text-gray-600 mb-1" />
+                                        <p className="text-[9px] text-gray-600 text-center">No URLs saved</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -265,14 +432,27 @@ export function PostCard({
                             <div className="flex flex-wrap items-center justify-between gap-y-3">
                                 {/* Left: Actions */}
                                 <div className="flex items-center gap-2">
-                                    {/* Share Button (NEW) */}
+                                    {/* Copy Text Button (NEW) */}
+                                    <button
+                                        onClick={handleCopy}
+                                        className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-bold transition ${copied
+                                                ? 'bg-green-600 border-green-500 text-white'
+                                                : 'bg-[#21262d] border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white'
+                                            }`}
+                                        title="Copy Text to Clipboard"
+                                    >
+                                        {copied ? <Check size={14} /> : <Copy size={14} />}
+                                        {copied ? 'Copied!' : 'Copy Text'}
+                                    </button>
+
+                                    {/* Share Button */}
                                     <button
                                         onClick={handleShare}
-                                        className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-bold transition ${copied ? 'bg-green-600 border-green-500 text-white' : 'bg-[#21262d] border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white'}`}
+                                        className="flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-bold transition bg-[#21262d] border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white"
                                         title="Share / Copy to Clipboard"
                                     >
-                                        {copied ? <Check size={14} /> : <Share2 size={14} />}
-                                        {copied ? 'Copied!' : 'Share'}
+                                        <Share2 size={14} />
+                                        Share
                                     </button>
 
                                     {/* Magic Button (NEW) */}

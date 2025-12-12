@@ -188,7 +188,7 @@ const SocialSparkApp: React.FC = () => {
             setVibeMessage("🎲 You got lucky! Check this out.");
 
             if (user) {
-                const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+                const limit = userProfile?.subscriptionTier === 'agency' ? 100 : 25;
                 for (const postData of newPostsData) {
                     await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
                 }
@@ -245,7 +245,7 @@ const SocialSparkApp: React.FC = () => {
             showVibe();
 
             if (user) {
-                const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+                const limit = userProfile?.subscriptionTier === 'agency' ? 100 : 25;
                 for (const postData of newPostsData) {
                     await savePostToHistory(user.uid, postData, topic, limit);
                 }
@@ -259,7 +259,28 @@ const SocialSparkApp: React.FC = () => {
 
     const handleDeletePost = (id: string) => setPosts(prev => prev.filter(p => p.id !== id));
     const handleToggleLock = (id: string) => setPosts(prev => prev.map(p => p.id === id ? { ...p, isLocked: !p.isLocked } : p));
-    const handleAdaptPost = async (id: string, platform: Platform, content: string) => { if (!checkCredits(1)) return; const adapted = await adaptPostForPlatform(content, platform); setPosts(prev => prev.map(p => p.id === id ? { ...p, adaptedContent: { ...p.adaptedContent, [platform]: adapted } } : p)); updatePostInHistory(id, { adaptedContent: { ...posts.find(pp => pp.id === id)?.adaptedContent, [platform]: adapted } }); };
+    const handleAdaptPost = async (id: string, platform: Platform, content: string) => {
+        if (!checkCredits(1)) {
+            alert("Insufficient credits! Platform adaptation costs 1 credit.");
+            return;
+        }
+
+        try {
+            const adapted = await adaptPostForPlatform(content, platform);
+
+            // Update the main content field so it shows everywhere
+            setPosts(prev => prev.map(p => p.id === id ? { ...p, content: adapted } : p));
+
+            // Also update in history if user is logged in
+            if (user) {
+                await updatePostInHistory(id, { content: adapted });
+            }
+        } catch (error) {
+            console.error("Adaptation error:", error);
+            refundCredits(1);
+            alert("Failed to adapt post. Please try again.");
+        }
+    };
     const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); updatePostInHistory(id, { content: refined }); setRefiningPostId(null); };
 
     const activePost = posts[0];
@@ -426,6 +447,7 @@ const SocialSparkApp: React.FC = () => {
                                                             setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
                                                         }}
                                                         onNavigateToCalendar={() => setCurrentView('calendar')}
+                                                        brandProfile={brandProfile}
                                                     />
                                                 </div>
                                             ))}

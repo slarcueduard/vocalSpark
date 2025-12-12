@@ -48,6 +48,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [ctaStyle, setCtaStyle] = useState('Ask a question to provoke comments');
 
     const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
+    const [links, setLinks] = useState<string[]>(['', '']); // Up to 2 links
 
     // Populare Data
     useEffect(() => {
@@ -72,6 +73,13 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 emoji: currentProfile.emojiScore ?? 50,
                 length: currentProfile.lengthScore ?? 50
             });
+
+            // Load links
+            if (currentProfile.links && currentProfile.links.length > 0) {
+                setLinks([...currentProfile.links, '', ''].slice(0, 2)); // Ensure 2 elements
+            } else {
+                setLinks(['', '']);
+            }
         }
     }, [currentProfile]);
 
@@ -150,7 +158,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             description: targetAudience,
             toneScore: sliders.tone,
             emojiScore: sliders.emoji,
-            lengthScore: sliders.length
+            lengthScore: sliders.length,
+            links: links.filter(link => link.trim().length > 0) // Only save non-empty links
         };
 
         try {
@@ -179,8 +188,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                             key={idx}
                             onClick={() => switchProfile(idx)}
                             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition border ${idx === activeProfileIndex
-                                    ? 'bg-blue-600 border-blue-500 text-white'
-                                    : 'bg-[#1c1c2e] border-gray-700 text-gray-400'
+                                ? 'bg-blue-600 border-blue-500 text-white'
+                                : 'bg-[#1c1c2e] border-gray-700 text-gray-400'
                                 }`}
                         >
                             {p.name}
@@ -207,8 +216,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                 key={idx}
                                 onClick={() => switchProfile(idx)}
                                 className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${idx === activeProfileIndex
-                                        ? 'bg-blue-600 text-white shadow-lg border border-blue-500/50'
-                                        : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white border border-transparent'
+                                    ? 'bg-blue-600 text-white shadow-lg border border-blue-500/50'
+                                    : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white border border-transparent'
                                     }`}
                             >
                                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${idx === activeProfileIndex ? 'bg-white/20' : 'bg-[#1c1c2e] border border-gray-700'}`}>
@@ -309,6 +318,48 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                     <div className="md:col-span-2">
                                         <label className="text-xs text-gray-400 block mb-1.5">Generated Voice DNA (Editable)</label>
                                         <textarea value={voiceDNA} onChange={(e) => setVoiceDNA(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white h-24" />
+                                    </div>
+
+                                    {/* NEW: URL Links Section */}
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-2">
+                                            <LinkIcon size={14} /> Your URL Links (Optional)
+                                        </label>
+                                        <p className="text-[10px] text-gray-500 mb-3">Add up to 2 URLs (website, portfolio, LinkedIn, etc.)</p>
+                                        <div className="space-y-2">
+                                            {links.map((link, idx) => (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <div className="flex-1 relative">
+                                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                                            <LinkIcon size={14} />
+                                                        </div>
+                                                        <input
+                                                            type="url"
+                                                            value={link}
+                                                            onChange={(e) => {
+                                                                const newLinks = [...links];
+                                                                newLinks[idx] = e.target.value;
+                                                                setLinks(newLinks);
+                                                            }}
+                                                            placeholder={`Link #${idx + 1} (e.g., https://yourwebsite.com)`}
+                                                            className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition"
+                                                        />
+                                                    </div>
+                                                    {link && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const newLinks = [...links];
+                                                                newLinks[idx] = '';
+                                                                setLinks(newLinks);
+                                                            }}
+                                                            className="p-2 text-gray-500 hover:text-red-400 transition"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>

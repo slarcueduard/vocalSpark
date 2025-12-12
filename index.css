@@ -2,8 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Aici poți adăuga stiluri globale extra dacă ai nevoie */
+/* Global Reset for Proper Centering */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
 body {
-  background-color: #0f1115; /* Background-ul dark theme */
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body {
+  background-color: #0f1115;
   color: white;
+}
+
+/* Ensure root div takes full width */
+#root {
+  width: 100%;
+  min-height: 100vh;
 }

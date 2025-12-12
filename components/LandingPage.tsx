@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { CountdownTimer } from './CountdownTimer';
 import { FAQSection } from './FAQSection';
-import { ProductDemoCarousel } from './ProductDemoCarousel';
+import { VisualHowItWorks } from './VisualHowItWorks';
 import { InteractiveVoiceDNADemo } from './InteractiveVoiceDNADemo';
 import { SocialIconsCompact } from './SocialSupportButtons';
 
@@ -89,46 +89,43 @@ export function LandingPage({ onLogin }: LandingPageProps) {
     const [activeScenario, setActiveScenario] = useState<'standard' | 'premium'>('standard');
 
     return (
-        <div className="min-h-screen bg-[#0f1115] text-white flex flex-col font-sans selection:bg-blue-500/30">
+        <div className="w-full min-h-screen bg-[#0f1115] text-white">
 
             {/* --- NAVIGATION --- */}
-            <nav className="w-full px-6 py-6 flex justify-between items-center max-w-7xl mx-auto sticky top-0 z-50 bg-[#0f1115]/80 backdrop-blur-md border-b border-gray-800/50">
-                <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
-                        <Sparkles className="text-white" size={18} fill="currentColor" />
+            <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0f1115]/80 backdrop-blur-md border-b border-gray-800/50">
+                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
+                            <Sparkles className="text-white" size={18} fill="currentColor" />
+                        </div>
+                        <span className="text-lg font-bold tracking-tight">Social Spark</span>
                     </div>
-                    <span className="text-lg font-bold tracking-tight">Social Spark</span>
-                </div>
-                <div className="flex gap-4">
-                    <button onClick={onLogin} className="text-sm text-gray-300 hover:text-white font-medium transition">Log in</button>
-                    <button
-                        onClick={onLogin}
-                        className="px-5 py-2 bg-white text-black text-sm font-bold rounded-lg hover:bg-gray-200 transition"
-                    >
-                        Start Free Trial
-                    </button>
+                    <div className="flex gap-4">
+                        <button onClick={onLogin} className="text-sm text-gray-300 hover:text-white font-medium transition">Log in</button>
+                        <button
+                            onClick={() => {
+                                const pricingSection = document.getElementById('pricing');
+                                pricingSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }}
+                            className="px-5 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white text-sm font-bold rounded-lg hover:from-orange-500 hover:to-red-500 transition shadow-lg"
+                        >
+                            Become a Founder
+                        </button>
+                    </div>
                 </div>
             </nav>
 
             {/* --- HERO SECTION --- */}
-            <section className="relative pt-20 pb-32 px-4 overflow-hidden">
+            <section className="relative pt-16 md:pt-20 pb-20 md:pb-32 px-4 overflow-hidden">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 opacity-50" />
 
                 <div className="text-center max-w-4xl mx-auto z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-900/20 border border-blue-800/50 text-blue-400 text-xs font-bold mb-6">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-                        </span>
-                        v1.0: Real-Time & Remix Mode
-                    </div>
-
-                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-tight">
+                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tight mb-4 md:mb-6 leading-tight">
                         Stop Sounding Like AI. <br />
                         <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500">Clone Your Brand Voice.</span>
                     </h1>
 
-                    <p className="text-lg text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-base md:text-lg text-gray-400 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed">
                         The only workspace that remembers your brand DNA and repurposes your best content in seconds.
                         <br className="hidden md:block" />
                         <strong>Better than Canva. Smarter than generic ChatGPT.</strong>
@@ -148,14 +145,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             </section>
 
             {/* --- CORE FEATURES --- */}
-            <section className="py-20 bg-[#161b22]/50 border-y border-gray-800">
+            <section className="py-12 md:py-20 bg-[#161b22]/50 border-y border-gray-800">
                 <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-16">
-                        <h2 className="text-3xl font-bold text-white mb-4">The Coherent Workspace</h2>
-                        <p className="text-gray-400">Solves the biggest problem with AI: Consistency.</p>
+                    <div className="text-center mb-12 md:mb-16">
+                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 md:mb-4">The Coherent Workspace</h2>
+                        <p className="text-sm md:text-base text-gray-400">Solves the biggest problem with AI: Consistency.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
                         <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="Brand Identity Injection to stop generic content." />
                         <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn 1 blog into 10 posts. The Repurposing Engine." />
                         <FeatureCard icon={<ImageIcon className="text-pink-400" />} title="Hybrid Visuals" desc="Flux for speed, DALL-E 3 for high-end quality." />
@@ -165,127 +162,14 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
             </section>
 
-            {/* --- HOW IT WORKS (5 STEPS) --- */}
-            <section className="py-24 px-6 bg-[#0a0c10]">
-                <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-12">
-                        <h2 className="text-3xl font-bold text-white mb-4">How It Works</h2>
-                        <p className="text-gray-400 mb-8">From Idea to Viral in 5 Steps.</p>
-
-                        {/* SCENARIO TOGGLE */}
-                        <div className="inline-flex bg-[#1c1c2e] p-1 rounded-full border border-gray-700">
-                            <button
-                                onClick={() => setActiveScenario('standard')}
-                                className={`px-6 py-2 rounded-full text-sm font-bold transition-all ${activeScenario === 'standard' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                Standard Flow
-                            </button>
-                            <button
-                                onClick={() => setActiveScenario('premium')}
-                                className={`px-6 py-2 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${activeScenario === 'premium' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                <Sparkles size={14} /> Premium Flow
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* DYNAMIC 5 STEPS CONTAINER */}
-                    <div className="relative mt-16">
-                        {/* Background Line (Desktop only) */}
-                        <div className="hidden md:block absolute top-12 left-10 right-10 h-0.5 bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 -z-10" />
-
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-6 md:gap-4 relative">
-
-                            {activeScenario === 'standard' ? (
-                                /* SCENARIUL 1: STANDARD (CREATOR) */
-                                <>
-                                    <StepCard
-                                        number={1}
-                                        icon={<Fingerprint size={28} className="text-blue-400" />}
-                                        title="Voice DNA"
-                                        desc="Input your niche & tone. AI injects your identity."
-                                        color="blue"
-                                    />
-                                    <StepCard
-                                        number={2}
-                                        icon={<Zap size={28} className="text-blue-400" />}
-                                        title="Idea Input"
-                                        desc="Tell AI what's on your mind. Use GPT-4o Mini."
-                                        color="blue"
-                                    />
-                                    <StepCard
-                                        number={3}
-                                        icon={<ImageIcon size={28} className="text-blue-400" />}
-                                        title="Generate"
-                                        desc="Get copy + Standard Flux Image instantly."
-                                        color="blue"
-                                    />
-                                    <StepCard
-                                        number={4}
-                                        icon={<Smartphone size={28} className="text-blue-400" />}
-                                        title="Smart Share"
-                                        desc="Copy text & image to preferred social app."
-                                        color="blue"
-                                    />
-                                    <StepCard
-                                        number={5}
-                                        icon={<Database size={28} className="text-blue-400" />}
-                                        title="Vault Save"
-                                        desc="Content auto-saves for future reference."
-                                        color="blue"
-                                    />
-                                </>
-                            ) : (
-                                /* SCENARIUL 2: PREMIUM (PRO) */
-                                <>
-                                    <StepCard
-                                        number={1}
-                                        icon={<UserCheck size={28} className="text-purple-400" />}
-                                        title="Clone Style"
-                                        desc="Use one of your 3 Voice Profiles or copy an influencer."
-                                        color="purple"
-                                    />
-                                    <StepCard
-                                        number={2}
-                                        icon={<Search size={28} className="text-purple-400" />}
-                                        title="Live Data"
-                                        desc="AI searches the web for real-time news context."
-                                        color="purple"
-                                    />
-                                    <StepCard
-                                        number={3}
-                                        icon={<Wand2 size={28} className="text-purple-400" />}
-                                        title="Pro Gen"
-                                        desc="Generate with GPT-4o + DALL-E 3 Premium."
-                                        color="purple"
-                                    />
-                                    <StepCard
-                                        number={4}
-                                        icon={<Repeat size={28} className="text-purple-400" />}
-                                        title="Remix Mode"
-                                        desc="Turn that post into a Thread or Script instantly."
-                                        color="purple"
-                                    />
-                                    <StepCard
-                                        number={5}
-                                        icon={<Lock size={28} className="text-purple-400" />}
-                                        title="Vault Pin"
-                                        desc="Lock winning posts so they are never deleted."
-                                        color="purple"
-                                    />
-                                </>
-                            )}
-
-                        </div>
-                    </div>
-                </div>
-            </section>
+            {/* --- VISUAL HOW IT WORKS (WITH REAL SCREENSHOTS) --- */}
+            <VisualHowItWorks />
 
             {/* --- PRICING SECTION --- */}
-            <section className="w-full max-w-7xl mx-auto py-24 px-6">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl font-bold text-white mb-4">Transparent ROI Pricing</h2>
-                    <p className="text-gray-400">Hybrid Model: Subscription + Credits to protect quality.</p>
+            <section id="pricing" className="w-full max-w-7xl mx-auto py-16 md:py-24 px-6">
+                <div className="text-center mb-12 md:mb-16">
+                    <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 md:mb-4">Transparent ROI Pricing</h2>
+                    <p className="text-sm md:text-base text-gray-400">Hybrid Model: Subscription + Credits to protect quality.</p>
                 </div>
 
                 {/* 1. LIFETIME DEAL BANNER with COUNTDOWN */}
@@ -348,18 +232,9 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                 </div>
 
                 {/* 2. MONTHLY SUBSCRIPTIONS - 2 COLUMNS */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 max-w-4xl mx-auto">
 
-                    <PricingCardLanding
-                        plan={PLANS.pro}
-                        desc="For Quality & Consistency."
-                        btnLabel="Go Pro"
-                        onAction={onLogin}
-                        highlight
-                        isPopular
-                        planType="pro"
-                    />
-
+                    {/* PRO PLAN */}
                     <PricingCardLanding
                         plan={PLANS.pro}
                         desc="For Quality & Consistency."
@@ -383,9 +258,6 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
             {/* NEW: Interactive Voice DNA Demo */}
             <InteractiveVoiceDNADemo />
-
-            {/* NEW: Product Demo Carousel */}
-            <ProductDemoCarousel />
 
             {/* NEW: FAQ Section */}
             <FAQSection />
