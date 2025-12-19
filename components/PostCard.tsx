@@ -3,7 +3,7 @@ import {
     Copy, Share2, Trash2, Calendar, Check,
     Lock, Unlock, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
     Linkedin, Twitter, Instagram, Facebook, Wand2, MessageCircle, Hash, Smile,
-    ArrowRightCircle, MoveRight, ArrowUpRight
+    ArrowRightCircle, MoveRight, ArrowUpRight, Repeat
 } from 'lucide-react';
 import { Post, Platform, RefinementType } from '../types';
 
@@ -372,6 +372,34 @@ export function PostCard({
                                     )}
                                 </button>
 
+                                {/* Create Follow Up (Restored) */}
+                                <button
+                                    onClick={() => {
+                                        setMagicLoading('followup');
+                                        if (onFollowUp) onFollowUp(post.id, post.content);
+                                        // Note: We don't clear loading here immediately, as it's async in parent
+                                    }}
+                                    disabled={magicLoading !== null}
+                                    className="group relative bg-[#0f1115] hover:bg-purple-900/20 border border-gray-800 hover:border-purple-500/50 rounded-xl p-3 transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed"
+                                >
+                                    {magicLoading === 'followup' ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                                            <span className="text-[10px] text-gray-400">Drafting...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex items-center justify-center mb-2">
+                                                <div className="p-2 bg-purple-500/20 rounded-lg group-hover:scale-110 transition">
+                                                    <Repeat size={16} className="text-purple-400" />
+                                                </div>
+                                            </div>
+                                            <p className="text-[11px] font-bold text-white mb-0.5">Follow-up</p>
+                                            <p className="text-[9px] text-gray-500">Part 2 / Thread</p>
+                                        </>
+                                    )}
+                                </button>
+
                                 {/* Add URL */}
                                 {brandProfile?.links && brandProfile.links.filter((l: string) => l).length > 0 ? (
                                     <div className="relative col-span-2 md:col-span-1">
@@ -436,8 +464,8 @@ export function PostCard({
                                     <button
                                         onClick={handleCopy}
                                         className={`flex items-center gap-2 px-3 py-2 border rounded-lg text-xs font-bold transition ${copied
-                                                ? 'bg-green-600 border-green-500 text-white'
-                                                : 'bg-[#21262d] border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white'
+                                            ? 'bg-green-600 border-green-500 text-white'
+                                            : 'bg-[#21262d] border-gray-700 hover:border-gray-500 text-gray-300 hover:text-white'
                                             }`}
                                         title="Copy Text to Clipboard"
                                     >
@@ -469,9 +497,27 @@ export function PostCard({
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-gray-600 font-bold uppercase mr-1">Adapt to:</span>
                                     <div className="flex gap-1">
-                                        <button onClick={() => onAdaptPost(post.id, 'LinkedIn' as any, post.content)} className="p-1.5 bg-gray-800/50 hover:bg-[#0077b5]/20 hover:text-[#0077b5] rounded-md text-gray-500 transition border border-transparent hover:border-[#0077b5]/50" title="LinkedIn"><Linkedin size={14} /></button>
-                                        <button onClick={() => onAdaptPost(post.id, 'X (Twitter)' as any, post.content)} className="p-1.5 bg-gray-800/50 hover:bg-white/10 hover:text-white rounded-md text-gray-500 transition border border-transparent hover:border-gray-500" title="X (Twitter)"><Twitter size={14} /></button>
-                                        <button onClick={() => onAdaptPost(post.id, 'Instagram' as any, post.content)} className="p-1.5 bg-gray-800/50 hover:bg-pink-500/20 hover:text-pink-400 rounded-md text-gray-500 transition border border-transparent hover:border-pink-500/50" title="Instagram"><Instagram size={14} /></button>
+                                        <button
+                                            onClick={() => onAdaptPost(post.id, 'LinkedIn' as any, post.content)}
+                                            className={`p-1.5 rounded-md transition border ${post.adaptedContent && post.adaptedContent['LinkedIn'] ? 'bg-[#0077b5]/20 text-[#0077b5] border-[#0077b5]/50' : 'bg-gray-800/50 text-gray-500 border-transparent hover:bg-[#0077b5]/20 hover:text-[#0077b5] hover:border-[#0077b5]/50'}`}
+                                            title="LinkedIn"
+                                        >
+                                            <Linkedin size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => onAdaptPost(post.id, 'X (Twitter)' as any, post.content)}
+                                            className={`p-1.5 rounded-md transition border ${post.adaptedContent && post.adaptedContent['X (Twitter)'] ? 'bg-white/10 text-white border-white/30' : 'bg-gray-800/50 text-gray-500 border-transparent hover:bg-white/10 hover:text-white hover:border-gray-500'}`}
+                                            title="X (Twitter)"
+                                        >
+                                            <Twitter size={14} />
+                                        </button>
+                                        <button
+                                            onClick={() => onAdaptPost(post.id, 'Instagram' as any, post.content)}
+                                            className={`p-1.5 rounded-md transition border ${post.adaptedContent && post.adaptedContent['Instagram'] ? 'bg-pink-500/20 text-pink-400 border-pink-500/50' : 'bg-gray-800/50 text-gray-500 border-transparent hover:bg-pink-500/20 hover:text-pink-400 hover:border-pink-500/50'}`}
+                                            title="Instagram"
+                                        >
+                                            <Instagram size={14} />
+                                        </button>
                                     </div>
 
                                     {/* Schedule */}

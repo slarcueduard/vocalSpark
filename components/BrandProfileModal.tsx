@@ -19,7 +19,7 @@ type Tab = 'core' | 'visuals' | 'rules';
 type AnalysisMode = 'personal' | 'influencer';
 
 export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProfileModalProps) {
-    const { allProfiles, activeProfileIndex, switchProfile, addNewProfile, userProfile } = useAuth();
+    const { allProfiles, activeProfileIndex, switchProfile, addNewProfile, deleteProfile, userProfile } = useAuth();
 
     const [activeTab, setActiveTab] = useState<Tab>('core');
     const [isSaving, setIsSaving] = useState(false);
@@ -215,7 +215,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                             <button
                                 key={idx}
                                 onClick={() => switchProfile(idx)}
-                                className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 ${idx === activeProfileIndex
+                                className={`w-full text-left px-4 py-3 rounded-xl transition-all flex items-center gap-3 group relative ${idx === activeProfileIndex
                                     ? 'bg-blue-600 text-white shadow-lg border border-blue-500/50'
                                     : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white border border-transparent'
                                     }`}
@@ -227,6 +227,21 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                     <p className="text-sm font-bold truncate">{p.name}</p>
                                     <p className={`text-[10px] truncate ${idx === activeProfileIndex ? 'text-blue-200' : 'opacity-50'}`}>{p.industry || 'No niche'}</p>
                                 </div>
+                                {allProfiles.length > 1 && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            deleteProfile(idx);
+                                        }}
+                                        className={`absolute right-2 opacity-0 group-hover:opacity-100 p-2 rounded-lg transition-all ${idx === activeProfileIndex
+                                            ? 'text-blue-200 hover:bg-blue-700 hover:text-white'
+                                            : 'text-gray-500 hover:bg-red-900/30 hover:text-red-400'
+                                            }`}
+                                        title="Delete Profile"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                )}
                             </button>
                         ))}
 

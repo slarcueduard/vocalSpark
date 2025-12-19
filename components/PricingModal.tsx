@@ -168,7 +168,7 @@ export function PricingModal({ isOpen, onClose }: PricingModalProps) {
                                     </div>
                                     <h3 className="text-2xl font-bold text-white">1500 Credits</h3>
                                     <p className="text-sm text-gray-400 mt-1">Huge pack for ~150 posts</p>
-                                    <div className="text-3xl font-bold text-white my-6">$11.99</div>
+                                    <div className="text-3xl font-bold text-white my-6">$12.99</div>
                                     <button
                                         onClick={() => handlePurchase(STRIPE_LINKS.credits.large)}
                                         className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition shadow-lg shadow-blue-900/20"

@@ -29,6 +29,7 @@ interface AuthContextType {
   saveBrandProfile: (profile: BrandProfile) => Promise<void>;
   switchProfile: (index: number) => Promise<void>;
   addNewProfile: () => Promise<void>;
+  deleteProfile: (index: number) => Promise<void>;
   checkCredits: (cost: number) => boolean;
   refundCredits: (cost: number) => void; // Functie noua pentru erori
   isTrialExpired: boolean;
@@ -193,14 +194,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  const deleteProfile = async (index: number) => {
+    if (!user) return;
+    if (allProfiles.length <= 1) {
+      alert("You cannot delete your only brand profile.");
+      return;
+    }
+
+    const confirmDelete = window.confirm(`Are you sure you want to delete profile "${allProfiles[index].name}"? This cannot be undone.`);
+    if (!confirmDelete) return;
+
+    const newList = allProfiles.filter((_, i) => i !== index);
+
+    // Adjust active index
+    let newIndex = activeProfileIndex;
+    if (index === activeProfileIndex) {
+      newIndex = 0; // Fallback to first
+    } else if (index < activeProfileIndex) {
+      newIndex = activeProfileIndex - 1; // Shift left
+    }
+
+    // Update state
+    setAllProfiles(newList);
+    setActiveProfileIndex(newIndex);
+
+    await setDoc(doc(db, 'brands', user.uid), { profiles: newList, activeIndex: newIndex }, { merge: true });
+  };
+
   const currentCredits = userProfile?.credits ?? 0;
-  const currentTier = userProfile?.subscriptionTier || 'pro'; // Default to Pro
-  const isTrialExpired = currentCredits <= 0 && currentTier === 'trial'; // Removed creator check
+  const currentTier = userProfile?.subscriptionTier || 'pro';
+  const isTrialExpired = currentCredits <= 0 && currentTier === 'trial';
 
   return (
     <AuthContext.Provider value={{
       user, userProfile, brandProfile, allProfiles, activeProfileIndex, loading,
-      signIn, logout, saveBrandProfile, switchProfile, addNewProfile, checkCredits, refundCredits, isTrialExpired
+      signIn, logout, saveBrandProfile, switchProfile, addNewProfile, deleteProfile, checkCredits, refundCredits, isTrialExpired
     }}>
       {children}
     </AuthContext.Provider>

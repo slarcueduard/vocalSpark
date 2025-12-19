@@ -104,6 +104,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                         <button onClick={onLogin} className="text-sm text-gray-300 hover:text-white font-medium transition">Log in</button>
                         <button
                             onClick={() => {
+                                localStorage.setItem('redirect_to_founder', 'true');
                                 const pricingSection = document.getElementById('pricing');
                                 pricingSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                             }}
@@ -194,7 +195,10 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                                     <span className="text-gray-500 line-through decoration-red-500 decoration-2 text-lg">$297</span>
                                     <span className="text-4xl font-bold text-white">$97</span>
                                 </div>
-                                <button onClick={onLogin} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition shadow-lg">
+                                <button onClick={() => {
+                                    localStorage.setItem('redirect_to_founder', 'true');
+                                    onLogin();
+                                }} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition shadow-lg">
                                     Get Lifetime Deal
                                 </button>
                             </div>

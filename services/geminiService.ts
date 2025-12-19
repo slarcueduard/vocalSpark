@@ -41,6 +41,35 @@ async function safeFetch(url: string, body: any) {
     }
 }
 
+// --- 5. GROUNDED REMIX PIPELINE (NEW) ---
+export async function generateGroundedRemix(
+    url: string,
+    platforms: string[] = ['linkedin', 'x'],
+    tone: string = 'professional',
+    language: string = 'English'
+): Promise<any> {
+    try {
+        console.log("Calling Grounded Remix Pipeline...");
+        const data = await safeFetch('/api/remix-video', {
+            url,
+            platforms,
+            tone,
+            language
+        });
+
+        // The API returns { video, transcript_meta, analysis, posts }
+        if (!data || !data.posts) {
+            throw new Error("Pipeline returned no posts.");
+        }
+
+        return data;
+
+    } catch (e: any) {
+        console.error("Grounded Remix Failed:", e);
+        throw e;
+    }
+}
+
 // --- HELPER: Extract JSON (Robust) ---
 function extractJsonArray(text: string): any[] {
     try {

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from './services/geminiService';
+import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent, generateGroundedRemix } from './services/geminiService';
 import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
 import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target } from 'lucide-react';
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target, Youtube, Smile, AlertTriangle } from 'lucide-react';
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -17,7 +17,10 @@ import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 import { NotificationManager } from './components/NotificationManager';
 
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/test_...";
+// FIX: Separate links for different upgrade paths
+const STRIPE_PRO_LINK = "https://buy.stripe.com/8x2cN51DI9ZZ3BTczkaAw06";
+const STRIPE_FOUNDER_LINK = "https://buy.stripe.com/5kQ3cvbei0pp1tL1UGaAw05";
+
 
 const HOOKS: ViralHook[] = ['Straight to the Point', 'Storytime', 'Controversial', 'Behind the Scenes', 'Myth vs Fact', 'Transformation', 'Unpopular Opinion', 'Day in the Life', 'Hack / Trick'];
 
@@ -25,6 +28,15 @@ const SocialSparkApp: React.FC = () => {
     const { user, brandProfile, saveBrandProfile, checkCredits, refundCredits, isTrialExpired, loading, userProfile, logout } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // FIX: Check for "Become a Founder" redirect after login
+    useEffect(() => {
+        const shouldRedirect = localStorage.getItem('redirect_to_founder');
+        if (shouldRedirect === 'true') {
+            localStorage.removeItem('redirect_to_founder');
+            window.location.href = STRIPE_FOUNDER_LINK;
+        }
+    }, []);
 
     const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
 
@@ -42,6 +54,10 @@ const SocialSparkApp: React.FC = () => {
     const [objective, setObjective] = useState<PostObjective>('engagement');
     const [campaignCount, setCampaignCount] = useState(3);
     const [remixFormats, setRemixFormats] = useState<string[]>(['LinkedIn Post', 'Twitter Thread']);
+    const [remixSource, setRemixSource] = useState<'text' | 'youtube'>('text');
+    const [showManualTranscriptInput, setShowManualTranscriptInput] = useState(false);
+    const [transcriptError, setTranscriptError] = useState<string | null>(null);
+    const [manualTranscript, setManualTranscript] = useState('');
 
     const [attachedImage, setAttachedImage] = useState<string | null>(null);
     const [posts, setPosts] = useState<Post[]>([]);
@@ -200,6 +216,63 @@ const SocialSparkApp: React.FC = () => {
     const handleGenerate = async () => {
         if (!topic.trim() && !attachedImage) { setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); return; }
 
+        if (!topic.trim() && !attachedImage) { setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); return; }
+
+        // --- YOUTUBE REMIX LOGIC (GROUNDED PIPELINE) ---
+        if (appMode === 'remix' && remixSource === 'youtube') {
+            try {
+                // Determine if valid URL
+                const cleanTopic = topic.trim();
+                const isYouTube = cleanTopic.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/);
+                if (!isYouTube) { setError("Please paste a valid YouTube URL."); return; }
+
+                setNotification("Running Grounded Analysis Pipeline... 🚀");
+                setIsLoading(true);
+
+                // Use the new Grounded Pipeline directly
+                console.log("Starting Grounded Remix Generation...");
+                const remixData = await generateGroundedRemix(
+                    cleanTopic,
+                    remixFormats,
+                    tone,
+                    brandProfile?.language || 'English'
+                );
+
+                if (!remixData || !remixData.posts || !Array.isArray(remixData.posts)) {
+                    console.error("Invalid Remix Data:", remixData);
+                    throw new Error("Pipeline returned invalid data structure.");
+                }
+
+                // Map the structured response to the UI's Post format
+                const newPostsData = remixData.posts.map((p: any) => ({
+                    id: Date.now().toString() + Math.random().toString(36).substring(2),
+                    content: p.content || "Error: No content generated.",
+                    platform: p.platform || "unknown",
+                    type: 'remix',
+                    imagePrompt: null,
+                    imageUrl: null,
+                    isGeneratingImage: false,
+                    isLocked: false,
+                    generationType: 'single',
+                    topic: remixData.analysis?.main_idea || cleanTopic // Defensive check
+                }));
+
+                setPosts(prev => [...newPostsData, ...prev]);
+                setNotification(null);
+                setVibeMessage("✨ Analysis Complete! Grounded posts generated.");
+                setIsLoading(false);
+
+
+            } catch (err: any) {
+                console.error("Remix Error:", err);
+                setError(err.message || "Failed to analyze video.");
+                setNotification(null);
+            } finally {
+                setIsLoading(false);
+            }
+            return; // Stop standard generation
+        }
+
         let count = 1;
         if (isCampaignMode) count = campaignCount;
         if (appMode === 'remix') count = remixFormats.length;
@@ -283,6 +356,57 @@ const SocialSparkApp: React.FC = () => {
     };
     const handleRefinePost = async (id: string, type: RefinementType, content: string) => { if (!checkCredits(1)) return; setRefiningPostId(id); const refined = await refinePostContent(content, type); setPosts(prev => prev.map(p => p.id === id ? { ...p, content: refined } : p)); updatePostInHistory(id, { content: refined }); setRefiningPostId(null); };
 
+    const handleFollowUp = async (parentId: string, parentContent: string) => {
+        if (!user) return;
+        if (!checkCredits(1)) { alert("Insufficient credits! Follow-up costs 1 credit."); return; }
+
+        setIsLoading(true);
+        setNotification("Drafting Follow-up Post... 🧵");
+
+        try {
+            const generated = await generateSocialMediaPosts(
+                "Follow-up",
+                Tone.Professional,
+                1,
+                brandProfile?.language || 'English',
+                brandProfile?.voiceDNA || '',
+                undefined, undefined, undefined, 'engagement',
+                false, false, false, [], true, parentContent
+            );
+
+            if (generated && generated.length > 0) {
+                const newPost = generated[0];
+                const postToSave: any = {
+                    ...newPost,
+                    id: crypto.randomUUID(),
+                    adaptedContent: {},
+                    imageUrl: null,
+                    isGeneratingImage: false,
+                    isLocked: false,
+                    generationType: appMode === 'remix' ? 'remix' : (isCampaignMode ? 'campaign' : 'single'),
+                    type: 'post',
+                    parentId: parentId, // LINKING HAPPENS HERE
+                    platform: newPost.platform || 'Generic'
+                };
+
+                // Add to local state (at top)
+                setPosts(prev => [postToSave, ...prev]);
+
+                // Save to DB
+                await savePostToHistory(user.uid, postToSave, "Follow-up Post", 50);
+
+                setVibeMessage("🧵 Follow-up Drafted!");
+            }
+        } catch (e: any) {
+            console.error("Follow-up Error:", e);
+            setError(e.message || "Failed to create follow-up.");
+            refundCredits(1);
+        } finally {
+            setIsLoading(false);
+            setNotification(null);
+        }
+    };
+
     const activePost = posts[0];
     const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
     const isPremiumUser = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
@@ -304,7 +428,7 @@ const SocialSparkApp: React.FC = () => {
                         <h2 className="text-2xl font-bold text-white mb-2">Trial Expired</h2>
                         <p className="text-gray-400 mb-8">You've used all your free credits. Upgrade to Pro to continue creating viral content.</p>
                         <div className="space-y-3">
-                            <button onClick={() => { if (STRIPE_PAYMENT_LINK.includes("buy.stripe.com")) { window.location.href = STRIPE_PAYMENT_LINK; } else { alert("Dev: Configureaza link-ul Stripe in App.tsx!"); } }} className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition shadow-lg shadow-red-900/30">Upgrade to PRO ($12.99)</button>
+                            <button onClick={() => { window.location.href = STRIPE_PRO_LINK; }} className="w-full py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white font-bold rounded-lg hover:scale-[1.02] transition shadow-lg shadow-red-900/30">Upgrade to PRO ($12.99)</button>
                             <button onClick={() => logout()} className="w-full py-3 bg-gray-800 text-gray-300 font-medium rounded-lg hover:bg-gray-700 hover:text-white transition border border-gray-700">Sign Out</button>
                         </div>
                         <button onClick={() => { if (confirm("Dev: Reset Credits?")) { window.location.reload(); } }} className="mt-8 text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer transition">[Dev Mode: How to Reset?]</button>
@@ -344,6 +468,24 @@ const SocialSparkApp: React.FC = () => {
                                             {appMode === 'remix' ? 'Source Content' : "What's on your mind?"}
                                         </label>
                                         <div className="flex items-center gap-3">
+                                            {/* REMIX SOURCE TOGGLE */}
+                                            {appMode === 'remix' && (
+                                                <div className="flex bg-[#0f1115] p-1 rounded-lg border border-gray-700">
+                                                    <button
+                                                        onClick={() => setRemixSource('text')}
+                                                        className={`px-3 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 ${remixSource === 'text' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                                    >
+                                                        Text
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setRemixSource('youtube')}
+                                                        className={`px-3 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 ${remixSource === 'youtube' ? 'bg-red-600/20 text-red-500 border border-red-500/30' : 'text-gray-500 hover:text-gray-300'}`}
+                                                    >
+                                                        <Youtube size={10} /> YouTube
+                                                    </button>
+                                                </div>
+                                            )}
+
                                             {brandProfile && (
                                                 <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                                                     <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
@@ -362,10 +504,31 @@ const SocialSparkApp: React.FC = () => {
                                     </div>
 
                                     <div className="relative group">
-                                        <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={appMode === 'remix' ? 6 : 3} placeholder={appMode === 'remix' ? "Paste content to remix..." : "E.g. 3 tips for crypto..."} className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" />
-                                        <div className="absolute bottom-3 right-3 flex gap-2">
-                                            {attachedImage ? null : <button onClick={openImageModalGlobal} className="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-all border border-transparent hover:border-gray-600"><ImageIcon size={20} /></button>}
-                                        </div>
+                                        {appMode === 'remix' && remixSource === 'youtube' ? (
+                                            userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'founder' || userProfile?.subscriptionTier === 'trial' ? (
+                                                <div className="relative">
+                                                    <div className="w-full bg-[#161b22] border border-red-900/30 dashed border-2 border-dashed border-red-900/50 rounded-xl p-8 flex flex-col items-center justify-center text-center opacity-70">
+                                                        <Youtube size={32} className="text-red-500 mb-2" />
+                                                        <h3 className="text-white font-bold text-lg">YouTube Remix</h3>
+                                                        <p className="text-gray-400 text-sm mb-1">We are fine-tuning the video analysis engine.</p>
+                                                        <span className="inline-block bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded mt-2">COMING SOON</span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="w-full h-32 bg-[#161b22] border border-gray-700 border-dashed rounded-xl flex flex-col items-center justify-center text-center p-4">
+                                                    <Lock size={24} className="text-gray-600 mb-2" />
+                                                    <p className="text-gray-400 font-bold text-sm">Agency Feature</p>
+                                                    <p className="text-gray-500 text-xs">Upgrade to unlock YouTube Remix.</p>
+                                                </div>
+                                            )
+                                        ) : (
+                                            <div className="relative">
+                                                <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={appMode === 'remix' ? 6 : 3} placeholder={appMode === 'remix' ? "Paste content to remix..." : "E.g. 3 tips for crypto..."} className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" />
+                                                <div className="absolute bottom-3 right-3 flex gap-2">
+                                                    {attachedImage ? null : <button onClick={openImageModalGlobal} className="p-2.5 bg-gray-800 hover:bg-gray-700 text-gray-400 hover:text-white rounded-lg transition-all border border-transparent hover:border-gray-600"><ImageIcon size={20} /></button>}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     {appMode === 'remix' && (
@@ -420,35 +583,76 @@ const SocialSparkApp: React.FC = () => {
                                     {visiblePosts.length > 0 && (
                                         <div className="space-y-6 mt-10 pt-10 border-t border-gray-800 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                             <div className="flex items-center justify-between"><h3 className="font-bold text-xl text-white">Generated Results</h3><span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded">{visiblePosts.length} results</span></div>
-                                            {visiblePosts.map(post => (
-                                                <div key={post.id}>
-                                                    <PostCard
-                                                        post={post}
-                                                        isRefining={refiningPostId === post.id}
-                                                        onGenerateImage={(id, content) => openImageModalForPost(id, content)}
-                                                        onAdaptPost={handleAdaptPost}
-                                                        onRefinePost={handleRefinePost}
-                                                        onDelete={handleDeletePost}
-                                                        onToggleLock={handleToggleLock}
-                                                        onManualEdit={(id, newContent) => {
-                                                            setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
-                                                            updatePostInHistory(id, { content: newContent });
-                                                        }}
-                                                        onSchedule={async (id, date) => {
-                                                            if (userProfile?.subscriptionTier !== 'pro' && userProfile?.subscriptionTier !== 'agency') {
-                                                                alert("Scheduling is a Pro feature! Upgrade to plan your campaign.");
-                                                                return;
-                                                            }
-                                                            await schedulePost(id, date);
-                                                            setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
-                                                        }}
-                                                        onMarkPublished={async (id) => {
-                                                            await markPostAsPublished(id);
-                                                            setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
-                                                        }}
-                                                        onNavigateToCalendar={() => setCurrentView('calendar')}
-                                                        brandProfile={brandProfile}
-                                                    />
+                                            {visiblePosts.filter(p => !p.parentId || !visiblePosts.some(parent => parent.id === p.parentId)).map(post => (
+                                                <div key={post.id} className="space-y-4">
+                                                    {/* Parent Post */}
+                                                    <div>
+                                                        <PostCard
+                                                            post={post}
+                                                            isRefining={refiningPostId === post.id}
+                                                            onGenerateImage={(id, content) => openImageModalForPost(id, content)}
+                                                            onAdaptPost={handleAdaptPost}
+                                                            onRefinePost={handleRefinePost}
+                                                            onDelete={handleDeletePost}
+                                                            onToggleLock={handleToggleLock}
+                                                            onManualEdit={(id, newContent) => {
+                                                                setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
+                                                                updatePostInHistory(id, { content: newContent });
+                                                            }}
+                                                            onSchedule={async (id, date) => {
+                                                                if (userProfile?.subscriptionTier !== 'pro' && userProfile?.subscriptionTier !== 'agency') {
+                                                                    alert("Scheduling is a Pro feature! Upgrade to plan your campaign.");
+                                                                    return;
+                                                                }
+                                                                await schedulePost(id, date);
+                                                                setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
+                                                            }}
+                                                            onMarkPublished={async (id) => {
+                                                                await markPostAsPublished(id);
+                                                                setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
+                                                            }}
+                                                            onNavigateToCalendar={() => setCurrentView('calendar')}
+                                                            onFollowUp={handleFollowUp}
+                                                            brandProfile={brandProfile}
+                                                        />
+                                                    </div>
+
+                                                    {/* Child Posts (Follow-ups) */}
+                                                    {visiblePosts.filter(child => child.parentId === post.id).map(childPost => (
+                                                        <div key={childPost.id} className="ml-8 pl-6 border-l-2 border-gray-800 relative">
+                                                            {/* Visual Connector */}
+                                                            <div className="absolute -left-0.5 top-8 w-6 h-0.5 bg-gray-800"></div>
+
+                                                            <PostCard
+                                                                post={childPost}
+                                                                isRefining={refiningPostId === childPost.id}
+                                                                onGenerateImage={(id, content) => openImageModalForPost(id, content)}
+                                                                onAdaptPost={handleAdaptPost}
+                                                                onRefinePost={handleRefinePost}
+                                                                onDelete={handleDeletePost}
+                                                                onToggleLock={handleToggleLock}
+                                                                onManualEdit={(id, newContent) => {
+                                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
+                                                                    updatePostInHistory(id, { content: newContent });
+                                                                }}
+                                                                onSchedule={async (id, date) => {
+                                                                    if (userProfile?.subscriptionTier !== 'pro' && userProfile?.subscriptionTier !== 'agency') {
+                                                                        alert("Scheduling is a Pro feature! Upgrade to plan your campaign.");
+                                                                        return;
+                                                                    }
+                                                                    await schedulePost(id, date);
+                                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
+                                                                }}
+                                                                onMarkPublished={async (id) => {
+                                                                    await markPostAsPublished(id);
+                                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
+                                                                }}
+                                                                onNavigateToCalendar={() => setCurrentView('calendar')}
+                                                                onFollowUp={handleFollowUp}
+                                                                brandProfile={brandProfile}
+                                                            />
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             ))}
                                         </div>
@@ -462,7 +666,7 @@ const SocialSparkApp: React.FC = () => {
                             <PhonePreview
                                 platform={selectedPlatform}
                                 content={activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : topic}
-                                imageUrl={activePost?.imageUrl || attachedImage || null}
+                                imageUrl={attachedImage || activePost?.imageUrl || null}
                                 isGenerating={isLoading}
                                 isImageGenerating={activePost?.isGeneratingImage || false}
                                 topic={topic}
