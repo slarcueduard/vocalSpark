@@ -1,5 +1,11 @@
-import { Platform, Tone, PostObjective } from './types';
+import { Platform, Tone, PostObjective, SubscriptionTier } from './types';
 import { MessageCircle, ShoppingBag, BookOpen, Zap, MousePointerClick } from 'lucide-react';
+
+export const VAULT_LIMITS: Record<SubscriptionTier, number> = {
+  trial: 25,
+  pro: 1000,
+  agency: 10000 // Unlimited effectively
+};
 
 export const PLATFORMS = [
   { value: Platform.Instagram, label: 'Instagram' },
@@ -21,35 +27,35 @@ export const TONES = [
 // --- AM UNIFICAT AICI CELE DOUA DECLARATII ---
 // Am schimbat 'id' in 'value' ca sa mearga cu <select>-ul din App.tsx
 export const OBJECTIVES = [
-  { 
-    value: 'engagement', 
-    label: '💬 Engagement / Viral', 
+  {
+    value: 'engagement',
+    label: '💬 Engagement / Viral',
     description: 'Ask questions & start conversations.',
-    icon: MessageCircle 
+    icon: MessageCircle
   },
-  { 
-    value: 'sales', 
-    label: '💰 Sales / Conversion', 
+  {
+    value: 'sales',
+    label: '💰 Sales / Conversion',
     description: 'Persuade users to buy or sign up.',
-    icon: ShoppingBag 
+    icon: ShoppingBag
   },
-  { 
-    value: 'awareness', 
-    label: '📣 Brand Awareness', 
+  {
+    value: 'awareness',
+    label: '📣 Brand Awareness',
     description: 'Short, punchy & shareable content.',
-    icon: Zap 
+    icon: Zap
   },
-  { 
-    value: 'educational', 
-    label: '📚 Value / How-to', 
+  {
+    value: 'educational',
+    label: '📚 Value / How-to',
     description: 'Build trust with tips & guides.',
-    icon: BookOpen 
+    icon: BookOpen
   },
-  { 
+  {
     value: 'traffic', // Era 'storytelling' inainte, am lasat traffic daca vrei clicks, sau poti pune storytelling
-    label: '🔗 Get Clicks / Traffic', 
+    label: '🔗 Get Clicks / Traffic',
     description: 'Drive traffic to your link/bio.',
-    icon: MousePointerClick 
+    icon: MousePointerClick
   }
 ];
 
@@ -92,14 +98,14 @@ export const INDUSTRIES = [
 
 // --- VELOCITY VIBES (Harvey, Wick, Wolf, Moody) ---
 export const SUCCESS_MESSAGES = [
-  "Boom. Deal closed. 💼", 
-  "Clean. Efficient. Dangerous. 🔫", 
-  "Sell me this pen? I just wrote the ad for it. 💰", 
-  "That's how winning is done. 🍸", 
-  "Content so sharp it cuts. 🔪", 
-  "Money never sleeps, neither does this AI. 📈", 
-  "Executed perfectly. 🎯", 
-  "Charming, isn't it? 😉", 
+  "Boom. Deal closed. 💼",
+  "Clean. Efficient. Dangerous. 🔫",
+  "Sell me this pen? I just wrote the ad for it. 💰",
+  "That's how winning is done. 🍸",
+  "Content so sharp it cuts. 🔪",
+  "Money never sleeps, neither does this AI. 📈",
+  "Executed perfectly. 🎯",
+  "Charming, isn't it? 😉",
   "Now go make them an offer they can't refuse.",
   "Lunch is for wimps. Post this instead.",
   "A masterpiece. Now monetize it."

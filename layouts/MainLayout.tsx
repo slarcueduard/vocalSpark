@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
-import { 
-  LayoutDashboard, 
-  LogOut, 
-  Zap, 
-  Menu, 
-  X, 
-  Sparkles, 
-  Briefcase, 
-  Building2, 
-  Archive, 
-  Calendar as CalendarIcon 
+import {
+  LayoutDashboard,
+  LogOut,
+  Zap,
+  Menu,
+  X,
+  Sparkles,
+  Briefcase,
+  Building2,
+  Archive,
+  Calendar as CalendarIcon
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
+import { SidebarSocials } from '../components/SocialSupportButtons';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -22,16 +23,16 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange }: MainLayoutProps) {
-  const { userProfile, logout, user, brandProfile } = useAuth(); 
-  
+  const { userProfile, logout, user, brandProfile } = useAuth();
+
   const credits = userProfile?.credits ?? 0;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  
-  // State pentru Modalul de Preturi
-  const [isPricingOpen, setIsPricingOpen] = useState(false); 
 
-  const planName = userProfile?.subscriptionTier === 'trial' 
-    ? 'Free Trial' 
+  // State pentru Modalul de Preturi
+  const [isPricingOpen, setIsPricingOpen] = useState(false);
+
+  const planName = userProfile?.subscriptionTier === 'trial'
+    ? 'Free Trial'
     : (userProfile?.subscriptionTier || '').toUpperCase() + ' PLAN';
 
   const isPremium = userProfile?.subscriptionTier !== 'trial';
@@ -43,16 +44,16 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
 
   return (
     <div className="flex h-screen bg-[#0f1115] text-white font-sans overflow-hidden relative">
-      
+
       {/* --- AICI ESTE MODALA DE PRICING --- */}
-      <PricingModal 
-        isOpen={isPricingOpen} 
-        onClose={() => setIsPricingOpen(false)} 
+      <PricingModal
+        isOpen={isPricingOpen}
+        onClose={() => setIsPricingOpen(false)}
       />
 
       {/* Mobile Overlay */}
       {isSidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm transition-opacity"
           onClick={() => setIsSidebarOpen(false)}
         />
@@ -64,7 +65,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
         transform transition-transform duration-300 ease-in-out flex flex-col shadow-2xl lg:shadow-none
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-        
+
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
@@ -86,12 +87,13 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
           <div onClick={() => { onOpenBrandProfile(); setIsSidebarOpen(false); }} className="cursor-pointer">
             <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
             {brandProfile && (
-                <div className="ml-4 mt-2 p-3 bg-[#1c1c2e] rounded-xl border border-gray-800/50 text-[10px] text-gray-400 hover:border-gray-600 transition group shadow-inner">
-                    <p className="text-white font-bold mb-1 border-b border-gray-700 pb-1 truncate">{brandProfile.name || 'Brand Profile'}</p>
-                    <div className="flex justify-between mt-1"><span className="text-gray-500">Niche:</span><span className="text-blue-400 font-medium truncate max-w-[80px]">{brandProfile.industry || '-'}</span></div>
-                </div>
+              <div className="ml-4 mt-2 p-3 bg-[#1c1c2e] rounded-xl border border-gray-800/50 text-[10px] text-gray-400 hover:border-gray-600 transition group shadow-inner">
+                <p className="text-white font-bold mb-1 border-b border-gray-700 pb-1 truncate">{brandProfile.name || 'Brand Profile'}</p>
+                <div className="flex justify-between mt-1"><span className="text-gray-500">Niche:</span><span className="text-blue-400 font-medium truncate max-w-[80px]">{brandProfile.industry || '-'}</span></div>
+              </div>
             )}
           </div>
+          <SidebarSocials />
         </nav>
 
         <div className="p-4 border-t border-gray-800 bg-[#161b22]">
@@ -113,7 +115,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
 
       {/* --- MAIN CONTENT AREA --- */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#0f1115] relative transition-all duration-300">
-        
+
         <header className="h-16 border-b border-gray-800 bg-[#0f1115]/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30">
           <div className="flex items-center gap-4">
             <button className="lg:hidden p-2 -ml-2 text-gray-400 hover:text-white active:scale-95 transition" onClick={() => setIsSidebarOpen(true)}><Menu size={24} /></button>
@@ -122,9 +124,9 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
 
           <div className="flex items-center gap-3 md:gap-4">
             {/* CREDITS BADGE - CLICKABLE PENTRU BUY CREDITS */}
-            <div 
-                onClick={() => setIsPricingOpen(true)} // Deschide modalul
-                className="flex items-center gap-2 px-3 py-1.5 bg-[#1c1c2e] border border-gray-700 rounded-full cursor-pointer hover:border-yellow-500 transition group"
+            <div
+              onClick={() => setIsPricingOpen(true)} // Deschide modalul
+              className="flex items-center gap-2 px-3 py-1.5 bg-[#1c1c2e] border border-gray-700 rounded-full cursor-pointer hover:border-yellow-500 transition group"
             >
               <Zap size={14} className={credits > 0 ? "text-yellow-400 fill-yellow-400" : "text-gray-500"} />
               <span className="text-sm font-medium text-gray-200">
@@ -134,7 +136,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             </div>
 
             {/* UPGRADE BUTTON - CLICKABLE PENTRU PLANS */}
-            <button 
+            <button
               onClick={() => setIsPricingOpen(true)}
               className="bg-blue-600 hover:bg-blue-500 text-white px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-bold transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20 whitespace-nowrap"
             >

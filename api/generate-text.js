@@ -82,25 +82,45 @@ export default async function handler(req, res) {
     if (brandContext) systemPrompt += `\n\nBrand Voice: ${brandContext}`;
 
     // 4. EXECUȚIE
-    const completion = await client.chat.completions.create({
+    const requestOptions = {
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userMessage }
       ],
       model: model,
-      temperature: 0.7,
-      response_format: { type: "json_object" } // Forțăm JSON
-    });
+      temperature: 0.7
+    };
+
+    // ONLY add response_format for OpenAI models (gpt-4o, etc)
+    // Perplexity (sonar-reasoning-pro) throws 400 if type is json_object without schema or at all
+    if (!useRealTime) {
+      requestOptions.response_format = { type: "json_object" };
+    }
+
+    const completion = await client.chat.completions.create(requestOptions);
 
     const output = completion.choices[0].message.content;
 
     // 5. SCĂDERE CREDITE
     await deductCredits(userRef, COST);
 
+    // CLEANUP: Perplexity often wraps JSON in code blocks or adds "Here is the JSON"
+    let cleanOutput = output.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Also remove any <think> blocks if reasoning model leaves them
+    cleanOutput = cleanOutput.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+    // Aggressive JSON Extractor: Find the first { and last }
+    const firstBrace = cleanOutput.indexOf('{');
+    const lastBrace = cleanOutput.lastIndexOf('}');
+
+    if (firstBrace !== -1 && lastBrace !== -1) {
+      cleanOutput = cleanOutput.substring(firstBrace, lastBrace + 1);
+    }
+
     // Parsăm aici să fim siguri că e ok înainte de a trimite
     let jsonOutput;
     try {
-      jsonOutput = JSON.parse(output);
+      jsonOutput = JSON.parse(cleanOutput);
       // OpenAI pune uneori array-ul într-o cheie gen "posts" sau "content"
       const finalData = jsonOutput.posts || jsonOutput.content || jsonOutput;
 

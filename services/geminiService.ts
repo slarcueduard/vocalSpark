@@ -110,6 +110,30 @@ function extractJsonArray(text: string): any[] {
     }
 }
 
+// --- 6. GENERIC URL REMIX PIPELINE (NEW) ---
+export async function generateUrlRemix(
+    url: string,
+    remixFormats: string[],
+    tone: string,
+    language: string
+): Promise<any> {
+    try {
+        console.log(`Calling URL Remix Pipeline for: ${url}`);
+        const data = await safeFetch('/api/remix-url', {
+            url,
+            platforms: remixFormats,
+            tone,
+            language
+        });
+        return data;
+
+    } catch (e: any) {
+        console.error("URL Remix Failed:", e);
+        // Fallback or rethrow? Rethrow so UI knows
+        throw e;
+    }
+}
+
 // --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
 export async function generateSocialMediaPosts(
     topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = ""

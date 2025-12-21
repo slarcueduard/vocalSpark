@@ -70,6 +70,8 @@ export interface Post {
   parentId?: string; // ID-ul postării originale pentru Follow-up
   platform?: string;
   imagePrompt?: string;
+  createdAt?: any; // Firestore Timestamp
+  topic?: string;
 }
 
 // --- CONFIGURATION & PLANS ---

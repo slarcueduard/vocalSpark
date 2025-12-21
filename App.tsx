@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent, generateGroundedRemix } from './services/geminiService';
+import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent, generateGroundedRemix, generateUrlRemix } from './services/geminiService';
 import { savePostToHistory, updatePostInHistory, schedulePost, markPostAsPublished, checkDuePosts } from './services/postService';
 import { Post, Tone, Platform, AppMode, ViralHook, RefinementType, PostObjective, GenerationType } from './types';
-import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe } from './constants';
+import { TONES, PLATFORMS, OBJECTIVES, getRandomVibe, VAULT_LIMITS } from './constants';
+import { db, auth } from './services/firebase';
+
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
 import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target, Youtube, Smile, AlertTriangle } from 'lucide-react';
@@ -204,7 +206,10 @@ const SocialSparkApp: React.FC = () => {
             setVibeMessage("🎲 You got lucky! Check this out.");
 
             if (user) {
-                const limit = userProfile?.subscriptionTier === 'agency' ? 100 : 25;
+                // Use centralized limit logic
+                const tier = userProfile?.subscriptionTier || 'trial';
+                const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
+
                 for (const postData of newPostsData) {
                     await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
                 }
@@ -216,7 +221,82 @@ const SocialSparkApp: React.FC = () => {
     const handleGenerate = async () => {
         if (!topic.trim() && !attachedImage) { setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); return; }
 
-        if (!topic.trim() && !attachedImage) { setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); return; }
+        // --- NEW: GENERIC URL REMIX (Twitter, Blog, etc.) ---
+        // If we are in Remix Mode AND 'text' is selected, check if input is a URL.
+        const cleanTopic = topic.trim();
+        const isUrl = cleanTopic.match(/^https?:\/\//);
+
+        if (appMode === 'remix' && remixSource === 'text' && isUrl) {
+            // It's a URL but NOT YouTube (since user didn't switch to YouTube toggle, or we can auto-detect)
+            // If it IS YouTube, we might want to guide them to use the YouTube toggle OR just handle it here too.
+            // For now, let's treat it as a "Smart URL Remix".
+
+            if (cleanTopic.includes('youtube.com') || cleanTopic.includes('youtu.be')) {
+                // Fallback to YouTube logic if they pasted YT link in Text tab?
+                // Or just let the new generic scraper handle it (Perplexity can handle YT too via generic fallback).
+                // But our specific YouTube pipeline is better. Let's redirect logic internally if needed, or just let them use the toggle.
+                // Let's assume Text Tab + URL = Generic Scrape intended.
+            }
+
+            try {
+                setIsLoading(true);
+                setNotification("Analyzing Link Content... 🔗");
+
+                console.log("Starting Generic URL Remix...");
+                const remixData = await generateUrlRemix(
+                    cleanTopic,
+                    remixFormats,
+                    tone,
+                    brandProfile?.language || 'English'
+                );
+
+                if (!remixData || !remixData.posts || !Array.isArray(remixData.posts)) {
+                    throw new Error("Failed to analyze the link. Please try pasting the text instead.");
+                }
+
+                // Transform response to App format
+                const newPostsData = remixData.posts.map((p: any) => ({
+                    ...p, // content, platform
+                    id: crypto.randomUUID(),
+                    adaptedContent: {},
+                    imageUrl: null,
+                    isLocked: false,
+                    type: 'remix',
+                    generationType: 'remix',
+                    createdAt: new Date(),
+                    topic: remixData.analysis?.main_idea || "Remix from Link"
+                }));
+
+                // Save and Update State
+                setPosts(prev => [...newPostsData, ...prev]);
+
+                // Persist to DB
+                const tier = userProfile?.subscriptionTier || 'trial';
+                const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
+
+                for (const p of newPostsData) {
+                    await savePostToHistory(user?.uid || 'anon', p, `Remix: ${remixData.url}`, limit);
+                }
+
+                setVibeMessage("Link Remixed Successfully! 🚀");
+                setTopic(""); // Clear input
+
+                // Scroll to results
+                setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 500);
+
+                return; // STOP HERE, don't run normal text generation
+
+            } catch (e: any) {
+                console.error("URL Remix Error:", e);
+                // Fallback: If scraping fails, maybe just run it as text? 
+                // No, better to tell user scraping failed so they know why.
+                setError(`Link analysis failed: ${e.message}. Try pasting the text manually.`);
+                return;
+            } finally {
+                setIsLoading(false);
+                setNotification(null);
+            }
+        }
 
         // --- YOUTUBE REMIX LOGIC (GROUNDED PIPELINE) ---
         if (appMode === 'remix' && remixSource === 'youtube') {
@@ -318,7 +398,9 @@ const SocialSparkApp: React.FC = () => {
             showVibe();
 
             if (user) {
-                const limit = userProfile?.subscriptionTier === 'agency' ? 100 : 25;
+                // Use centralized limit logic
+                const tier = userProfile?.subscriptionTier || 'trial';
+                const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
                 for (const postData of newPostsData) {
                     await savePostToHistory(user.uid, postData, topic, limit);
                 }
@@ -393,7 +475,9 @@ const SocialSparkApp: React.FC = () => {
                 setPosts(prev => [postToSave, ...prev]);
 
                 // Save to DB
-                await savePostToHistory(user.uid, postToSave, "Follow-up Post", 50);
+                const tier = userProfile?.subscriptionTier || 'trial';
+                const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
+                await savePostToHistory(user.uid, postToSave, "Follow-up Post", limit);
 
                 setVibeMessage("🧵 Follow-up Drafted!");
             }
@@ -505,22 +589,18 @@ const SocialSparkApp: React.FC = () => {
 
                                     <div className="relative group">
                                         {appMode === 'remix' && remixSource === 'youtube' ? (
-                                            userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'founder' || userProfile?.subscriptionTier === 'trial' ? (
-                                                <div className="relative">
-                                                    <div className="w-full bg-[#161b22] border border-red-900/30 dashed border-2 border-dashed border-red-900/50 rounded-xl p-8 flex flex-col items-center justify-center text-center opacity-70">
-                                                        <Youtube size={32} className="text-red-500 mb-2" />
-                                                        <h3 className="text-white font-bold text-lg">YouTube Remix</h3>
-                                                        <p className="text-gray-400 text-sm mb-1">We are fine-tuning the video analysis engine.</p>
-                                                        <span className="inline-block bg-red-500/20 text-red-400 text-xs font-bold px-2 py-1 rounded mt-2">COMING SOON</span>
-                                                    </div>
+                                            <div className="relative">
+                                                <div className="absolute top-3 left-3 flex items-center gap-2 z-10 pointer-events-none">
+                                                    <span className="bg-red-600 text-white p-1.5 rounded-lg shadow-lg shadow-red-600/20"><Youtube size={16} /></span>
+                                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Paste Video URL</span>
                                                 </div>
-                                            ) : (
-                                                <div className="w-full h-32 bg-[#161b22] border border-gray-700 border-dashed rounded-xl flex flex-col items-center justify-center text-center p-4">
-                                                    <Lock size={24} className="text-gray-600 mb-2" />
-                                                    <p className="text-gray-400 font-bold text-sm">Agency Feature</p>
-                                                    <p className="text-gray-500 text-xs">Upgrade to unlock YouTube Remix.</p>
-                                                </div>
-                                            )
+                                                <textarea
+                                                    value={topic}
+                                                    onChange={(e) => setTopic(e.target.value)}
+                                                    placeholder="https://www.youtube.com/watch?v=..."
+                                                    className="w-full h-32 bg-[#161b22] border border-gray-700 rounded-xl p-4 pt-12 text-white placeholder-gray-600 focus:border-red-500 focus:ring-1 focus:ring-red-500/50 outline-none resize-none transition-all shadow-inner"
+                                                />
+                                            </div>
                                         ) : (
                                             <div className="relative">
                                                 <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={appMode === 'remix' ? 6 : 3} placeholder={appMode === 'remix' ? "Paste content to remix..." : "E.g. 3 tips for crypto..."} className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 pr-14 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-lg transition-all" />
@@ -675,12 +755,12 @@ const SocialSparkApp: React.FC = () => {
                             />
                         </div>
                     </div>
-                </div>
+                </div >
             )}
 
             {isImageModalOpen && <ImageCreationModal onClose={() => setIsImageModalOpen(false)} onSelectImage={handleImageSelected} initialPrompt={currentPromptForImage} />}
             {isBrandProfileModalOpen && <BrandProfileModal currentProfile={brandProfile} onSave={saveBrandProfile} onClose={() => setIsBrandProfileModalOpen(false)} />}
-        </MainLayout>
+        </MainLayout >
     );
 };
 

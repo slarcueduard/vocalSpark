@@ -7,6 +7,7 @@ import { Archive, Search, Database, Ghost, ShieldCheck, Trash2, Lock, Unlock } f
 import { Post, Tone } from '../types';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { VAULT_LIMITS } from '../constants';
 import { ImageCreationModal } from './ImageCreationModal';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from '../services/geminiService';
 
@@ -78,14 +79,60 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
         });
     };
 
-    // --- GRUPARE PE ZILE ---
+    // --- GROUPING LOGIC (With Thread Bumping) ---
     const getGroupedPosts = () => {
         const filtered = getFilteredPosts();
-        const groups: Record<string, Post[]> = {};
+
+        // 1. Identify all IDs for quick lookup
+        const allFilteredIds = new Set(filtered.map(p => p.id));
+        const allPostsMap = new Map(filtered.map(p => [p.id, p]));
+
+        // 2. Separate Root Posts and Children
+        // A post is Root if it has no parentId, OR if its parent is not in the current list (orphaned)
+        const rootPosts: Post[] = [];
+        const childrenMap: Record<string, Post[]> = {};
 
         filtered.forEach(p => {
-            // @ts-ignore
-            const date = p.createdAt?.toDate ? p.createdAt.toDate() : new Date();
+            if (p.parentId && allFilteredIds.has(p.parentId)) {
+                // It's a valid Child
+                if (!childrenMap[p.parentId]) childrenMap[p.parentId] = [];
+                childrenMap[p.parentId].push(p);
+            } else {
+                // It's a Root Post
+                rootPosts.push(p);
+            }
+        });
+
+        // 3. Sort Children by Date (Oldest to Newest usually makes sense for threads, or Newest first)
+        // Here we keep Newest -> Oldest as per general logic, or maintain original sort
+        // Let's rely on the main list sort momentarily, but specific sort is safer.
+
+        // 4. Calculate "Latest Activity" for each Root Post
+        // Activity = Max(Root.createdAt, Max(Children.createdAt))
+        const rootWithActivity = rootPosts.map(root => {
+            let latestDate = root.createdAt?.toDate ? root.createdAt.toDate() : new Date(root.createdAt || 0); // Fallback
+
+            const children = childrenMap[root.id] || [];
+            children.forEach(child => {
+                const childDate = child.createdAt?.toDate ? child.createdAt.toDate() : new Date(child.createdAt || 0);
+                if (childDate > latestDate) latestDate = childDate;
+            });
+
+            return {
+                root,
+                children,
+                latestDate
+            };
+        });
+
+        // 5. Sort Roots by Latest Activity (Newest First)
+        rootWithActivity.sort((a, b) => b.latestDate.getTime() - a.latestDate.getTime());
+
+        // 6. Group by Date Label (based on Latest Activity)
+        const groups: Record<string, Post[]> = {};
+
+        rootWithActivity.forEach(item => {
+            const date = item.latestDate;
             const today = new Date();
             const yesterday = new Date();
             yesterday.setDate(today.getDate() - 1);
@@ -95,9 +142,10 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
             else if (date.toDateString() === yesterday.toDateString()) dateKey = "Yesterday";
 
             if (!groups[dateKey]) groups[dateKey] = [];
-            groups[dateKey].push(p);
+            groups[dateKey].push(item.root); // We only push Root to groups. Children are looked up via map.
         });
-        return groups;
+
+        return { groups, childrenMap };
     };
 
     const handleDelete = async (id: string) => {
@@ -186,8 +234,11 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
 
                 console.log("Saving to DB:", postToSave);
 
+                console.log("Saving to DB:", postToSave);
+
                 // Use proper limit based on user tier
-                const limit = userProfile?.subscriptionTier === 'agency' ? 50 : 20;
+                const tier = userProfile?.subscriptionTier || 'trial';
+                const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
                 const savedId = await savePostToHistory(user.uid, postToSave, "Follow-up Post", limit);
 
                 if (!savedId) {
@@ -210,7 +261,7 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
         }
     };
 
-    const groupedPosts = getGroupedPosts();
+    const { groups: groupedPosts, childrenMap } = getGroupedPosts();
     const groupKeys = Object.keys(groupedPosts);
     const lockedCount = posts.filter(p => p.isLocked).length;
 
@@ -280,18 +331,7 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
             {groupKeys.length > 0 ? (
                 <div className="space-y-8">
                     {groupKeys.map(dateLabel => {
-                        // 1. Identificam Parent Posts (cele care nu au parentId sau parentId nu e in lista curenta)
-                        const todaysPosts = groupedPosts[dateLabel];
-                        const allIds = new Set(todaysPosts.map(p => p.id));
-
-                        const rootPosts = todaysPosts.filter(p => !p.parentId || !allIds.has(p.parentId));
-
-                        // 2. Mapare Children pentru randare usoara
-                        const childrenMap: Record<string, Post[]> = {};
-                        todaysPosts.filter(p => p.parentId && allIds.has(p.parentId)).forEach(p => {
-                            if (!childrenMap[p.parentId!]) childrenMap[p.parentId!] = [];
-                            childrenMap[p.parentId!].push(p);
-                        });
+                        const rootPosts = groupedPosts[dateLabel];
 
                         return (
                             <div key={dateLabel}>

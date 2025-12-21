@@ -59,17 +59,35 @@ export function PostCard({
     };
 
     const handleShare = async () => {
-        if (navigator.share) {
-            try {
-                await navigator.share({
+        try {
+            if (navigator.share) {
+                const shareData: any = {
                     title: 'Social Spark Post',
                     text: post.content,
-                    url: post.imageUrl || ''
-                });
-            } catch (err) { console.log('Share canceled'); }
-        } else {
-            handleCopy();
-            // alert("Content copied to clipboard!"); // Removed in favor of UI feedback
+                };
+
+                if (post.imageUrl) {
+                    try {
+                        const response = await fetch(post.imageUrl);
+                        const blob = await response.blob();
+                        const file = new File([blob], 'post-image.png', { type: blob.type });
+                        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                            shareData.files = [file];
+                        } else {
+                            shareData.text = `${post.content}\n\nImage: ${post.imageUrl}`;
+                        }
+                    } catch (error) {
+                        console.log('Error preparing share image:', error);
+                    }
+                }
+
+                await navigator.share(shareData);
+            } else {
+                handleCopy();
+                alert('Shared to clipboard (Browser does not support native sharing)');
+            }
+        } catch (err: any) {
+            if (err.name !== 'AbortError') console.error('Share failed:', err);
         }
     };
 
@@ -113,6 +131,22 @@ export function PostCard({
                     <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border ${badgeColor}`}>
                         {badgeLabel}
                     </span>
+
+                    {/* Creation Date (NEW) */}
+                    {post.createdAt && (
+                        <span className="text-[10px] text-gray-500 font-mono">
+                            {(() => {
+                                let d = post.createdAt;
+                                // Handle Firestore Timestamp (seconds) or generic object
+                                if (d && typeof d === 'object' && 'seconds' in d) {
+                                    d = new Date(d.seconds * 1000);
+                                } else {
+                                    d = new Date(d);
+                                }
+                                return isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                            })()}
+                        </span>
+                    )}
 
                     {/* Platform Tag */}
                     {post.platform && post.platform !== 'Generic' && (
