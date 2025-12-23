@@ -3,13 +3,15 @@ import {
     Sparkles, Check, Zap, Globe, Fingerprint,
     Image as ImageIcon, Repeat, Database,
     Layers, Lock, Wand2, UserCheck,
-    Search, Smartphone, ChevronDown, ChevronUp
+    Search, Smartphone, ChevronDown, ChevronUp,
+    Calendar, LayoutTemplate, MessageSquarePlus, Share2
 } from 'lucide-react';
 import { CountdownTimer } from './CountdownTimer';
 import { FAQSection } from './FAQSection';
 import { VisualHowItWorks } from './VisualHowItWorks';
 import { InteractiveVoiceDNADemo } from './InteractiveVoiceDNADemo';
 import { SocialIconsCompact } from './SocialSupportButtons';
+import { DocumentationView } from './DocumentationView';
 
 // --- DATA & CONFIGURATION ---
 
@@ -87,6 +89,15 @@ interface LandingPageProps {
 
 export function LandingPage({ onLogin }: LandingPageProps) {
     const [activeScenario, setActiveScenario] = useState<'standard' | 'premium'>('standard');
+    const [showDocs, setShowDocs] = useState(false);
+
+    if (showDocs) {
+        return (
+            <div className="min-h-screen bg-[#0f1115] p-8">
+                <DocumentationView onClose={() => setShowDocs(false)} />
+            </div>
+        );
+    }
 
     return (
         <div className="w-full min-h-screen bg-[#0f1115] text-white">
@@ -95,12 +106,13 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0f1115]/80 backdrop-blur-md border-b border-gray-800/50">
                 <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
-                            <Sparkles className="text-white" size={18} fill="currentColor" />
+                        <div className="w-10 h-10 flex items-center justify-center">
+                            <img src="/social-spark-logo.png" alt="Social Spark" className="w-full h-full object-contain scale-125" />
                         </div>
                         <span className="text-lg font-bold tracking-tight">Social Spark</span>
                     </div>
                     <div className="flex gap-4">
+                        <button onClick={() => setShowDocs(true)} className="text-sm text-gray-300 hover:text-white font-medium transition">Docs</button>
                         <button onClick={onLogin} className="text-sm text-gray-300 hover:text-white font-medium transition">Log in</button>
                         <button
                             onClick={() => {
@@ -117,7 +129,10 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             </nav>
 
             {/* --- HERO SECTION --- */}
-            <section className="relative pt-16 md:pt-20 pb-20 md:pb-32 px-4 overflow-hidden">
+            <section className="relative pt-16 md:pt-24 pb-12 md:pb-16 px-4 overflow-hidden min-h-[90vh] flex flex-col justify-center bg-[#0f1115]">
+                {/* Background Grid Pattern */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 opacity-50" />
 
                 <div className="text-center max-w-4xl mx-auto z-10">
@@ -129,7 +144,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     <p className="text-base md:text-lg text-gray-400 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed">
                         The only workspace that remembers your brand DNA and repurposes your best content in seconds.
                         <br className="hidden md:block" />
-                        <strong>Better than Canva. Smarter than generic ChatGPT.</strong>
+                        <strong>Build your audience with consistent, high-quality content.</strong>
                     </p>
 
                     <div className="flex flex-col items-center gap-3">
@@ -143,28 +158,142 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                         <p className="text-xs text-gray-500">Includes 150 Credits. No credit card required.</p>
                     </div>
                 </div>
+
+                {/* Scroll Indicator */}
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce flex flex-col items-center gap-2 opacity-60">
+                    <span className="text-[10px] uppercase tracking-widest text-gray-500">Explore</span>
+                    <ChevronDown className="text-gray-400" size={20} />
+                </div>
             </section>
 
-            {/* --- CORE FEATURES --- */}
-            <section className="py-12 md:py-20 bg-[#161b22]/50 border-y border-gray-800">
+            {/* --- TRUSTED BY STRIP + VIDEO BRIDGE (Visual Bridge) --- */}
+            <div className="border-y border-gray-800/50 bg-[#0f1115]/80 backdrop-blur-sm py-8 overflow-hidden relative z-20">
+                {/* Trusted By Logos */}
+                <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 opacity-50 grayscale hover:grayscale-0 transition-all duration-500 mb-12">
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-600">Powering Creators On:</p>
+                    <div className="flex items-center gap-8">
+                        <span className="text-sm font-bold text-gray-400 flex items-center gap-2"> <Smartphone size={16} /> Instagram</span>
+                        <span className="text-sm font-bold text-gray-400 flex items-center gap-2"> <Share2 size={16} /> LinkedIn</span>
+                        <span className="text-sm font-bold text-gray-400 flex items-center gap-2"> <Globe size={16} /> Twitter / X</span>
+                        <span className="text-sm font-bold text-gray-400 flex items-center gap-2"> <LayoutTemplate size={16} /> Blogs</span>
+                    </div>
+                </div>
+
+                {/* THE VIDEO PLAYER (Relocated Here) */}
+                <div className="max-w-5xl mx-auto px-6">
+                    <div className="relative aspect-video rounded-2xl overflow-hidden border border-gray-700 shadow-2xl shadow-blue-900/20 bg-black group mx-auto">
+                        <video
+                            controls
+                            className="w-full h-full object-cover"
+                        >
+                            <source src="/presentation.mp4" type="video/mp4" />
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+            </div>
+
+            {/* --- CORE FEATURES (REDESIGNED) --- */}
+            {/* --- CORE FEATURES (REDESIGNED) --- */}
+            <section className="pt-16 pb-20 md:pt-24 md:pb-32 bg-[#0f1115] relative overflow-hidden">
+                <div className="absolute top-1/4 left-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[120px] -z-10" />
+                <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[120px] -z-10" />
+
                 <div className="max-w-7xl mx-auto px-6">
-                    <div className="text-center mb-12 md:mb-16">
-                        <h2 className="text-2xl md:text-3xl font-bold text-white mb-3 md:mb-4">The Coherent Workspace</h2>
-                        <p className="text-sm md:text-base text-gray-400">Solves the biggest problem with AI: Consistency.</p>
+                    <div className="text-center mb-16 md:mb-24 max-w-3xl mx-auto">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-wider mb-6">
+                            <Sparkles size={12} />
+                            <span>Powerhouse Features</span>
+                        </div>
+                        <h2 className="text-3xl md:text-5xl font-bold text-white mb-6 leading-tight">
+                            Everything You Need to <br />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Dominate Every Channel.</span>
+                        </h2>
+                        <p className="text-lg text-gray-400 leading-relaxed">
+                            Social Spark AI isn't just a writer. It's a strategist, designer, and scheduler wrapped into one coherent workspace.
+                        </p>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
-                        <FeatureCard icon={<Fingerprint className="text-purple-400" />} title="Voice DNA" desc="Brand Identity Injection to stop generic content." />
-                        <FeatureCard icon={<Repeat className="text-green-400" />} title="Remix Mode" desc="Turn 1 blog into 10 posts. The Repurposing Engine." />
-                        <FeatureCard icon={<ImageIcon className="text-pink-400" />} title="Hybrid Visuals" desc="Flux for speed, DALL-E 3 for high-end quality." />
-                        <FeatureCard icon={<Database className="text-orange-400" />} title="The Vault" desc="Auto-Save, Organize & Lock your winning posts." />
-                        <FeatureCard icon={<Globe className="text-cyan-400" />} title="Real-Time Data" desc="Pro: Search the live web for news & trends." />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+
+                        {/* FEATURE 1: CAMPAIGN GENERATION */}
+                        <DetailedFeatureCard
+                            icon={<LayoutTemplate size={24} className="text-white" />}
+                            iconBg="bg-blue-600"
+                            title="Campaign Generation"
+                            desc="Stop posting randomly. Define a goal, and let the AI map out a full strategic content calendar for weeks."
+                            points={["Goal-Oriented Planning", "Multi-Platform Adaptation", "Consistent Messaging Arc"]}
+                        />
+
+                        {/* FEATURE 2: REMIX MODE */}
+                        <DetailedFeatureCard
+                            icon={<Repeat size={24} className="text-white" />}
+                            iconBg="bg-green-600"
+                            title="Smart Remix Engine"
+                            desc="The ultimate repurposing tool. Turn one YouTube video, blog post, or thought into 10 unique pieces of content."
+                            points={["Context-Aware Rewrites", "Format Conversion (Blog → Thread)", "Preserves Key Insights"]}
+                        />
+
+                        {/* FEATURE 3: THE VAULT & FOLLOW UP */}
+                        <DetailedFeatureCard
+                            icon={<Database size={24} className="text-white" />}
+                            iconBg="bg-orange-600"
+                            title="The Vault & Follow-Up"
+                            desc="Your content goldmine. Save winning posts and use the 'Follow-Up' button to instantly generate sequels."
+                            points={["One-Click Thread Continuation", "Organize by Performance", "Never Lose a Draft"]}
+                            highlight
+                        />
+
+                        {/* FEATURE 4: HYBRID VISUALS */}
+                        <DetailedFeatureCard
+                            icon={<ImageIcon size={24} className="text-white" />}
+                            iconBg="bg-pink-600"
+                            title="Hybrid Image Studio"
+                            desc="Visuals that pop. Generate standard graphics for speed or premium, detailed art for high-stakes posts."
+                            points={["Flux Model (Speed)", "DALL-E 3 (High Fidelity)", "Brand Style Matching"]}
+                        />
+
+                        {/* FEATURE 5: POST SCHEDULING */}
+                        <DetailedFeatureCard
+                            icon={<Calendar size={24} className="text-white" />}
+                            iconBg="bg-purple-600"
+                            title="Strategic Planning Calendar"
+                            desc="Your personal content roadmap. Plan posts in the built-in calendar and get notifications when it's time to post."
+                            points={["Drag-and-Drop Planner", "Post Notifications", "Strategic Organization"]}
+                        />
+
+                        {/* FEATURE 6: REAL-TIME DATA (Catch-all/Bonus) */}
+                        <DetailedFeatureCard
+                            icon={<Globe size={24} className="text-white" />}
+                            iconBg="bg-cyan-600"
+                            title="Real-Time Knowledge"
+                            desc="Stop hallucinating. Access the live internet to research trends, news, and facts for your content."
+                            points={["Live Web Search", "Fact Verification", "Trend Analysis"]}
+                        />
+
                     </div>
                 </div>
             </section>
 
-            {/* --- VISUAL HOW IT WORKS (WITH REAL SCREENSHOTS) --- */}
-            <VisualHowItWorks />
+            {/* --- PRODUCT SHOWCASE (Interactive Steps Only) --- */}
+            <section className="py-20 bg-[#0f1115] border-t border-gray-800/30 relative overflow-hidden">
+                <div className="absolute inset-0 bg-blue-600/5 blur-[100px] pointer-events-none" />
+
+                <div className="max-w-7xl mx-auto px-6">
+                    {/* Unified Header */}
+                    <div className="text-center mb-16 relative z-10">
+                        <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+                            Experience the Coherent Workspace
+                        </h2>
+                        <p className="text-lg text-gray-400 max-w-2xl mx-auto">
+                            Explore the step-by-step workflow below.
+                        </p>
+                    </div>
+
+                    {/* 2. Interactive Steps (The Deep Dive) */}
+                    <VisualHowItWorks />
+                </div>
+            </section>
 
             {/* --- PRICING SECTION --- */}
             <section id="pricing" className="w-full max-w-7xl mx-auto py-16 md:py-24 px-6">
@@ -274,7 +403,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                         {/* Brand Column */}
                         <div className="md:col-span-2">
                             <div className="flex items-center gap-2 mb-4">
-                                <Sparkles className="text-blue-600" size={20} />
+                                <img src="/social-spark-logo.png" alt="Social Spark AI" className="w-8 h-8 object-contain" />
                                 <span className="font-bold text-white text-lg">Social Spark AI</span>
                             </div>
                             <p className="text-gray-400 text-sm mb-6 max-w-md">
@@ -343,6 +472,33 @@ function FeatureCard({ icon, title, desc }: { icon: any, title: string, desc: st
             <p className="text-xs text-gray-400 leading-relaxed">{desc}</p>
         </div>
     )
+}
+
+function DetailedFeatureCard({ icon, iconBg, title, desc, points, highlight }: any) {
+    return (
+        <div className={`p-8 rounded-2xl border flex flex-col h-full transition-all duration-300 group hover:-translate-y-1 ${highlight
+            ? 'bg-[#161b22] border-orange-500/30 shadow-2xl shadow-orange-900/10'
+            : 'bg-[#161b22]/50 border-gray-800 hover:border-gray-600 hover:bg-[#161b22]'
+            }`}>
+            <div className={`w-14 h-14 ${iconBg} rounded-2xl flex items-center justify-center shadow-lg mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                {icon}
+            </div>
+
+            <h3 className="text-xl font-bold text-white mb-3">{title}</h3>
+            <p className="text-sm text-gray-400 leading-relaxed mb-6">
+                {desc}
+            </p>
+
+            <div className="mt-auto space-y-3">
+                {points.map((point: string, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2">
+                        <Check size={14} className="text-gray-500 group-hover:text-blue-400 transition-colors" />
+                        <span className="text-xs font-medium text-gray-300">{point}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }
 
 function StepCard({ number, icon, title, desc, color }: any) {

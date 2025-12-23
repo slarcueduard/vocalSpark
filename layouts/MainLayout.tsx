@@ -18,8 +18,8 @@ import { SidebarSocials } from '../components/SocialSupportButtons';
 interface MainLayoutProps {
   children: React.ReactNode;
   onOpenBrandProfile: () => void;
-  currentView: 'create' | 'history' | 'calendar';
-  onViewChange: (view: 'create' | 'history' | 'calendar') => void;
+  currentView: 'create' | 'history' | 'calendar' | 'docs';
+  onViewChange: (view: 'create' | 'history' | 'calendar' | 'docs') => void;
 }
 
 export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange }: MainLayoutProps) {
@@ -37,7 +37,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
 
   const isPremium = userProfile?.subscriptionTier !== 'trial';
 
-  const handleNavClick = (view: 'create' | 'history' | 'calendar') => {
+  const handleNavClick = (view: 'create' | 'history' | 'calendar' | 'docs') => {
     onViewChange(view);
     setIsSidebarOpen(false);
   };
@@ -68,8 +68,8 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
 
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
-              <Sparkles className="text-white" size={20} fill="currentColor" />
+            <div className="w-12 h-12 flex items-center justify-center">
+              <img src="/social-spark-logo.png" alt="Social Spark AI" className="w-full h-full object-contain scale-125" />
             </div>
             <span className="text-xl font-bold tracking-tight">Social Spark</span>
           </div>
@@ -94,6 +94,10 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
             )}
           </div>
           <SidebarSocials />
+
+          <div className="mt-4 pt-4 border-t border-gray-800">
+            <div onClick={() => handleNavClick('docs')}><NavItem icon={<Briefcase size={20} className="text-gray-400" />} label="How to Use & Roadmap" active={currentView === 'docs'} /></div>
+          </div>
         </nav>
 
         <div className="p-4 border-t border-gray-800 bg-[#161b22]">

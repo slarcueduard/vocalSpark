@@ -15,7 +15,7 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
     const { user, userProfile } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [currentDate, setCurrentDate] = useState(new Date());
-    const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+    const [viewMode, setViewMode] = useState<'month' | 'week' | 'day' | 'timeline'>('month');
 
     // Modal Add Event
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -180,6 +180,111 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
             );
         }
 
+        if (viewMode === 'timeline') {
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+
+            // Filter all posts with scheduledDate >= today
+            const futurePosts = posts.filter(p => {
+                const sDate = p.scheduledDate ? getSafeDate(p.scheduledDate) : null;
+                return sDate && sDate >= now;
+            });
+
+            // Sort by Date Ascending
+            futurePosts.sort((a, b) => {
+                const da = getSafeDate(a.scheduledDate).getTime();
+                const db = getSafeDate(b.scheduledDate).getTime();
+                return da - db;
+            });
+
+            return (
+                <div className="bg-[#161b22] rounded-2xl border border-gray-800 p-6 md:p-8 min-h-[400px]">
+                    <div className="flex items-center gap-3 mb-8">
+                        <div className="p-3 bg-blue-500/10 rounded-xl">
+                            <AlignLeft className="text-blue-400" size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-white">Timeline View</h3>
+                            <p className="text-sm text-gray-400">All upcoming scheduled content ({futurePosts.length})</p>
+                        </div>
+                    </div>
+
+                    {futurePosts.length > 0 ? (
+                        <div className="relative border-l border-gray-800 ml-3 space-y-8 pl-8 md:pl-12">
+                            {futurePosts.map(p => {
+                                const isManualEvent = p.type === 'event';
+                                const displayDate = getSafeDate(p.scheduledDate);
+                                const linkedCount = isManualEvent ? posts.filter(post => post.linkedEventId === p.id).length : 0;
+                                const isDraft = !p.isPublished;
+
+                                return (
+                                    <div key={p.id} className="relative group">
+                                        {/* Dot Indicator */}
+                                        <div className={`absolute -left-[41px] md:-left-[57px] top-6 w-5 h-5 rounded-full border-4 border-[#0f1115] ${isManualEvent ? 'bg-blue-500' : 'bg-orange-500'} shadow-lg shadow-black/50`}></div>
+
+                                        {/* Date Badge */}
+                                        <div className="mb-2 inline-flex items-center gap-2 bg-gray-800/50 px-3 py-1 rounded-full border border-gray-700">
+                                            <CalendarIcon size={12} className="text-gray-400" />
+                                            <span className="text-xs font-bold text-gray-300">
+                                                {displayDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                            </span>
+                                            <span className="text-gray-600">|</span>
+                                            <span className="text-xs text-gray-500 font-mono">
+                                                {displayDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </div>
+
+                                        {/* Card */}
+                                        <div
+                                            onClick={() => handlePostClick(p)}
+                                            className={`cursor-pointer transition-all hover:translate-x-1 duration-300 rounded-xl border p-4 md:p-5 flex flex-col md:flex-row gap-4 ${isManualEvent ? 'bg-blue-900/10 border-blue-500/30 hover:bg-blue-900/20' : 'bg-[#0f1115] border-gray-800 hover:border-gray-600'}`}
+                                        >
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-3 mb-2">
+                                                    {isManualEvent && <span className="text-[10px] font-bold bg-blue-500 text-white px-2 py-0.5 rounded uppercase tracking-wider">Event</span>}
+                                                    {!isManualEvent && p.platform && <span className="text-[10px] font-mono bg-gray-800 text-gray-300 px-2 py-0.5 rounded border border-gray-700">{p.platform}</span>}
+                                                    <h4 className={`text-base font-bold ${isManualEvent ? 'text-blue-100' : 'text-gray-200'}`}>
+                                                        {p.topic || (isManualEvent ? "Untitled Event" : "Scheduled Post")}
+                                                    </h4>
+                                                </div>
+
+                                                <p className="text-sm text-gray-400 line-clamp-2 md:line-clamp-3 mb-3 leading-relaxed">
+                                                    {p.content}
+                                                </p>
+
+                                                <div className="flex items-center gap-4">
+                                                    {isManualEvent && (
+                                                        <div className="flex items-center gap-1.5 text-xs text-blue-400/80">
+                                                            <Briefcase size={12} />
+                                                            <span>{linkedCount} linked posts</span>
+                                                        </div>
+                                                    )}
+                                                    {/* Edit / Delete Actions could go here */}
+                                                </div>
+                                            </div>
+
+                                            {/* Preview Image if exists */}
+                                            {p.imageUrl && (
+                                                <div className="w-full md:w-32 h-32 rounded-lg overflow-hidden bg-black shrink-0 border border-gray-800">
+                                                    <img src={p.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition" alt="Post preview" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-50">
+                            <Clock size={48} className="text-gray-600 mb-4" />
+                            <h4 className="text-xl font-bold text-gray-400">No scheduled content</h4>
+                            <p className="text-gray-600 mt-2">Schedule posts from your Vault to see them here.</p>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
         // MONTH VIEW (Standard)
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -233,7 +338,7 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
                 <div className="flex items-center gap-4">
                     <h2 className="text-2xl font-bold text-white flex items-center gap-2"><CalendarIcon className="text-orange-500" /> Calendar</h2>
                     <div className="flex bg-[#161b22] rounded-lg border border-gray-700 p-1">
-                        {['month', 'week', 'day'].map(m => (
+                        {['month', 'week', 'day', 'timeline'].map(m => (
                             <button key={m} onClick={() => setViewMode(m as any)} className={`px-3 py-1 text-xs font-bold rounded transition ${viewMode === m ? 'bg-orange-600 text-white' : 'text-gray-400 hover:text-white'}`}>
                                 {m.charAt(0).toUpperCase() + m.slice(1)}
                             </button>

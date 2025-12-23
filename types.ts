@@ -51,6 +51,11 @@ export interface BrandProfile {
   logoUrl?: string | null;
   fixedHashtags?: string;
   links?: string[]; // Up to 2 URLs (website, social profiles, etc.)
+
+  // Granular Preferences
+  postLength?: 'short' | 'medium' | 'long';
+  detailLevel?: 'minimal' | 'balanced' | 'deep';
+  innovationFactor?: 'safe' | 'balanced' | 'unique';
 }
 
 export interface Post {

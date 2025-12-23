@@ -57,6 +57,11 @@ const FAQ_DATA: FAQItem[] = [
         question: "How does Remix Mode work?",
         answer: "Paste one piece of content (blog post, article, video script), select output formats (LinkedIn, Twitter Thread, Instagram Carousel, etc.), and AI repurposes it into multiple platform-specific variations in seconds. It's like having 5 copywriters working simultaneously.",
         category: "Features"
+    },
+    {
+        question: "Does Social Spark automatically post to my social media?",
+        answer: "No. Social Spark is a creation and planning workspace, not an auto-poster. We help you build high-quality content, organize it in a strategic calendar, and notify you when it's time to post manually. This ensures you maintain full control and avoid 'bot-like' behavior that platforms often penalize.",
+        category: "Product"
     }
 ];
 

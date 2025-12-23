@@ -3,9 +3,10 @@ import {
     Copy, Share2, Trash2, Calendar, Check,
     Lock, Unlock, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
     Linkedin, Twitter, Instagram, Facebook, Wand2, MessageCircle, Hash, Smile,
-    ArrowRightCircle, MoveRight, ArrowUpRight, Repeat
+    ArrowRightCircle, MoveRight, ArrowUpRight, Repeat, Edit2
 } from 'lucide-react';
 import { Post, Platform, RefinementType } from '../types';
+import { DatePickerModal } from './DatePickerModal';
 
 interface PostCardProps {
     post: Post;
@@ -44,8 +45,7 @@ export function PostCard({
     const [editContent, setEditContent] = useState(post.content);
     const [isExpanded, setIsExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [showSchedule, setShowSchedule] = useState(false);
-    const [dateInput, setDateInput] = useState('');
+    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
     // State pentru meniul Magic
     const [showMagicMenu, setShowMagicMenu] = useState(false);
@@ -557,42 +557,43 @@ export function PostCard({
                                     {/* Schedule */}
                                     <div className="h-4 w-px bg-gray-800 mx-1"></div>
 
-                                    {showSchedule ? (
-                                        <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2 bg-[#0a0c10] border border-gray-700 rounded-lg p-1">
-                                            <input
-                                                type="date"
-                                                className="bg-transparent text-white text-[10px] outline-none"
-                                                onChange={(e) => setDateInput(e.target.value)}
-                                            />
-                                            <button
-                                                onClick={() => {
-                                                    if (dateInput && onSchedule) {
-                                                        onSchedule(post.id, new Date(dateInput));
-                                                        setShowSchedule(false);
-                                                    }
-                                                }}
-                                                className="text-green-400 hover:text-white"
-                                            >
-                                                <Check size={12} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={() => setShowSchedule(true)}
-                                            className="p-2 text-gray-400 hover:text-blue-400 transition hover:bg-blue-900/10 rounded-lg"
-                                            title="Schedule Post"
-                                        >
-                                            <Calendar size={16} />
-                                        </button>
-                                    )}
+                                    {/* Schedule */}
+                                    <div className="h-4 w-px bg-gray-800 mx-1"></div>
 
-                                    <button onClick={() => setIsEditing(true)} className="md:hidden text-xs text-gray-500 underline ml-2">Edit</button>
+                                    <button
+                                        onClick={() => setIsDatePickerOpen(true)}
+                                        className="p-2 text-gray-400 hover:text-blue-400 transition hover:bg-blue-900/10 rounded-lg flex items-center gap-2"
+                                        title="Schedule Post"
+                                    >
+                                        <Calendar size={16} />
+                                        {post.scheduledDate && <span className="text-[10px] hidden md:inline">{new Date(post.scheduledDate).toLocaleDateString()}</span>}
+                                    </button>
+
+                                    <button
+                                        onClick={() => setIsEditing(true)}
+                                        className="p-2 text-gray-400 hover:text-blue-400 transition hover:bg-blue-900/10 rounded-lg"
+                                        title="Edit Post"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Edit2 size={16} />
+                                        </div>
+                                    </button>
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
             </div>
+            {/* DATE PICKER MODAL */}
+            <DatePickerModal
+                isOpen={isDatePickerOpen}
+                onClose={() => setIsDatePickerOpen(false)}
+                onSelect={(date) => {
+                    if (onSchedule) onSchedule(post.id, date);
+                }}
+                initialDate={post.scheduledDate ? new Date(post.scheduledDate) : new Date()}
+                title="Schedule this Post"
+            />
         </div>
     );
 }

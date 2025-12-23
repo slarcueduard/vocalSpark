@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { generateImageForPost } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
+import { ScanningImage } from './ScanningImage';
 
 interface ImageCreationModalProps {
     onClose: () => void;
@@ -283,13 +284,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
                     <button onClick={onClose} className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white z-10 bg-black/50 rounded-full"><X size={20} /></button>
 
                     {/* LOADER PENTRU IMAGINE */}
-                    {isImageLoading && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-20 pointer-events-none">
-                            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                            <p className="text-blue-400 font-bold animate-pulse tracking-widest">CREATING VISUAL...</p>
-                            <p className="text-xs text-gray-500 mt-2">Standard: ~3s | Premium: ~12s</p>
-                        </div>
-                    )}
+                    {isImageLoading && <ScanningImage />}
 
                     {previewSrc ? (
                         <div className="flex flex-col items-center w-full gap-4 animate-in zoom-in-95">

@@ -9,6 +9,7 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { VAULT_LIMITS } from '../constants';
 import { ImageCreationModal } from './ImageCreationModal';
+import { AnimatedVault } from './AnimatedVault';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from '../services/geminiService';
 
 export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: () => void }) {
@@ -180,6 +181,16 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
         setIsImageModalOpen(false);
     };
 
+    const handleSchedule = async (id: string, date: Date) => {
+        try {
+            await updatePostInHistory(id, { scheduledDate: date });
+            alert(`Post scheduled for ${date.toLocaleDateString()}!`);
+        } catch (error) {
+            console.error("Scheduling error:", error);
+            alert("Failed to schedule post.");
+        }
+    };
+
     const handleFollowUp = async (parentId: string, parentContent: string) => {
         if (!user) return;
 
@@ -275,7 +286,7 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-                            <Archive className="text-blue-500" /> Content Vault
+                            <Archive className="text-blue-500 animate-pulse" /> Content Vault
                         </h2>
                         <p className="text-sm text-gray-500 mt-1">Your saved masterpieces.</p>
                     </div>
@@ -384,6 +395,7 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                                                         onManualEdit={handleUpdateContent}
                                                         onFollowUp={handleFollowUp}
                                                         onNavigateToCalendar={onNavigateToCalendar}
+                                                        onSchedule={handleSchedule}
                                                         brandProfile={userProfile?.brandProfile}
                                                     />
                                                 </div>
@@ -435,6 +447,7 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                                                                 onManualEdit={handleUpdateContent}
                                                                 onFollowUp={handleFollowUp}
                                                                 onNavigateToCalendar={onNavigateToCalendar}
+                                                                onSchedule={handleSchedule}
                                                                 brandProfile={userProfile?.brandProfile}
                                                             />
                                                         </div>
@@ -463,10 +476,8 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                     })}
                 </div>
             ) : (
-                <div className="text-center py-24 border-2 border-dashed border-gray-800 rounded-2xl bg-[#161b22]/30">
-                    <Ghost className="text-gray-600 mx-auto mb-4" size={48} />
-                    <h3 className="text-xl font-bold text-gray-300 mb-2">No posts found</h3>
-                    {showLockedOnly && <p className="text-gray-500">Try turning off the "Locked" filter.</p>}
+                <div className="flex justify-center py-12">
+                    <AnimatedVault />
                 </div>
             )}
 

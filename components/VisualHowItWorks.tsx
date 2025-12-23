@@ -50,17 +50,9 @@ export function VisualHowItWorks() {
     const currentStep = steps[activeStep];
 
     return (
-        <section className="py-16 md:py-24 px-6 bg-[#0a0c10]">
+        <div className="w-full">
             <div className="max-w-7xl mx-auto">
-                {/* Header */}
-                <div className="text-center mb-12 md:mb-16">
-                    <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                        See How It Works
-                    </h2>
-                    <p className="text-base md:text-lg text-gray-400 max-w-2xl mx-auto">
-                        From idea to published post in 5 simple steps. See the actual product in action.
-                    </p>
-                </div>
+                {/* Header Removed (Integrated in Parent) */}
 
                 {/* Mobile: Vertical Cards */}
                 <div className="md:hidden space-y-6">
@@ -192,6 +184,6 @@ export function VisualHowItWorks() {
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
     );
 }

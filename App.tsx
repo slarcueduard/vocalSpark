@@ -18,6 +18,7 @@ import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 import { NotificationManager } from './components/NotificationManager';
+import { DocumentationView } from './components/DocumentationView';
 
 // FIX: Separate links for different upgrade paths
 const STRIPE_PRO_LINK = "https://buy.stripe.com/8x2cN51DI9ZZ3BTczkaAw06";
@@ -40,7 +41,7 @@ const SocialSparkApp: React.FC = () => {
         }
     }, []);
 
-    const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar'>('create');
+    const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar' | 'docs'>('create');
 
     // Starea pentru Moduri
     const [appMode, setAppMode] = useState<'creator' | 'remix'>('creator');
@@ -73,6 +74,7 @@ const SocialSparkApp: React.FC = () => {
 
     const [activePostIdForImage, setActivePostIdForImage] = useState<string | null>(null);
     const [currentPromptForImage, setCurrentPromptForImage] = useState('');
+    const [useBrandVoice, setUseBrandVoice] = useState(true);
 
     const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
@@ -374,8 +376,10 @@ const SocialSparkApp: React.FC = () => {
             }
 
             const generatedPosts = await generateSocialMediaPosts(
-                topic, tone, count, brandProfile?.language || 'English', brandProfile?.voiceDNA || '',
-                brandProfile || undefined, imgData, imgMime, objective, useRealTime, isCampaignMode, appMode === 'remix', remixFormats
+                topic, tone, count, brandProfile?.language || 'English',
+                useBrandVoice ? (brandProfile?.voiceDNA || '') : '',
+                useBrandVoice ? (brandProfile || undefined) : undefined,
+                imgData, imgMime, objective, useRealTime, isCampaignMode, appMode === 'remix', remixFormats
             );
 
             if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) throw new Error("AI returned an empty response.");
@@ -529,6 +533,8 @@ const SocialSparkApp: React.FC = () => {
                         setCurrentView('create');
                     }}
                 />
+            ) : currentView === 'docs' ? (
+                <DocumentationView onClose={() => setCurrentView('create')} />
             ) : (
                 <div className="flex h-full gap-6 relative">
                     <div className="flex-1 min-w-0">
@@ -573,9 +579,33 @@ const SocialSparkApp: React.FC = () => {
                                             {brandProfile && (
                                                 <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
                                                     <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
-                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-900/20 border border-blue-500/30 text-blue-300 text-xs font-medium shadow-sm">
-                                                        <Fingerprint size={12} /><span>{brandProfile.name || "Default"}</span>
+
+                                                    {/* NEW SEGMENTED CONTROL FOR VOICE */}
+                                                    <div className="flex bg-[#0f1115] p-1 rounded-lg border border-gray-700">
+                                                        <button
+                                                            onClick={() => setUseBrandVoice(true)}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${useBrandVoice
+                                                                ? 'bg-blue-600 text-white shadow-lg'
+                                                                : 'text-gray-500 hover:text-gray-300'
+                                                                }`}
+                                                            title="Use your calibrated Brand Voice"
+                                                        >
+                                                            <Fingerprint size={12} />
+                                                            <span>{brandProfile.name || "My Brand"}</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setUseBrandVoice(false)}
+                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${!useBrandVoice
+                                                                ? 'bg-gray-700 text-white shadow-lg'
+                                                                : 'text-gray-500 hover:text-gray-300'
+                                                                }`}
+                                                            title="Switch to General Mode (No Niche Bias)"
+                                                        >
+                                                            <Globe size={12} />
+                                                            <span>General</span>
+                                                        </button>
                                                     </div>
+
                                                 </div>
                                             )}
                                             {attachedImage && (

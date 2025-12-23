@@ -8,6 +8,7 @@ import {
 import { BrandProfile } from '../types';
 import { analyzeBrandVoice } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
+import { VoiceRadarChart } from './VoiceRadarChart';
 
 interface BrandProfileModalProps {
     currentProfile: BrandProfile | null;
@@ -50,6 +51,11 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [sliders, setSliders] = useState({ tone: 50, emoji: 50, length: 50 });
     const [links, setLinks] = useState<string[]>(['', '']); // Up to 2 links
 
+    // Granular Preferences
+    const [postLength, setPostLength] = useState<'short' | 'medium' | 'long'>('medium');
+    const [detailLevel, setDetailLevel] = useState<'minimal' | 'balanced' | 'deep'>('balanced');
+    const [innovationFactor, setInnovationFactor] = useState<'safe' | 'balanced' | 'unique'>('balanced');
+
     // Populare Data
     useEffect(() => {
         if (currentProfile) {
@@ -80,6 +86,11 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             } else {
                 setLinks(['', '']);
             }
+
+            // Load Preferences
+            setPostLength(currentProfile.postLength || 'medium');
+            setDetailLevel(currentProfile.detailLevel || 'balanced');
+            setInnovationFactor(currentProfile.innovationFactor || 'balanced');
         }
     }, [currentProfile]);
 
@@ -159,7 +170,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             toneScore: sliders.tone,
             emojiScore: sliders.emoji,
             lengthScore: sliders.length,
-            links: links.filter(link => link.trim().length > 0) // Only save non-empty links
+            links: links.filter(link => link.trim().length > 0),
+
+            // New Fields
+            postLength,
+            detailLevel,
+            innovationFactor
         };
 
         try {
@@ -306,11 +322,25 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                     </button>
                                 </div>
 
-                                <div className="bg-[#161b22] border border-gray-800 rounded-xl p-4 md:p-6 space-y-6">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Voice Profile</h3>
-                                    <SliderControl label="Tone" leftLabel="Casual" rightLabel="Formal" value={sliders.tone} onChange={(val: number) => setSliders({ ...sliders, tone: val })} />
-                                    <SliderControl label="Emoji" leftLabel="None" rightLabel="Heavy" value={sliders.emoji} onChange={(val: number) => setSliders({ ...sliders, emoji: val })} />
-                                    <SliderControl label="Length" leftLabel="Short" rightLabel="Long" value={sliders.length} onChange={(val: number) => setSliders({ ...sliders, length: val })} />
+                                <div className="bg-[#161b22] border border-gray-800 rounded-xl p-4 md:p-6">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Voice Analysis</h3>
+                                        <span className="text-[10px] text-blue-400 bg-blue-900/20 px-2 py-1 rounded border border-blue-500/30">AI Calibrated</span>
+                                    </div>
+
+                                    <div className="flex flex-col md:flex-row items-center gap-8">
+                                        {/* Visualization */}
+                                        <div className="w-full md:w-1/2 flex justify-center bg-[#0a0c10] rounded-xl border border-gray-800 py-4 shadow-inner">
+                                            <VoiceRadarChart tone={sliders.tone} emoji={sliders.emoji} length={sliders.length} />
+                                        </div>
+
+                                        {/* Controls */}
+                                        <div className="w-full md:w-1/2 space-y-6">
+                                            <SliderControl label="Tone" leftLabel="Casual / Friendly" rightLabel="Formal / Professional" value={sliders.tone} onChange={(val: number) => setSliders({ ...sliders, tone: val })} color="blue" />
+                                            <SliderControl label="Emoji Usage" leftLabel="Minimal" rightLabel="Heavy" value={sliders.emoji} onChange={(val: number) => setSliders({ ...sliders, emoji: val })} color="purple" />
+                                            <SliderControl label="Sentence Length" leftLabel="Short / Punchy" rightLabel="Long / Detailed" value={sliders.length} onChange={(val: number) => setSliders({ ...sliders, length: val })} color="indigo" />
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -435,6 +465,34 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         <option>No CTA (Pure Value)</option>
                                     </select>
                                 </div>
+
+                                {/* GRANULAR PREFERENCES SECTION */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-gray-800 pt-6">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Post Length</label>
+                                        <select value={postLength} onChange={(e: any) => setPostLength(e.target.value)} className="w-full bg-[#161b22] border border-gray-700 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                                            <option value="short">Short (Punchy)</option>
+                                            <option value="medium">Medium (Standard)</option>
+                                            <option value="long">Long (Deep Dive)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Detail Level</label>
+                                        <select value={detailLevel} onChange={(e: any) => setDetailLevel(e.target.value)} className="w-full bg-[#161b22] border border-gray-700 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                                            <option value="minimal">Minimalist</option>
+                                            <option value="balanced">Balanced</option>
+                                            <option value="deep">Deep / Education</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Creativity</label>
+                                        <select value={innovationFactor} onChange={(e: any) => setInnovationFactor(e.target.value)} className="w-full bg-[#161b22] border border-gray-700 rounded-lg py-2.5 px-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                                            <option value="safe">Safe (Corporate)</option>
+                                            <option value="balanced">Balanced</option>
+                                            <option value="unique">Unique / Risky</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -457,12 +515,23 @@ function TabButton({ label, isActive, onClick }: { label: string, isActive: bool
     return <button onClick={onClick} className={`flex-1 py-4 text-sm font-medium border-b-2 transition duration-200 ${isActive ? 'border-blue-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>{label}</button>
 }
 
-function SliderControl({ label, leftLabel, rightLabel, value, onChange }: any) {
+function SliderControl({ label, leftLabel, rightLabel, value, onChange, color = 'blue' }: any) {
+    const colorClass = color === 'purple' ? 'accent-purple-500 text-purple-400' : (color === 'indigo' ? 'accent-indigo-500 text-indigo-400' : 'accent-blue-600 text-blue-400');
+
     return (
         <div>
-            <div className="flex justify-between mb-2"><span className="text-sm font-medium text-white">{label}</span><span className="text-xs font-bold text-blue-400">{value}%</span></div>
-            <input type="range" min="0" max="100" value={value} onChange={(e) => onChange(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-            <div className="flex justify-between mt-1.5"><span className="text-[10px] text-gray-500 uppercase">{leftLabel}</span><span className="text-[10px] text-gray-500 uppercase">{rightLabel}</span></div>
+            <div className="flex justify-between mb-2">
+                <span className="text-sm font-medium text-white flex items-center gap-2">
+                    {label}
+                </span>
+                <span className={`text-xs font-bold ${color === 'purple' ? 'text-purple-400' : (color === 'indigo' ? 'text-indigo-400' : 'text-blue-400')}`}>{value}%</span>
+            </div>
+            <div className="relative h-2 bg-gray-700 rounded-lg">
+                <div className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${color === 'purple' ? 'bg-purple-600' : (color === 'indigo' ? 'bg-indigo-600' : 'bg-blue-600')}`} style={{ width: `${value}%` }}></div>
+                <input type="range" min="0" max="100" value={value} onChange={(e) => onChange(parseInt(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 pointer-events-none transition-all duration-100 ${color === 'purple' ? 'border-purple-600' : (color === 'indigo' ? 'border-indigo-600' : 'border-blue-600')}`} style={{ left: `calc(${value}% - 8px)` }}></div>
+            </div>
+            <div className="flex justify-between mt-2"><span className="text-[10px] text-gray-500 uppercase font-medium">{leftLabel}</span><span className="text-[10px] text-gray-500 uppercase font-medium">{rightLabel}</span></div>
         </div>
     )
 }

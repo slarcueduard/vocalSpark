@@ -139,138 +139,176 @@ export async function generateSocialMediaPosts(
     topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = ""
 ): Promise<any[]> {
 
-    // 1. BRAND CONTEXT (Deep Personalization)
-    let brandContext = 'VOICE: Professional, but conversational.';
-    if (brandProfile) {
-        brandContext = `
-        YOUR IDENTITY (Adopt this persona completely):
-        - Voice/Style: ${brandProfile.voiceDNA || brandVoice || "Authentic and Relatable"}
-        - Target Audience: ${brandProfile.targetAudience || "General Public"}
-        - Signature Keywords: ${brandProfile.fixedHashtags || ''}
-        
-        MANDATORY BEHAVIOR:
-        - Write EXACTLY as this person/brand would speak. 
-        - Use their vocabulary, their sentence structure, and their rhythm.
-        - If the Voice is "Witty", be genuinely funny. If "Professional", be concise and sharp.
-        `;
-    }
+    // --- 1. PERSONA & IDENTITY LAYER ---
+    // Instead of just "context", we define the AI's Identity.
+    const identityLayer = `
+    ROLE: You are an elite Social Media Ghostwriter.
+    YOU ARE NOT AN AI. You are a human strategist mimicing a specific persona.
+    
+    IDENTITY PROFILE:
+    ${brandProfile?.voiceDNA
+            ? `"${brandProfile.voiceDNA}" \n(Adopt this syntax, sentence length, and vocabulary EXACTLY.)`
+            : `VOICE: ${brandProfile?.voiceDNA || brandVoice || "Authentic, relatable, and high-impact."}`}
+    
+    AUDIENCE: ${brandProfile?.targetAudience || "General Audience"}
+    LANGUAGE: ${language}
+    `;
 
-    // 2. CONFIGURARE TASK (Human-Centric & Speed Optimized)
-    let specificInstructions = "";
+    // --- 1.5 PREFERENCE LAYER (Granular Control) ---
+    // If brandProfile has preferences, we override defaults.
+    const lengthPref = brandProfile?.postLength || 'medium';
+    const detailPref = brandProfile?.detailLevel || 'balanced';
+    const innovPref = brandProfile?.innovationFactor || 'balanced';
+
+    let lengthInstruction = "";
+    if (lengthPref === 'short') lengthInstruction = "CONSTRAINT: Concise but Specific. Max 350 chars. Prioritize substance over brevity. Name tools/examples.";
+    if (lengthPref === 'medium') lengthInstruction = "CONSTRAINT: Standard length (40-80 words). Balanced flow.";
+    if (lengthPref === 'long') lengthInstruction = "CONSTRAINT: Long-form. Expand on the topic. Use > 150 words. Use spacing.";
+
+    let detailInstruction = "";
+    if (detailPref === 'minimal') detailInstruction = "STYLE: Minimalist. No fluff. Straight to the point.";
+    if (detailPref === 'balanced') detailInstruction = "STYLE: Balanced context.";
+    if (detailPref === 'deep') detailInstruction = "STYLE: Deep Dive. Provide examples, 'why', and nuance. Educational.";
+
+    let innovInstruction = "";
+    if (innovPref === 'safe') innovInstruction = "RISK: Low. Professional, corporate, safe.";
+    if (innovPref === 'balanced') innovInstruction = "RISK: Medium. Engaging.";
+    if (innovPref === 'unique') innovInstruction = "RISK: High. Polarizing, metaphor-heavy, unconventional structure. BREAK PATTERNS.";
+
+    const preferenceLayer = `
+    PREFERENCES:
+    - ${lengthInstruction}
+    - ${detailInstruction}
+    - ${innovInstruction}
+    `;
+
+    // --- 2. OBJECTIVE & STRATEGY LAYER ---
+    let strategyLayer = "";
 
     if (isCampaign) {
-        specificInstructions = `
-        TASK: Create a ${postCount}-part Campaign Sequence.
+        strategyLayer = `
+        MODE: CAMPAIGN_SEQUENCE (${postCount} Posts)
         TOPIC: "${topic}"
         GOAL: ${objective}
+        STRUCTURE:
+        - Post 1 (The Hook): Mystery, intrigue, short impactful statements.
+        - Post ${postCount > 2 ? '2-' + (postCount - 1) : '2'} (The Value): Education, "how-to", or deeper insight.
+        - Post ${postCount} (The Close): Soft sell or Call-to-Action.
         
-        HUMAN STRATEGY:
-        - Treat this as a story unfolding over ${postCount} posts.
-        - Post 1: Hook the reader (short, intriguing).
-        - Middle Posts: Add value/insight (don't lecture).
-        - Last Post: Call to action (natural, not salesy).
-        
-        CONSTRAINT: Keep each post UNDER 60 WORDS. Be punchy. 
-        REQUIRED OUTPUT: A JSON Array with exactly ${postCount} objects.
+        CRITICAL: Each post must flow into the next but stand alone.
         `;
     } else if (isRemix) {
-        specificInstructions = `
-        TASK: Remix content into ${remixFormats.length} distinct native formats: ${remixFormats.join(', ')}.
-        SOURCE: "${topic}"
-        CONSTRAINT: Adapt specifically to the culture of each platform (e.g., LinkedIn = Professional insight, Twitter = punchy thread).
-        REQUIRED OUTPUT: A JSON Array with ${remixFormats.length} objects.
-        `;
-    } else if (isFollowUp) {
-        specificInstructions = `
-        TASK: Write a direct SEQUEL (Part 2) to the source text.
-        SOURCE: "${parentContent.substring(0, 800)}"
+        strategyLayer = `
+        MODE: REMIX_CONTENT
+        SOURCE MATERIAL: "${topic}"
+        FORMATS REQUIRED: ${remixFormats.join(', ')}
         
         INSTRUCTIONS:
-        - Continue the story/topic naturally.
-        - Match the exact tone and style.
-        - Start with a transition like "Furthermore..." or "Update:".
-        
-        OUTPUT FORMAT: JSON Array with 1 object.
+        - ADAPT the source material to fit the NATIVE CULTURE of each platform.
+        - LinkedIn: Professional/Editorial, longer form, line spacing.
+        - Twitter/X: Punchy, thread-style, no fluff.
+        - Instagram: Visual-first caption, friendly, lots of emojis.
+        `;
+    } else if (isFollowUp) {
+        strategyLayer = `
+        MODE: SEQUEL_GENERATION
+        SOURCE CONTEXT: "${parentContent.substring(0, 800)}"
+        TASK: Write Part 2 / Follow-up.
+        CONSTRAINT: Match the exact tone of the source. Start with a transition (e.g., "That said...", "Update:").
         `;
     } else {
-        specificInstructions = `
-        TASK: Ghostwrite ${postCount} viral social media posts.
+        // Single / Standard
+        strategyLayer = `
+        MODE: SINGLE_POSTS_BATCH
         TOPIC: "${topic}"
+        QUANTITY: ${postCount} Distinct Options
         GOAL: ${objective}
         
-        HUMAN RULES:
-        - NO predictable AI patterns (e.g., "In this fast-paced world...").
-        - NO bullet points unless absolutely necessary.
-        - Vary sentence length. Use fragments. Be real.
-        - LIMIT: Max 280 characters per post (unless LinkedIn is specified).
-        
-        REQUIRED OUTPUT: A JSON Array with ${postCount} objects.
+        STYLES TO GENERATE:
+        1. The Storyteller (Personal anecdote style)
+        2. The Contrarian (Hot take / "Unpopular opinion")
+        3. The Value Bomb (Actionable list or tip)
+        (Ensure variety in structures)
         `;
     }
 
+    // --- 3. CONSTRAINT & FORMATTING LAYER ---
     const systemPrompt = `
-    ROLE: You are an elite Social Media Ghostwriter. You write like a HUMAN, not an AI.
-    LANGUAGE: ${language}
+    ${identityLayer}
+
+    ${preferenceLayer}
+
+    ${strategyLayer}
+
+    GLOBAL CONSTRAINTS:
+    1. SPECIFICITY RULE: NEVER be generic. If you mention a strategy, tool, or method, NAME IT SPECIFICALLY (e.g., instead of 'use AI tools', say 'use ChatGPT or Claude').
+    2. NO "AI FLUFF": Never use words like "delve", "unlock", "elevate", "game-changer", "transformative".
+    2. FORMATTING: Use short paragraphs. Variable sentence length. 1-2 sentence hooks.
+    3. FORCE JSON: Return ONLY a raw JSON array.
     
-    CRITICAL "ANTI-BOT" RULES:
-    1. NEVER start with "Here are..." or "In this post...".
-    2. NEVER use buzzwords like "delve", "unlock", "elevate", "game-changer" unless sarcastic.
-    3. WRITE LIKE A HUMAN: Use casual transitions, ask questions, be opinionated.
-    4. LENGTH PRIORITY: SHORT IS BETTER. Kill the fluff.
-    
-    ${brandContext}
-    
-    ${specificInstructions}
-    
-    RETURN ONLY RAW JSON ARRAY:
+    OUTPUT SCHEMA:
     [
       {
-        "platform": "Generic",
-        "content": "Text...",
-        "imagePrompt": "Visual..."
+        "platform": "Generic", 
+        "content": "The actual post text...",
+        "imagePrompt": "Description for an image...",
+        "type": "${isCampaign ? 'campaign' : (isRemix ? 'remix' : 'single')}"
       }
     ]
     `;
 
+    // --- 4. EXECUTION ---
     try {
-        const data = await safeFetch('/api/generate-text', {
-            prompt: systemPrompt,
-            // Nu mai trimitem contextul separat pentru a reduce latenta, totul e in prompt
-            // Dar pastram parametrii tehnici
-            language: language,
-            imageBase64, imageMimeType, objective, useRealTime,
-            isCampaign, postCount, isRemix, remixFormats,
-            isFollowUp, parentContent
-        });
+        const payload: any = {
+            prompt: systemPrompt, // We inject the fully constructed prompt
+            // Pass metadata for logging/tracking purposes, though the prompt contains the logic
+            language,
+            objective,
+            useRealTime,
+            isCampaign,
+            postCount,
+            isRemix,
+            remixFormats,
+            isFollowUp,
+            parentContent
+        };
 
+        // Pass image data only if relevant
+        if (imageBase64) {
+            payload.imageBase64 = imageBase64;
+            payload.imageMimeType = imageMimeType;
+        }
+
+        const data = await safeFetch('/api/generate-text', payload);
         const parsed = extractJsonArray(data.output);
 
         if (parsed.length === 0) {
-            throw new Error("AI returned empty content. Try a shorter topic.");
+            throw new Error("AI returned empty content. Try a different topic.");
         }
 
-        if (Array.isArray(parsed)) {
-            return parsed.map((p: any, index: number) => {
-                let content = p.content || p.post || p.text || p.body || p;
-                if (typeof content !== 'string') content = JSON.stringify(content);
+        // --- 5. POST-PROCESSING (Failsafe) ---
+        return parsed.map((p: any, index: number) => {
+            let content = p.content || p.post || p.text || p.body || p;
+            if (typeof content !== 'string') content = JSON.stringify(content);
 
-                let platform = p.platform || 'Generic';
-                if (isRemix && remixFormats[index]) platform = remixFormats[index];
+            // Fix formatting quirks common in AI
+            content = content.replace(/^["']|["']$/g, ''); // Remove surrounding quotes if any
 
-                return {
-                    content: content,
-                    type: isCampaign ? 'campaign' : (isRemix ? 'remix' : 'single'),
-                    platform: platform
-                };
-            });
-        }
-        return [];
+            let platform = p.platform || 'Generic';
+            if (isRemix && remixFormats[index]) platform = remixFormats[index];
+
+            return {
+                content: content,
+                type: isCampaign ? 'campaign' : (isRemix ? 'remix' : 'single'),
+                platform: platform,
+                topic: topic // Preserve context
+            };
+        });
 
     } catch (e: any) {
         console.error("Gemini Generation Error:", e);
-        // Mesaj prietenos pentru utilizator in caz de timeout
         if (e.message.includes("504")) {
-            throw new Error("Request timed out. Try generating fewer posts (e.g. 3) or use a simpler topic.");
+            throw new Error("Request timed out. Try fewer posts.");
         }
         throw new Error(e.message || "Failed to generate posts.");
     }
