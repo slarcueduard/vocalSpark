@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount, isFollowUp, parentContent } = req.body;
+    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount, isFollowUp, parentContent, isReply } = req.body;
 
     // 1. CALCUL COST
     let count = 1;
@@ -60,6 +60,26 @@ export default async function handler(req, res) {
         TASK: Create a ${count}-post campaign.
         STRUCTURE: { "posts": [{"content": "Post 1..."}, {"content": "Post 2..."}] }
         `;
+    } else if (isReply) {
+      const { useEmojis, question, link } = req.body.replyOptions || {};
+      systemPrompt += `
+        TASK: Write a reply to the provided content.
+        CRITICAL: MATCH THE TONE AND VOICE OF THE BRAND CONTEXT EXACTLY.
+        `;
+
+      if (useEmojis) systemPrompt += `\nINSTRUCTION: Use relevant emojis to make the reply engaging and friendly.`;
+      if (question === true || question === 'true') {
+        systemPrompt += `\nINSTRUCTION: End the reply with an engaging question relevant to the context to encourage further conversation.`;
+      } else if (typeof question === 'string' && question.length > 0) {
+        systemPrompt += `\nINSTRUCTION: End the reply with this specific question: "${question}"`;
+      } else {
+        systemPrompt += `\nCONSTRAINT: Do NOT ask a question. End the reply with a statement.`;
+      }
+      if (link) systemPrompt += `\nINSTRUCTION: Seamlessly include this link in the reply: "${link}"`;
+
+      systemPrompt += `\nCONSTRAINT: Do NOT include any hashtags (#). This is a direct reply.`;
+      systemPrompt += `\nSTRUCTURE: { "posts": [{"content": "The reply text..."}] }`;
+      userMessage = `Original Content to Reply to: ${prompt}`;
     } else if (isFollowUp) {
       systemPrompt += `
         TASK: Write a logical follow-up/sequel to the provided SOURCE content.

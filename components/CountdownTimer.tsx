@@ -75,12 +75,12 @@ export function CountdownTimer({ endDate, onExpire, compact = false }: Countdown
 function TimeUnit({ value, label }: { value: number; label: string }) {
     return (
         <div className="flex flex-col items-center">
-            <div className="bg-gradient-to-br from-orange-600 to-red-600 text-white rounded-lg px-3 py-2 min-w-[60px] text-center shadow-lg">
-                <span className="font-mono text-2xl font-bold">
+            <div className="bg-gradient-to-br from-orange-600 to-red-600 text-white rounded-lg px-2 py-1 md:px-3 md:py-2 min-w-[40px] md:min-w-[60px] text-center shadow-lg">
+                <span className="font-mono text-lg md:text-2xl font-bold">
                     {String(value).padStart(2, '0')}
                 </span>
             </div>
-            <span className="text-[10px] text-gray-400 uppercase tracking-wider mt-1 font-bold">
+            <span className="text-[8px] md:text-[10px] text-gray-400 uppercase tracking-wider mt-1 font-bold">
                 {label}
             </span>
         </div>

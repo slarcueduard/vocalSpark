@@ -8,7 +8,7 @@ export const NewsletterSignup: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email.trim() && email.includes('@')) { 
+    if (email.trim() && email.includes('@')) {
       console.log(`Subscribing with email: ${email}`);
       setSubmitted(true);
       // In a real application, you would call an API to your email marketing service here.
@@ -25,9 +25,9 @@ export const NewsletterSignup: React.FC = () => {
         <MailIcon className="w-12 h-12 mx-auto text-brand-secondary mb-4" />
         <h3 className="text-2xl font-bold text-brand-text mb-2">Stay Ahead of the Curve</h3>
         <p className="text-brand-text-secondary mb-6">
-          Subscribe to our newsletter for the latest AI trends, social media marketing tips, and exclusive updates on new Social Spark AI features.
+          Subscribe to our newsletter for the latest AI trends, social media marketing tips, and exclusive updates on new Vocal Spark features.
         </p>
-        
+
         {submitted ? (
           <div className="flex items-center justify-center gap-2 text-brand-primary h-12">
             <CheckCircleIcon className="w-6 h-6" />

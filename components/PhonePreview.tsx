@@ -1,10 +1,10 @@
 import React from 'react';
 import { Platform } from '../types';
-import { 
-    HeartIcon, 
-    MessageCircleIcon, 
-    SendIcon, 
-    BookmarkIcon, 
+import {
+    HeartIcon,
+    MessageCircleIcon,
+    SendIcon,
+    BookmarkIcon,
     RepeatIcon,
     CheckCircleIcon,
     XIcon,
@@ -25,30 +25,30 @@ interface PhonePreviewProps {
     userImage?: string | null;
 }
 
-export const PhonePreview: React.FC<PhonePreviewProps> = ({ 
-    content, 
-    imageUrl, 
-    platform, 
+export const PhonePreview: React.FC<PhonePreviewProps> = ({
+    content,
+    imageUrl,
+    platform,
     isGenerating,
     isImageGenerating,
     topic,
     userName,
     userImage
 }) => {
-    
+
     const displayContent = isGenerating ? "✨ AI is drafting your masterpiece..." : (content || `Your ${platform} post about "${topic}" will appear here.`);
-    const displayUser = userName || "Social Spark User";
-    const displayHandle = userName ? `@${userName.replace(/\s+/g, '').toLowerCase()}` : "@socialspark";
+    const displayUser = userName || "Vocal Spark User";
+    const displayHandle = userName ? `@${userName.replace(/\s+/g, '').toLowerCase()}` : "@vocalspark";
 
     // --- PLATFORM RENDERERS ---
 
     const renderInstagram = () => (
         <div className="flex flex-col h-full bg-white text-black font-sans overflow-hidden">
-             {/* Header */}
+            {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
-                       {userImage && <img src={userImage} alt="user" className="w-full h-full object-cover" />}
+                        {userImage && <img src={userImage} alt="user" className="w-full h-full object-cover" />}
                     </div>
                     <span className="text-sm font-semibold">{displayHandle.substring(1)}</span>
                 </div>
@@ -61,8 +61,8 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
                     <img src={imageUrl} alt="Post" className="w-full h-full object-cover" />
                 ) : isImageGenerating ? (
                     <div className="flex flex-col items-center gap-2">
-                         <Loader size="md" />
-                         <span className="text-xs text-gray-500">Generating Image...</span>
+                        <Loader size="md" />
+                        <span className="text-xs text-gray-500">Generating Image...</span>
                     </div>
                 ) : (
                     <div className="text-gray-300 text-6xl">📷</div>
@@ -98,8 +98,8 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
             <div className="bg-white mt-4 p-4 shadow-sm h-full flex flex-col">
                 {/* Header */}
                 <div className="flex gap-3 mb-3 flex-shrink-0">
-                     <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
-                       {userImage && <img src={userImage} alt="user" className="w-full h-full object-cover" />}
+                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
+                        {userImage && <img src={userImage} alt="user" className="w-full h-full object-cover" />}
                     </div>
                     <div>
                         <h4 className="font-bold text-sm leading-tight">{displayUser}</h4>
@@ -115,13 +115,13 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
                 </div>
 
                 {/* Image */}
-                 <div className="w-full aspect-video bg-gray-100 flex items-center justify-center overflow-hidden rounded mb-3 border border-gray-200 relative flex-shrink-0">
+                <div className="w-full aspect-video bg-gray-100 flex items-center justify-center overflow-hidden rounded mb-3 border border-gray-200 relative flex-shrink-0">
                     {imageUrl ? (
                         <img src={imageUrl} alt="Post" className="w-full h-full object-cover" />
                     ) : isImageGenerating ? (
                         <div className="flex flex-col items-center gap-2">
-                             <Loader size="md" />
-                             <span className="text-xs text-gray-500">Generating...</span>
+                            <Loader size="md" />
+                            <span className="text-xs text-gray-500">Generating...</span>
                         </div>
                     ) : (
                         <div className="text-gray-300 text-4xl">🖼️</div>
@@ -130,28 +130,28 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
 
                 {/* Actions */}
                 <div className="border-t border-gray-200 pt-2 flex justify-between px-2 mt-auto pb-4">
-                     <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
-                         <div className="flex items-center gap-1"><span className="text-lg">👍</span> <span className="text-xs font-semibold">Like</span></div>
-                     </button>
-                     <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
-                         <div className="flex items-center gap-1"><span className="text-lg">💬</span> <span className="text-xs font-semibold">Comment</span></div>
-                     </button>
-                      <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
-                         <div className="flex items-center gap-1"><span className="text-lg">🔁</span> <span className="text-xs font-semibold">Repost</span></div>
-                     </button>
-                      <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
-                         <div className="flex items-center gap-1"><span className="text-lg">🚀</span> <span className="text-xs font-semibold">Send</span></div>
-                     </button>
+                    <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
+                        <div className="flex items-center gap-1"><span className="text-lg">👍</span> <span className="text-xs font-semibold">Like</span></div>
+                    </button>
+                    <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
+                        <div className="flex items-center gap-1"><span className="text-lg">💬</span> <span className="text-xs font-semibold">Comment</span></div>
+                    </button>
+                    <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
+                        <div className="flex items-center gap-1"><span className="text-lg">🔁</span> <span className="text-xs font-semibold">Repost</span></div>
+                    </button>
+                    <button className="flex flex-col items-center gap-1 text-gray-500 hover:text-blue-600">
+                        <div className="flex items-center gap-1"><span className="text-lg">🚀</span> <span className="text-xs font-semibold">Send</span></div>
+                    </button>
                 </div>
             </div>
         </div>
     );
 
     const renderX = () => (
-         <div className="flex flex-col h-full bg-black text-white font-sans overflow-hidden p-4">
+        <div className="flex flex-col h-full bg-black text-white font-sans overflow-hidden p-4">
             {/* Header */}
             <div className="flex gap-3 mb-2">
-                 <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-gray-700 flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-gray-700 flex-shrink-0">
                     {userImage && <img src={userImage} alt="user" className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex-grow">
@@ -160,54 +160,54 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
                         <CheckCircleIcon className="w-3 h-3 text-blue-400" />
                         <span className="text-gray-500 text-sm">{displayHandle} · 2h</span>
                     </div>
-                    
+
                     {/* Text */}
                     <div className="text-[15px] leading-normal mb-3 whitespace-pre-wrap">
                         {displayContent}
                     </div>
 
-                     {/* Image */}
+                    {/* Image */}
                     <div className="w-full aspect-video bg-gray-900 flex items-center justify-center overflow-hidden rounded-2xl border border-gray-800 relative mb-3">
                         {imageUrl ? (
                             <img src={imageUrl} alt="Post" className="w-full h-full object-cover" />
                         ) : isImageGenerating ? (
-                             <div className="flex flex-col items-center gap-2">
-                                 <Loader size="sm" />
+                            <div className="flex flex-col items-center gap-2">
+                                <Loader size="sm" />
                             </div>
                         ) : null}
                     </div>
 
                     {/* Actions */}
-                     <div className="flex justify-between text-gray-500 max-w-md">
-                         <MessageCircleIcon className="w-4 h-4" />
-                         <RepeatIcon className="w-4 h-4" />
-                         <HeartIcon className="w-4 h-4" />
-                         <div className="flex gap-3">
-                             <BookmarkIcon className="w-4 h-4" />
-                             <div className="w-4 h-4" /> 
-                         </div>
-                     </div>
+                    <div className="flex justify-between text-gray-500 max-w-md">
+                        <MessageCircleIcon className="w-4 h-4" />
+                        <RepeatIcon className="w-4 h-4" />
+                        <HeartIcon className="w-4 h-4" />
+                        <div className="flex gap-3">
+                            <BookmarkIcon className="w-4 h-4" />
+                            <div className="w-4 h-4" />
+                        </div>
+                    </div>
                 </div>
             </div>
-         </div>
+        </div>
     );
 
     const renderFacebook = () => (
         <div className="flex flex-col h-full bg-[#F0F2F5] text-black font-sans overflow-hidden">
-             {/* Header Bar */}
-             <div className="bg-white px-4 py-3 flex justify-between items-center shadow-sm">
+            {/* Header Bar */}
+            <div className="bg-white px-4 py-3 flex justify-between items-center shadow-sm">
                 <span className="font-bold text-blue-600">facebook</span>
                 <div className="flex gap-3">
                     <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">🔍</div>
                     <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">💬</div>
                 </div>
-             </div>
+            </div>
 
-             {/* Post Card */}
-             <div className="bg-white mt-3 pb-2 h-full flex flex-col">
+            {/* Post Card */}
+            <div className="bg-white mt-3 pb-2 h-full flex flex-col">
                 <div className="flex items-center gap-2 p-3">
-                     <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
-                       {userImage && <img src={userImage} alt="user" className="w-full h-full object-cover" />}
+                    <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden border border-gray-300">
+                        {userImage && <img src={userImage} alt="user" className="w-full h-full object-cover" />}
                     </div>
                     <div>
                         <h4 className="font-bold text-sm text-gray-900">{displayUser}</h4>
@@ -229,20 +229,20 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
                     {imageUrl ? (
                         <img src={imageUrl} alt="Post" className="w-full h-full object-cover" />
                     ) : isImageGenerating ? (
-                         <div className="flex flex-col items-center gap-2">
-                             <Loader size="md" />
-                             <span className="text-xs text-gray-500">Generating...</span>
+                        <div className="flex flex-col items-center gap-2">
+                            <Loader size="md" />
+                            <span className="text-xs text-gray-500">Generating...</span>
                         </div>
                     ) : (
-                         <div className="text-gray-300 text-6xl">📷</div>
+                        <div className="text-gray-300 text-6xl">📷</div>
                     )}
                 </div>
-                
+
                 {/* Engagement Stats */}
                 <div className="px-3 py-2 flex justify-between text-xs text-gray-500 border-b border-gray-200">
                     <div className="flex items-center gap-1">
-                         <div className="bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px]">👍</div>
-                         <span>124</span>
+                        <div className="bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px]">👍</div>
+                        <span>124</span>
                     </div>
                     <div className="flex gap-2">
                         <span>32 comments</span>
@@ -256,13 +256,13 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
                         <span>👍</span> Like
                     </button>
                     <button className="flex items-center gap-2 text-gray-600 font-semibold text-sm">
-                         <span>💬</span> Comment
+                        <span>💬</span> Comment
                     </button>
-                     <button className="flex items-center gap-2 text-gray-600 font-semibold text-sm">
-                         <span>↗️</span> Share
+                    <button className="flex items-center gap-2 text-gray-600 font-semibold text-sm">
+                        <span>↗️</span> Share
                     </button>
                 </div>
-             </div>
+            </div>
         </div>
     );
 
@@ -273,11 +273,11 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
                 {imageUrl ? (
                     <img src={imageUrl} alt="TikTok Background" className="w-full h-full object-cover opacity-90" />
                 ) : isImageGenerating ? (
-                     <div className="flex flex-col items-center gap-2">
-                         <Loader size="lg" />
+                    <div className="flex flex-col items-center gap-2">
+                        <Loader size="lg" />
                     </div>
                 ) : (
-                     <div className="text-gray-700 text-6xl">🎵</div>
+                    <div className="text-gray-700 text-6xl">🎵</div>
                 )}
             </div>
 
@@ -299,15 +299,15 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
                         <HeartIcon className="w-8 h-8 fill-white text-white" />
                         <span className="text-xs font-bold">12.5K</span>
                     </div>
-                     <div className="flex flex-col items-center gap-1">
+                    <div className="flex flex-col items-center gap-1">
                         <MessageCircleIcon className="w-8 h-8 text-white fill-white" />
                         <span className="text-xs font-bold">482</span>
                     </div>
-                     <div className="flex flex-col items-center gap-1">
+                    <div className="flex flex-col items-center gap-1">
                         <BookmarkIcon className="w-8 h-8 text-white fill-white" />
                         <span className="text-xs font-bold">1.2K</span>
                     </div>
-                     <div className="flex flex-col items-center gap-1">
+                    <div className="flex flex-col items-center gap-1">
                         <div className="w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center animate-spin-slow">
                             <span>💿</span>
                         </div>
@@ -336,7 +336,7 @@ export const PhonePreview: React.FC<PhonePreviewProps> = ({
         <div className="w-[320px] h-[640px] bg-black rounded-[3rem] p-3 shadow-2xl border-[6px] border-gray-800 relative mx-auto transition-transform hover:scale-[1.01]">
             {/* Notch */}
             <div className="absolute top-0 left-1/2 transform -translate-x-1/2 h-6 w-32 bg-black rounded-b-xl z-20"></div>
-            
+
             {/* Screen */}
             <div className="w-full h-full bg-white rounded-[2.25rem] overflow-hidden relative z-10">
                 {platform === Platform.Instagram && renderInstagram()}

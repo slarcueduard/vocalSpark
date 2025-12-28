@@ -104,15 +104,15 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
             {/* --- NAVIGATION --- */}
             <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0f1115]/80 backdrop-blur-md border-b border-gray-800/50">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 flex items-center justify-center">
-                            <img src="/social-spark-logo.png" alt="Social Spark" className="w-full h-full object-contain scale-125" />
+                        <div className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center">
+                            <img src="/social-spark-logo.png" alt="Vocal Spark" className="w-full h-full object-contain scale-[1.8]" />
                         </div>
-                        <span className="text-lg font-bold tracking-tight">Social Spark</span>
+                        <span className="text-base md:text-lg font-bold tracking-tight">Vocal Spark</span>
                     </div>
                     <div className="flex gap-4">
-                        <button onClick={() => setShowDocs(true)} className="text-sm text-gray-300 hover:text-white font-medium transition">Docs</button>
+                        <button onClick={() => setShowDocs(true)} className="hidden md:block text-sm text-gray-300 hover:text-white font-medium transition">Docs</button>
                         <button onClick={onLogin} className="text-sm text-gray-300 hover:text-white font-medium transition">Log in</button>
                         <button
                             onClick={() => {
@@ -120,7 +120,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                                 const pricingSection = document.getElementById('pricing');
                                 pricingSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                             }}
-                            className="px-5 py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white text-sm font-bold rounded-lg hover:from-orange-500 hover:to-red-500 transition shadow-lg"
+                            className="px-3 py-1.5 md:px-5 md:py-2 bg-gradient-to-r from-orange-600 to-red-600 text-white text-xs md:text-sm font-bold rounded-lg hover:from-orange-500 hover:to-red-500 transition shadow-lg"
                         >
                             Become a Founder
                         </button>
@@ -210,7 +210,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Dominate Every Channel.</span>
                         </h2>
                         <p className="text-lg text-gray-400 leading-relaxed">
-                            Social Spark AI isn't just a writer. It's a strategist, designer, and scheduler wrapped into one coherent workspace.
+                            Vocal Spark isn't just a writer. It's a strategist, designer, and scheduler wrapped into one coherent workspace.
                         </p>
                     </div>
 
@@ -304,7 +304,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
 
                 {/* 1. LIFETIME DEAL BANNER with COUNTDOWN */}
                 <div className="max-w-4xl mx-auto mb-16 p-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
-                    <div className="bg-[#161b22] rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden">
+                    <div className="bg-[#161b22] rounded-2xl p-4 md:p-8 flex flex-col gap-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] -z-10" />
 
                         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -403,8 +403,8 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                         {/* Brand Column */}
                         <div className="md:col-span-2">
                             <div className="flex items-center gap-2 mb-4">
-                                <img src="/social-spark-logo.png" alt="Social Spark AI" className="w-8 h-8 object-contain" />
-                                <span className="font-bold text-white text-lg">Social Spark AI</span>
+                                <img src="/social-spark-logo.png" alt="Vocal Spark" className="w-8 h-8 object-contain scale-[1.8]" />
+                                <span className="font-bold text-white text-lg">Vocal Spark</span>
                             </div>
                             <p className="text-gray-400 text-sm mb-6 max-w-md">
                                 The only AI workspace that remembers your brand DNA and creates consistent, on-brand content. Stop sounding like generic AI.
@@ -432,7 +432,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                             <ul className="space-y-2 text-sm">
                                 <li><a href="#" className="text-gray-400 hover:text-white transition">Privacy Policy</a></li>
                                 <li><a href="#" className="text-gray-400 hover:text-white transition">Terms of Service</a></li>
-                                <li><a href="mailto:support@socialspark.ai" className="text-gray-400 hover:text-white transition">Support</a></li>
+                                <li><a href="mailto:support@vocalspark.io" className="text-gray-400 hover:text-white transition">Support</a></li>
                                 <li><a href="#" className="text-gray-400 hover:text-white transition">FAQ</a></li>
                             </ul>
                         </div>
@@ -441,7 +441,7 @@ export function LandingPage({ onLogin }: LandingPageProps) {
                     {/* Bottom Bar */}
                     <div className="pt-8 border-t border-gray-800 flex flex-col md:flex-row items-center justify-between gap-4">
                         <div className="text-center md:text-left">
-                            <p className="text-xs text-gray-600">&copy; 2024 Social Spark AI. All rights reserved.</p>
+                            <p className="text-xs text-gray-600">&copy; 2024 Vocal Spark. All rights reserved.</p>
                             <p className="text-xs text-gray-700 mt-1">
                                 Built with ❤️ by <a href="https://velocityautomation.ai" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-400 transition font-medium">Velocity Automation AI</a>
                             </p>

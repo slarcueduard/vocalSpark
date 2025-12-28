@@ -9,8 +9,8 @@ interface FAQItem {
 
 const FAQ_DATA: FAQItem[] = [
     {
-        question: "What makes Social Spark different from ChatGPT?",
-        answer: "ChatGPT gives you generic content that sounds robotic. Social Spark uses Voice DNA technology to clone YOUR specific writing style, tone, and brand identity. Every post is injected with your brand profile, ensuring consistency across all content. Plus, we have Remix Mode, Campaign Planning, and Visual-Text Sync - features ChatGPT doesn't offer.",
+        question: "What makes Vocal Spark different from ChatGPT?",
+        answer: "ChatGPT gives you generic content that sounds robotic. Vocal Spark uses Voice DNA technology to clone YOUR specific writing style, tone, and brand identity. Every post is injected with your brand profile, ensuring consistency across all content. Plus, we have Remix Mode, Campaign Planning, and Visual-Text Sync - features ChatGPT doesn't offer.",
         category: "Product"
     },
     {
@@ -29,8 +29,8 @@ const FAQ_DATA: FAQItem[] = [
         category: "Features"
     },
     {
-        question: "Do I need technical skills to use Social Spark?",
-        answer: "Not at all! Social Spark is designed for creators, not developers. Just type your idea, select your brand voice, and click generate. The AI handles everything. No coding, no complex setup.",
+        question: "Do I need technical skills to use Vocal Spark?",
+        answer: "Not at all! Vocal Spark is designed for creators, not developers. Just type your idea, select your brand voice, and click generate. The AI handles everything. No coding, no complex setup.",
         category: "Product"
     },
     {
@@ -44,7 +44,7 @@ const FAQ_DATA: FAQItem[] = [
         category: "Pricing"
     },
     {
-        question: "Can I use Social Spark for client work?",
+        question: "Can I use Vocal Spark for client work?",
         answer: "Yes! The Agency plan is built for this. You get unlimited brand voices, 7,000 credits/month, and commercial usage rights. Perfect for agencies, freelancers, and consultants managing multiple client brands.",
         category: "Features"
     },
@@ -59,8 +59,8 @@ const FAQ_DATA: FAQItem[] = [
         category: "Features"
     },
     {
-        question: "Does Social Spark automatically post to my social media?",
-        answer: "No. Social Spark is a creation and planning workspace, not an auto-poster. We help you build high-quality content, organize it in a strategic calendar, and notify you when it's time to post manually. This ensures you maintain full control and avoid 'bot-like' behavior that platforms often penalize.",
+        question: "Does Vocal Spark automatically post to my social media?",
+        answer: "No. Vocal Spark is a creation and planning workspace, not an auto-poster. We help you build high-quality content, organize it in a strategic calendar, and notify you when it's time to post manually. This ensures you maintain full control and avoid 'bot-like' behavior that platforms often penalize.",
         category: "Product"
     }
 ];
@@ -85,7 +85,7 @@ export function FAQSection() {
                         Frequently Asked Questions
                     </h2>
                     <p className="text-gray-400 text-lg">
-                        Everything you need to know about Social Spark AI
+                        Everything you need to know about Vocal Spark
                     </p>
                 </div>
 
@@ -148,7 +148,7 @@ export function FAQSection() {
                             Join Discord
                         </a>
                         <a
-                            href="mailto:support@socialspark.ai"
+                            href="mailto:support@vocalspark.io"
                             className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition"
                         >
                             Email Support

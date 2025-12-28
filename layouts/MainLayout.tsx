@@ -69,9 +69,9 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
         <div className="p-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 flex items-center justify-center">
-              <img src="/social-spark-logo.png" alt="Social Spark AI" className="w-full h-full object-contain scale-125" />
+              <img src="/social-spark-logo.png" alt="Vocal Spark" className="w-full h-full object-contain scale-[1.8]" />
             </div>
-            <span className="text-xl font-bold tracking-tight">Social Spark</span>
+            <span className="text-xl font-bold tracking-tight">Vocal Spark</span>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-gray-400 hover:text-white">
             <X size={24} />
@@ -85,7 +85,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
           <div onClick={() => handleNavClick('calendar')}><NavItem icon={<CalendarIcon size={20} />} label="Calendar" active={currentView === 'calendar'} /></div>
           <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">Strategy</div>
           <div onClick={() => { onOpenBrandProfile(); setIsSidebarOpen(false); }} className="cursor-pointer">
-            <NavItem icon={<Briefcase size={20} />} label="Brand Identity" />
+            <NavItem icon={<Briefcase size={20} />} label="Voice DNA" />
             {brandProfile && (
               <div className="ml-4 mt-2 p-3 bg-[#1c1c2e] rounded-xl border border-gray-800/50 text-[10px] text-gray-400 hover:border-gray-600 transition group shadow-inner">
                 <p className="text-white font-bold mb-1 border-b border-gray-700 pb-1 truncate">{brandProfile.name || 'Brand Profile'}</p>

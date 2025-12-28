@@ -17,7 +17,7 @@ export enum Tone {
   Urgent = 'Urgent'
 }
 
-export type AppMode = 'creator' | 'business' | 'remix';
+export type AppMode = 'creator' | 'business' | 'remix' | 'multi' | 'reply';
 export type SubscriptionTier = 'trial' | 'pro' | 'agency';
 export type RefinementType = 'makeShorter' | 'makeLonger' | 'professional' | 'casual' | 'addEmojis' | 'addHashtags' | 'askQuestion';
 export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'traffic';
@@ -77,6 +77,11 @@ export interface Post {
   imagePrompt?: string;
   createdAt?: any; // Firestore Timestamp
   topic?: string;
+  xRayAnalysis?: {
+    hook_type: string;
+    tone_detected: string;
+    structure_tag: string;
+  };
 }
 
 // --- CONFIGURATION & PLANS ---
@@ -123,14 +128,14 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       '2,000 Credits / mo',
       'Real-Time News (Perplexity)',
       'Premium DALL-E 3 Images',
-      '2 Brand Voice Profiles', // Updated: Reduced from 3
+      '2 Voice Profiles (General + 1 Custom)',
       'GPT-4o Intelligence (Max)'
     ],
     detailedFeatures: [
       'Competitor Analysis',
       'Advanced Remix Formats',
       'Priority GPU Processing',
-      'Unlimited History Vault',
+      '25 Saves in Vault',
       'Early Access to Features'
     ]
   },
@@ -144,11 +149,11 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
       '5,000 Credits / mo', // Updated
       'Real-Time News (Perplexity)',
       'Bulk Content Generation',
-      '5 Brand Voice Profiles', // Updated: From Unlimited to 5
+      '6 Voice Profiles (General + 5 Custom)',
       'Logo Injection'
     ],
     detailedFeatures: [
-      'Strategic Content Calendar',
+      '100 Saves in Vault',
       'Commercial Rights Included',
       'Dedicated Account Manager',
       'Team Collaboration (Soon)',

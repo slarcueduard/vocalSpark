@@ -44,7 +44,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
     // Rules
-    const [hashtags, setHashtags] = useState('#MyBrand #MyNiche');
+    const [hashtags, setHashtags] = useState(''); // Removed default #MyBrand #MyNiche from state initialization
     const [bannedWords, setBannedWords] = useState('delve, landscape, testament, unlock, tapestry');
     const [ctaStyle, setCtaStyle] = useState('Ask a question to provoke comments');
 
@@ -64,7 +64,19 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             setIndustry(currentProfile.industry || '');
             setLanguage(currentProfile.language || 'English');
             setTargetAudience(currentProfile.targetAudience || '');
-            setHashtags(currentProfile.fixedHashtags || '#MyBrand #MyNiche');
+
+            // Fix: Use profile hashtags OR generate from name/industry if valid, else empty. 
+            // Don't use generic defaults.
+            if (currentProfile.fixedHashtags && currentProfile.fixedHashtags !== '#MyBrand #MyNiche') {
+                setHashtags(currentProfile.fixedHashtags);
+            } else if (currentProfile.industry || currentProfile.name) {
+                // Auto-suggest if empty and we have info
+                const nicheTag = currentProfile.industry ? `#${currentProfile.industry.replace(/\s+/g, '')}` : '';
+                const brandTag = currentProfile.name && !currentProfile.name.includes('#') ? `#${currentProfile.name.replace(/\s+/g, '')}` : '';
+                setHashtags(`${brandTag} ${nicheTag}`.trim());
+            } else {
+                setHashtags('');
+            }
 
             if (currentProfile.brandColors && currentProfile.brandColors.length > 0) {
                 setBrandColors(currentProfile.brandColors);
@@ -92,7 +104,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             setDetailLevel(currentProfile.detailLevel || 'balanced');
             setInnovationFactor(currentProfile.innovationFactor || 'balanced');
         }
-    }, [currentProfile]);
+    }, [currentProfile, activeProfileIndex]); // Added activeProfileIndex dependency to ensure refresh
 
     // Resetare la schimbare profil
     useEffect(() => {
@@ -120,6 +132,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             setTargetAudience(analysis.audience);
             const prefix = analysisMode === 'influencer' ? "Style Cloned: " : "Brand Voice: ";
             setVoiceDNA(`${prefix}${analysis.voice_description}`);
+
+            // Auto-update hashtags from analysis
+            if (analysis.niche && !hashtags) {
+                setHashtags(`#${analysis.niche.replace(/\s+/g, '')} #${profileName.replace(/\s+/g, '')}`);
+            }
+
         } catch (error) {
             console.error("Analysis failed", error);
             alert("Could not analyze text.");
@@ -141,21 +159,66 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         setBrandColors(brandColors.filter(c => c !== colorToRemove));
     };
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            if (file.size > 2 * 1024 * 1024) { alert("File too large (max 2MB)"); return; }
-            const reader = new FileReader();
-            reader.onloadend = () => setLogoPreview(reader.result as string);
-            reader.readAsDataURL(file);
+            if (file.size > 5 * 1024 * 1024) { alert("File too large (max 5MB)"); return; } // Increased raw limit, we resize anyway
+
+            try {
+                const resized = await resizeImage(file, 200, 200); // Resize to max 200x200
+                setLogoPreview(resized);
+            } catch (err) {
+                console.error("Resize error:", err);
+                alert("Could not process image.");
+            }
         }
+    };
+
+    // Helper: Clinet-side Resize
+    const resizeImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target?.result as string;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width *= maxHeight / height;
+                            height = maxHeight;
+                        }
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/png', 0.8)); // Reduce quality/size
+                };
+                img.onerror = (err) => reject(err);
+            };
+            reader.onerror = (err) => reject(err);
+        });
     };
 
     const triggerFileInput = () => fileInputRef.current?.click();
 
     const handleSave = async () => {
         setIsSaving(true);
-        const finalVoiceDNA = `${voiceDNA}\n---\nWRITING RULES:\n1. NEVER use these words: ${bannedWords}.\n2. Call to Action style: ${ctaStyle}.\n3. Mandatory Hashtags: ${hashtags}.`;
+        // Ensure hashtags are clean
+        const finalHashtags = hashtags.trim() || (industry ? `#${industry.replace(/\s+/g, '')}` : '');
+
+        const finalVoiceDNA = `${voiceDNA}\n---\nWRITING RULES:\n1. NEVER use these words: ${bannedWords}.\n2. Call to Action style: ${ctaStyle}.\n3. Mandatory Hashtags: ${finalHashtags}.`;
 
         const updatedProfile: BrandProfile = {
             name: profileName,
@@ -163,7 +226,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             targetAudience,
             voiceDNA: finalVoiceDNA,
             language,
-            fixedHashtags: hashtags,
+            fixedHashtags: finalHashtags,
             brandColors: brandColors,
             logoUrl: logoPreview,
             description: targetAudience,
@@ -190,12 +253,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
     // Limite Plan
     const plan = userProfile?.subscriptionTier || 'pro'; // Updated default
-    const limit = plan === 'agency' ? 5 : (plan === 'pro' ? 2 : 1);
+    const limit = plan === 'agency' ? 6 : (plan === 'pro' ? 2 : 1);
     const canAddMore = allProfiles.length < limit;
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4">
-            <div className="bg-[#0f1115] w-full max-w-4xl h-full md:h-auto md:max-h-[90vh] md:rounded-2xl border border-gray-800 shadow-2xl flex flex-col md:flex-row overflow-hidden">
+            <div className="bg-[#0f1115] w-full h-[100dvh] md:h-auto md:max-h-[90vh] md:rounded-2xl border border-gray-800 shadow-2xl flex flex-col md:flex-row overflow-hidden">
 
                 {/* === 1. MOBILE PROFILE SELECTOR (BARA ORIZONTALA DOAR PE MOBIL) === */}
                 <div className="md:hidden bg-[#0a0c10] border-b border-gray-800 p-3 shrink-0 flex items-center gap-3 overflow-x-auto custom-scrollbar">
@@ -268,7 +331,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 </div>
 
                 {/* === 3. MAIN FORM AREA (RIGHT) === */}
-                <div className="flex-1 flex flex-col min-w-0 bg-[#0f1115]">
+                <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#0f1115]">
 
                     {/* Header */}
                     <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-start">
@@ -290,7 +353,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
                     {/* Tabs */}
                     <div className="flex border-b border-gray-800 bg-[#0f1115]">
-                        <TabButton label="Core Identity" isActive={activeTab === 'core'} onClick={() => setActiveTab('core')} />
+                        <TabButton label="Voice DNA" isActive={activeTab === 'core'} onClick={() => setActiveTab('core')} />
                         <TabButton label="Visuals" isActive={activeTab === 'visuals'} onClick={() => setActiveTab('visuals')} />
                         <TabButton label="Rules" isActive={activeTab === 'rules'} onClick={() => setActiveTab('rules')} />
                     </div>
@@ -421,8 +484,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                             {logoPreview ? <img src={logoPreview} alt="Logo Preview" className="w-full h-full object-contain p-2" /> : <><Upload size={24} className="mb-2" /><span className="text-[10px]">Upload PNG</span></>}
                                         </div>
                                         <div className="flex-1">
-                                            <h4 className="text-sm font-bold text-white">Upload PNG (Transparent)</h4>
-                                            <p className="text-xs text-gray-500 mt-1">Max 2MB.</p>
+                                            <h4 className="text-sm font-bold text-white">Upload Brand Logo</h4>
+                                            <p className="text-xs text-gray-500 mt-1">Files are auto-resized for performance.</p>
                                             <button onClick={triggerFileInput} className="mt-3 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded border border-gray-600 transition">Choose File</button>
                                         </div>
                                     </div>

@@ -62,7 +62,7 @@ export function PostCard({
         try {
             if (navigator.share) {
                 const shareData: any = {
-                    title: 'Social Spark Post',
+                    title: 'Vocal Spark Post',
                     text: post.content,
                 };
 
@@ -227,7 +227,7 @@ export function PostCard({
                                 </button>
                                 <a
                                     href={post.imageUrl}
-                                    download="social-spark-image.png"
+                                    download="vocal-spark-image.png"
                                     className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg transform translate-y-2 group-hover:translate-y-0 transition-all"
                                 >
                                     <ImageIcon size={14} /> Download
@@ -249,6 +249,32 @@ export function PostCard({
 
                 {/* CONTENT SECTION */}
                 <div className="flex-1 p-5 flex flex-col">
+
+                    {/* X-RAY DASHBOARD (NEW) */}
+                    {post.xRayAnalysis && (
+                        <div className="mb-4 bg-[#1c1c2e]/50 border border-green-500/20 rounded-xl p-3 relative overflow-hidden group">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-green-500/50"></div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="text-[10px] font-bold text-green-400 uppercase tracking-widest flex items-center gap-1">
+                                    <Sparkles size={10} /> X-Ray Analysis
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 text-[10px]">
+                                <div className="bg-[#0f1115] border border-gray-700 px-2 py-1 rounded-md flex items-center gap-1.5 text-gray-300">
+                                    <span className="text-gray-500 uppercase font-bold text-[8px]">Pattern:</span>
+                                    {post.xRayAnalysis.hook_type}
+                                </div>
+                                <div className="bg-[#0f1115] border border-gray-700 px-2 py-1 rounded-md flex items-center gap-1.5 text-gray-300">
+                                    <span className="text-gray-500 uppercase font-bold text-[8px]">Tone:</span>
+                                    {post.xRayAnalysis.tone_detected}
+                                </div>
+                                <div className="bg-[#0f1115] border border-gray-700 px-2 py-1 rounded-md flex items-center gap-1.5 text-gray-300">
+                                    <span className="text-gray-500 uppercase font-bold text-[8px]">Logic:</span>
+                                    {post.xRayAnalysis.structure_tag}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Text Body */}
                     <div className="flex-1 mb-4">

@@ -46,13 +46,13 @@ const AIGenerator: React.FC<AIGeneratorProps> = ({ isLoading, topicHistory, onGe
   // Helper to fix URLs on blur
   const normalizeUrl = (value: string, setter: (val: string) => void) => {
     if (value && !/^https?:\/\//i.test(value)) {
-        setter(`https://${value.trim()}`);
+      setter(`https://${value.trim()}`);
     }
   };
 
   const handleSaveProfile = async () => {
     setIsSavingProfile(true);
-    
+
     // Ensure URLs are valid before saving
     let finalWebsite = websiteUrl;
     if (finalWebsite && !/^https?:\/\//i.test(finalWebsite)) finalWebsite = `https://${finalWebsite.trim()}`;
@@ -100,124 +100,124 @@ const AIGenerator: React.FC<AIGeneratorProps> = ({ isLoading, topicHistory, onGe
     <>
       <h2 className="text-xl font-semibold mb-1 text-center">Create your next viral campaign with AI</h2>
       <p className="text-brand-text-secondary mb-8 text-center">Setup your brand identity and let AI do the rest.</p>
-      
+
       {/* --- BRAND PROFILE SECTION --- */}
       <div className="mb-8 border border-gray-700 rounded-xl bg-brand-bg-dark/50 overflow-hidden">
         <div className="bg-gray-800/50 px-4 py-3 border-b border-gray-700 flex justify-between items-center">
-            <h3 className="font-semibold text-brand-text flex items-center gap-2">
-                <SparklesIcon className="w-4 h-4 text-brand-secondary" />
-                Brand Identity
-            </h3>
-            {!isEditingProfile && brandProfile && (
-                <button 
-                    onClick={() => setIsEditingProfile(true)}
-                    className="text-xs text-brand-secondary hover:text-white transition flex items-center gap-1"
-                >
-                    <SettingsIcon className="w-3 h-3" />
-                    Edit Profile
-                </button>
-            )}
+          <h3 className="font-semibold text-brand-text flex items-center gap-2">
+            <SparklesIcon className="w-4 h-4 text-brand-secondary" />
+            Voice DNA
+          </h3>
+          {!isEditingProfile && brandProfile && (
+            <button
+              onClick={() => setIsEditingProfile(true)}
+              className="text-xs text-brand-secondary hover:text-white transition flex items-center gap-1"
+            >
+              <SettingsIcon className="w-3 h-3" />
+              Edit Profile
+            </button>
+          )}
         </div>
 
         <div className="p-5">
-            {!isEditingProfile && brandProfile ? (
-                <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
-                    <div>
-                        <p className="text-sm text-brand-text font-medium"><span className="text-brand-text-secondary">Industry:</span> {displayIndustry}</p>
-                        <p className="text-sm text-brand-text font-medium mt-1"><span className="text-brand-text-secondary">Website:</span> {brandProfile.websiteUrl || 'Not set'}</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-green-400 bg-green-400/10 px-3 py-1.5 rounded-full text-xs font-semibold self-start sm:self-center">
-                        <CheckCircleIcon className="w-3.5 h-3.5" />
-                        <span>Profile Active</span>
-                    </div>
+          {!isEditingProfile && brandProfile ? (
+            <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+              <div>
+                <p className="text-sm text-brand-text font-medium"><span className="text-brand-text-secondary">Industry:</span> {displayIndustry}</p>
+                <p className="text-sm text-brand-text font-medium mt-1"><span className="text-brand-text-secondary">Website:</span> {brandProfile.websiteUrl || 'Not set'}</p>
+              </div>
+              <div className="flex items-center gap-2 text-green-400 bg-green-400/10 px-3 py-1.5 rounded-full text-xs font-semibold self-start sm:self-center">
+                <CheckCircleIcon className="w-3.5 h-3.5" />
+                <span>Profile Active</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-fadeIn">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Industry */}
+                <div>
+                  <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Industry Selection</label>
+                  <select
+                    value={industry}
+                    onChange={(e) => setIndustry(e.target.value)}
+                    className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
+                  >
+                    {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
+                  </select>
                 </div>
-            ) : (
-                <div className="space-y-4 animate-fadeIn">
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* Industry */}
-                        <div>
-                            <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Industry Selection</label>
-                            <select
-                                value={industry}
-                                onChange={(e) => setIndustry(e.target.value)}
-                                className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
-                            >
-                                {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
-                            </select>
-                        </div>
-                        {industry === 'Other' && (
-                            <div>
-                                <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Custom Industry</label>
-                                <input
-                                    type="text"
-                                    value={customIndustry}
-                                    onChange={(e) => setCustomIndustry(e.target.value)}
-                                    placeholder="e.g. Pet Grooming"
-                                    className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
-                                />
-                            </div>
-                        )}
-                        {/* Website */}
-                        <div className={industry === 'Other' ? 'md:col-span-2' : ''}>
-                             <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Website URL (Analysis)</label>
-                             <input
-                                type="text"
-                                value={websiteUrl}
-                                onChange={(e) => setWebsiteUrl(e.target.value)}
-                                onBlur={() => normalizeUrl(websiteUrl, setWebsiteUrl)}
-                                placeholder="velocityautomationai.com"
-                                className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
-                             />
-                        </div>
-                    </div>
-
-                    {/* Social & Description */}
-                    <div>
-                         <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Social Media Style (Tone Reference)</label>
-                         <input
-                            type="text"
-                            value={socialUrl}
-                            onChange={(e) => setSocialUrl(e.target.value)}
-                            onBlur={() => normalizeUrl(socialUrl, setSocialUrl)}
-                            placeholder="instagram.com/yourbrand"
-                            className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
-                         />
-                    </div>
-                    <div>
-                         <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Business Description</label>
-                         <textarea
-                            rows={3}
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Describe specific services, target audience, and USPs."
-                            className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
-                         ></textarea>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-2">
-                        {brandProfile && (
-                             <button 
-                                type="button" 
-                                onClick={() => setIsEditingProfile(false)}
-                                className="px-4 py-2 text-xs font-semibold text-brand-text-secondary hover:text-white transition"
-                            >
-                                Cancel
-                            </button>
-                        )}
-                        <button 
-                            type="button" 
-                            onClick={handleSaveProfile}
-                            disabled={isSavingProfile}
-                            className="bg-brand-secondary text-brand-bg-dark font-bold py-2 px-4 rounded-lg text-xs hover:bg-opacity-90 transition disabled:opacity-50 flex items-center gap-2"
-                        >
-                            {isSavingProfile ? <Loader size="sm" /> : <span>Save Brand Profile</span>}
-                        </button>
-                    </div>
+                {industry === 'Other' && (
+                  <div>
+                    <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Custom Industry</label>
+                    <input
+                      type="text"
+                      value={customIndustry}
+                      onChange={(e) => setCustomIndustry(e.target.value)}
+                      placeholder="e.g. Pet Grooming"
+                      className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
+                    />
+                  </div>
+                )}
+                {/* Website */}
+                <div className={industry === 'Other' ? 'md:col-span-2' : ''}>
+                  <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Website URL (Analysis)</label>
+                  <input
+                    type="text"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    onBlur={() => normalizeUrl(websiteUrl, setWebsiteUrl)}
+                    placeholder="velocityautomationai.com"
+                    className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
+                  />
                 </div>
-            )}
+              </div>
+
+              {/* Social & Description */}
+              <div>
+                <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Social Media Style (Tone Reference)</label>
+                <input
+                  type="text"
+                  value={socialUrl}
+                  onChange={(e) => setSocialUrl(e.target.value)}
+                  onBlur={() => normalizeUrl(socialUrl, setSocialUrl)}
+                  placeholder="instagram.com/yourbrand"
+                  className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-brand-text-secondary mb-1.5">Business Description</label>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe specific services, target audience, and USPs."
+                  className="w-full bg-brand-bg-light border border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-secondary focus:outline-none transition"
+                ></textarea>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                {brandProfile && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProfile(false)}
+                    className="px-4 py-2 text-xs font-semibold text-brand-text-secondary hover:text-white transition"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  disabled={isSavingProfile}
+                  className="bg-brand-secondary text-brand-bg-dark font-bold py-2 px-4 rounded-lg text-xs hover:bg-opacity-90 transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSavingProfile ? <Loader size="sm" /> : <span>Save Brand Profile</span>}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
-      
+
       {/* --- CAMPAIGN FORM --- */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 items-start">
         <div className="md:col-span-2">
@@ -246,7 +246,7 @@ const AIGenerator: React.FC<AIGeneratorProps> = ({ isLoading, topicHistory, onGe
             {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         </div>
-         <div>
+        <div>
           <label htmlFor="post-count" className="block text-sm font-medium mb-2">Number of Posts</label>
           <input
             id="post-count"
@@ -258,7 +258,7 @@ const AIGenerator: React.FC<AIGeneratorProps> = ({ isLoading, topicHistory, onGe
             className="w-full bg-brand-bg-dark border border-gray-600 rounded-md px-3 py-2 focus:ring-2 focus:ring-brand-primary focus:outline-none transition"
           />
         </div>
-         <div>
+        <div>
           <label htmlFor="language" className="block text-sm font-medium mb-2">Language</label>
           <input
             id="language"
@@ -271,7 +271,7 @@ const AIGenerator: React.FC<AIGeneratorProps> = ({ isLoading, topicHistory, onGe
         </div>
         <div className="md:col-span-2">
           <label htmlFor="campaign-context" className="block text-sm font-medium mb-2">Campaign Context (Optional)</label>
-           <textarea
+          <textarea
             id="campaign-context"
             value={campaignContext}
             onChange={(e) => setCampaignContext(e.target.value)}

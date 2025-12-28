@@ -8,9 +8,9 @@ export const AuthWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
 
   if (loading) {
     return (
-        <div className="h-screen flex items-center justify-center bg-black text-white">
-            <Loader size="lg" />
-        </div>
+      <div className="h-screen flex items-center justify-center bg-black text-white">
+        <Loader size="lg" />
+      </div>
     );
   }
 
@@ -21,14 +21,14 @@ export const AuthWrapper: React.FC<{ children: React.ReactNode }> = ({ children 
         <div className="bg-gray-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-gray-700">
           <div className="flex justify-center mb-6">
             <div className="bg-brand-primary/20 p-4 rounded-full">
-                <SparklesIcon className="w-12 h-12 text-brand-primary" />
+              <SparklesIcon className="w-12 h-12 text-brand-primary" />
             </div>
           </div>
           <h1 className="text-3xl font-bold mb-2 text-white">
-            Social Spark AI
+            Vocal Spark
           </h1>
           <p className="text-gray-400 mb-8 text-sm">
-            Create viral social media posts & visuals in seconds. <br/>
+            Create viral social media posts & visuals in seconds. <br />
             Join the workspace to start creating.
           </p>
           <button

@@ -136,7 +136,9 @@ export async function generateUrlRemix(
 
 // --- 1. GENERARE TEXT (POSTĂRI / CAMPANII / REMIX) ---
 export async function generateSocialMediaPosts(
-    topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = ""
+    topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = "", isMultiPlatform: boolean = false, targetPlatforms: Platform[] = [], remixTargetTopic: string = "",
+    xRayConstraints?: { hook: string, tone: string, structure: string }, // NEW: Explicit constraints
+    isReply: boolean = false, replyOptions: { useEmojis: boolean, question: string | boolean, link: string } = { useEmojis: true, question: '', link: '' }
 ): Promise<any[]> {
 
     // --- 1. PERSONA & IDENTITY LAYER ---
@@ -185,7 +187,22 @@ export async function generateSocialMediaPosts(
     // --- 2. OBJECTIVE & STRATEGY LAYER ---
     let strategyLayer = "";
 
-    if (isCampaign) {
+    if (isMultiPlatform) {
+        strategyLayer = `
+        MODE: MULTI_PLATFORM_ADAPTATION
+        TOPIC: "${topic}"
+        TARGET PLATFORMS: ${targetPlatforms.join(', ')}
+        GOAL: ${objective}
+        
+        INSTRUCTIONS:
+        Generate ONE distinct post for EACH requested platform.
+        - Customize valid formatting (hashtags, length, structure) for that SPECIFIC platform.
+        - Twitter/X: Short, punchy, no hashtags or max 1.
+        - LinkedIn: Professional, spaced out, longer form.
+        - Instagram: Visual caption style, engaging hook, emoji usage.
+        - Facebook: Conversational, community-focused.
+        `;
+    } else if (isCampaign) {
         strategyLayer = `
         MODE: CAMPAIGN_SEQUENCE (${postCount} Posts)
         TOPIC: "${topic}"
@@ -198,16 +215,45 @@ export async function generateSocialMediaPosts(
         CRITICAL: Each post must flow into the next but stand alone.
         `;
     } else if (isRemix) {
+        // --- X-RAY / REVERSE ENGINEERING STRATEGY ---
+
+        let analysisContext = "";
+
+        if (xRayConstraints) {
+            // USER PRE-ANALYZED: Use these specific constraints
+            analysisContext = `
+            ### LOCKED STRUCTURAL DNA
+            You must IGNORE the internal analysis of the reference content and instead use these EXPLICIT constraints:
+            1. **FORCED HOOK:** ${xRayConstraints.hook} (You MUST start with this pattern).
+            2. **FORCED TONE:** ${xRayConstraints.tone}.
+            3. **FORCED STRUCTURE:** ${xRayConstraints.structure}.
+            `;
+        } else {
+            // AUTO-MODE: Analyze it now
+            analysisContext = `
+            ### PHASE 1: THE X-RAY (STRUCTURAL ANALYSIS)
+            First, deep-scan the REFERENCE_CONTENT to extract its "Viral DNA".
+            Identify: Hook Pattern, Rhythm, Tone, Structural Skeleton.
+            `;
+        }
+
         strategyLayer = `
-        MODE: REMIX_CONTENT
-        SOURCE MATERIAL: "${topic}"
-        FORMATS REQUIRED: ${remixFormats.join(', ')}
-        
-        INSTRUCTIONS:
-        - ADAPT the source material to fit the NATIVE CULTURE of each platform.
-        - LinkedIn: Professional/Editorial, longer form, line spacing.
-        - Twitter/X: Punchy, thread-style, no fluff.
-        - Instagram: Visual-first caption, friendly, lots of emojis.
+        ### ROLE & OBJECTIVE
+        You are Social Spark AI. "Reverse Engineer" the reference content and rewrite the NEW_TOPIC using the SAME formula.
+
+        ### INPUT DATA
+        1. REFERENCE_CONTENT: "${topic}"
+        2. NEW_TOPIC: "${remixTargetTopic}"
+        3. TARGET_PLATFORMS: ${remixFormats.join(', ')}
+        4. LANGUAGE: ${language}
+
+        ${analysisContext}
+
+        ### PHASE 2: THE REMIX (GENERATION)
+        Generate a NEW POST about the NEW_TOPIC.
+        Constraints:
+        - **Structure Lock:** Mimic paragraph breaks and sentence lengths.
+        - **No "AI Slop":** Write naturally.
         `;
     } else if (isFollowUp) {
         strategyLayer = `
@@ -215,6 +261,16 @@ export async function generateSocialMediaPosts(
         SOURCE CONTEXT: "${parentContent.substring(0, 800)}"
         TASK: Write Part 2 / Follow-up.
         CONSTRAINT: Match the exact tone of the source. Start with a transition (e.g., "That said...", "Update:").
+        `;
+    } else if (isReply) {
+        strategyLayer = `
+        MODE: REPLY_GENERATION
+        SOURCE COMMENT: "${topic}"
+        TASK: Write a reply.
+        CUSTOMIZATION:
+        ${replyOptions.useEmojis ? '- Use Emojis: YES' : '- Use Emojis: NO'}
+        ${replyOptions.question ? `- Closing Question: "${replyOptions.question}"` : ''}
+        ${replyOptions.link ? `- Include Link: "${replyOptions.link}"` : ''}
         `;
     } else {
         // Single / Standard
@@ -233,34 +289,46 @@ export async function generateSocialMediaPosts(
     }
 
     // --- 3. CONSTRAINT & FORMATTING LAYER ---
-    const systemPrompt = `
-    ${identityLayer}
-
-    ${preferenceLayer}
-
-    ${strategyLayer}
-
-    GLOBAL CONSTRAINTS:
-    1. SPECIFICITY RULE: NEVER be generic. If you mention a strategy, tool, or method, NAME IT SPECIFICALLY (e.g., instead of 'use AI tools', say 'use ChatGPT or Claude').
-    2. NO "AI FLUFF": Never use words like "delve", "unlock", "elevate", "game-changer", "transformative".
-    2. FORMATTING: Use short paragraphs. Variable sentence length. 1-2 sentence hooks.
-    3. FORCE JSON: Return ONLY a raw JSON array.
-    
-    OUTPUT SCHEMA:
-    [
+    const formatLayer = `
+    FORMATTING RULES:
+    - JSON OUTPUT ONLY. No markdown, no intro text.
+    - Return an ARRAY of objects.
+    - OBJECT COMPOSITION:
       {
-        "platform": "Generic", 
-        "content": "The actual post text...",
-        "imagePrompt": "Description for an image...",
-        "type": "${isCampaign ? 'campaign' : (isRemix ? 'remix' : 'single')}"
+        "content": "Full post text here...",
+        "type": "post" (or "thread" etc),
+        "platform": "Platform Name" (optional, for multi-platform),
+        "x_ray_analysis": {
+             "hook_type": "...",
+             "tone_detected": "...",
+             "structure_tag": "..."
+        } (INCLUDE THIS ONLY FOR REMIX MODE)
       }
-    ]
+    `;
+
+    // --- 4. IMAGE CONTEXT ---
+    let imagePrompt = "";
+    if (imageBase64) {
+        imagePrompt = `
+        IMAGE CONTEXT: An image is attached to this request.
+        MIME: ${imageMimeType}
+        INSTRUCTION: Analyze the image and use it as context for the generated posts. 
+        If the objective is 'sales', describe the product in the image.
+        `;
+    }
+
+    const fullPrompt = `
+    ${identityLayer}
+    ${preferenceLayer}
+    ${strategyLayer}
+    ${formatLayer}
+    ${imagePrompt}
     `;
 
     // --- 4. EXECUTION ---
     try {
         const payload: any = {
-            prompt: systemPrompt, // We inject the fully constructed prompt
+            prompt: fullPrompt, // We inject the fully constructed prompt
             // Pass metadata for logging/tracking purposes, though the prompt contains the logic
             language,
             objective,
@@ -270,7 +338,11 @@ export async function generateSocialMediaPosts(
             isRemix,
             remixFormats,
             isFollowUp,
-            parentContent
+            parentContent,
+            isMultiPlatform,
+            targetPlatforms,
+            isReply,
+            replyOptions
         };
 
         // Pass image data only if relevant
@@ -296,18 +368,22 @@ export async function generateSocialMediaPosts(
 
             let platform = p.platform || 'Generic';
             if (isRemix && remixFormats[index]) platform = remixFormats[index];
+            // If multi-platform, trust the AI but fallback to valid list order if reasonable
+            if (isMultiPlatform && targetPlatforms[index] && platform === 'Generic') platform = targetPlatforms[index];
+
 
             return {
                 content: content,
-                type: isCampaign ? 'campaign' : (isRemix ? 'remix' : 'single'),
+                type: isCampaign ? 'campaign' : (isRemix ? 'remix' : (isMultiPlatform ? 'multi' : 'single')),
                 platform: platform,
-                topic: topic // Preserve context
+                topic: topic, // Preserve context
+                xRayAnalysis: p.x_ray_analysis // Map X-Ray Analysis if available
             };
         });
 
     } catch (e: any) {
         console.error("Gemini Generation Error:", e);
-        if (e.message.includes("504")) {
+        if (e.message && e.message.includes("504")) {
             throw new Error("Request timed out. Try fewer posts.");
         }
         throw new Error(e.message || "Failed to generate posts.");
@@ -363,6 +439,55 @@ export async function generateImageForPost(
 }
 
 // --- 3. ANALIZĂ BRAND ---
+// ... (existing brand analysis code if any, or just place this before the end)
+
+// --- 4. VIRAL X-RAY ANALYSIS ---
+export async function analyzeViralStructure(content: string): Promise<{ hook: string, tone: string, structure: string }> {
+    const prompt = `
+    ROLE: You are an expert Content Analyst.
+    TASK: Analyze the provided text and extract its "Viral DNA".
+    INPUT TEXT: "${content.substring(0, 1000)}"
+
+    OUTPUT FORMAT (JSON ONLY):
+    {
+        "hook": "Name of the hook pattern (e.g. Negative Warning, Contrarian Statement)",
+        "tone": "The dominant tone (e.g. Aggressive, Empathetic)",
+        "structure": "The structural skeleton (e.g. Listicle, Story-Lesson-CTA)"
+    }
+    `;
+
+    try {
+        const data = await safeFetch('/api/generate-text', {
+            prompt: prompt,
+            temperature: 0.2 // Low temp for analytical precision
+        });
+
+        // Robust JSON extraction
+        let cleanJson = data.output.replace(/```json/g, '').replace(/```/g, '').trim();
+        // Find actual JSON object if there's extra text
+        const firstBrace = cleanJson.indexOf('{');
+        const lastBrace = cleanJson.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1) {
+            cleanJson = cleanJson.substring(firstBrace, lastBrace + 1);
+        }
+
+        const parsed = JSON.parse(cleanJson);
+
+        // Normalize keys to lowercase to avoid "Hook" vs "hook" issues
+        return {
+            hook: parsed.hook || parsed.Hook || parsed.HOOK || "Generic Hook",
+            tone: parsed.tone || parsed.Tone || parsed.TONE || "Professional",
+            structure: parsed.structure || parsed.Structure || parsed.STRUCTURE || "Standard Post"
+        };
+    } catch (e) {
+        console.error("X-Ray Analysis Failed:", e);
+        return {
+            hook: "Generic Hook",
+            tone: "Professional",
+            structure: "Standard Post"
+        };
+    }
+}
 export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
     if (!content || content.length < 10) {
         throw new Error("Content is too short.");

@@ -8,42 +8,42 @@ export function VisualHowItWorks() {
         {
             number: 1,
             title: "Set Your Voice DNA",
-            description: "Create custom brand profiles that capture your unique writing style. Clone influencers or define your own tone, industry, and personality.",
-            image: "/screenshots/brand-profile.png",
+            description: "Upload a sample or choose a persona. AI analyzes your tone, style, and emoji usage to clone your unique brand voice.",
+            image: "/how-it-works/step1-voice-dna.png",
             icon: <Sparkles className="text-purple-400" size={28} />,
             color: "purple"
         },
         {
             number: 2,
-            title: "Choose Your Mode",
-            description: "Generate a single viral post, create a full campaign calendar, or remix existing content into multiple formats.",
-            image: "/screenshots/campaign-mode.png",
+            title: "Create Multiples",
+            description: "Generate perfectly formatted posts for LinkedIn, Twitter, Instagram, and more in a single click using Creator Studio.",
+            image: "/how-it-works/step2-create-multiples.png",
             icon: <Wand2 className="text-blue-400" size={28} />,
             color: "blue"
         },
         {
             number: 3,
-            title: "AI Creates Premium Visuals",
-            description: "Choose between fast Flux images (2 credits) or premium DALL-E 3 quality (20 credits). Your content, your budget.",
-            image: "/screenshots/image-generation.png",
+            title: "Remix Content",
+            description: "Repurpose articles, news, or text into viral social media posts instantly. Transform one idea into widely distributed content.",
+            image: "/how-it-works/step3-remix.png",
             icon: <ImageIcon className="text-pink-400" size={28} />,
             color: "pink"
         },
         {
             number: 4,
-            title: "Save to Your Vault",
-            description: "All content auto-saves to your private vault. Lock your best posts, create follow-up content with one click, search by date, and never lose a winner.",
-            image: "/screenshots/content-vault.png",
-            icon: <Archive className="text-orange-400" size={28} />,
-            color: "orange"
+            title: "Image Generation",
+            description: "Create stunning, AI-generated visuals for your posts. Use the Campaign Mode or standalone generator to captivate your audience.",
+            image: "/how-it-works/step4-image-gen.png",
+            icon: <ImageIcon className="text-cyan-400" size={28} />,
+            color: "cyan"
         },
         {
             number: 5,
-            title: "Schedule & Plan Ahead",
-            description: "Use the built-in calendar to plan your content strategy. Schedule posts and maintain consistent publishing.",
-            image: "/screenshots/calendar-view.png",
-            icon: <CalendarIcon className="text-cyan-400" size={28} />,
-            color: "cyan"
+            title: "Save to Vault",
+            description: "Store your masterpieces in the Content Vault. Generate variations and use the Follow-Up feature to continue the conversation.",
+            image: "/how-it-works/step5-vault.png",
+            icon: <Archive className="text-orange-400" size={28} />,
+            color: "orange"
         }
     ];
 

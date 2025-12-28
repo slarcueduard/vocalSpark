@@ -291,28 +291,28 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                         <p className="text-sm text-gray-500 mt-1">Your saved masterpieces.</p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex gap-2 justify-end overflow-x-auto no-scrollbar pb-1 w-full md:w-auto">
                         {/* Vault Counter with Limit */}
-                        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700">
-                            <Database size={14} />
-                            {posts.length} / {userProfile?.subscriptionTier === 'agency' ? '100' : '25'} Saved
+                        <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700 whitespace-nowrap shrink-0">
+                            <Database size={12} className="shrink-0" />
+                            {posts.length} / {userProfile?.subscriptionTier === 'agency' ? '100' : '25'}
                         </div>
 
                         {/* BUTTON: TOGGLE LOCKED VIEW */}
                         <button
                             onClick={() => setShowLockedOnly(!showLockedOnly)}
-                            className={`flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${showLockedOnly
+                            className={`flex items-center gap-2 text-[10px] md:text-xs font-bold px-3 py-1.5 rounded-lg border transition whitespace-nowrap shrink-0 ${showLockedOnly
                                 ? 'bg-yellow-500 text-black border-yellow-600 shadow-lg shadow-yellow-500/20'
                                 : 'text-yellow-500 bg-yellow-900/10 border-yellow-700/30 hover:bg-yellow-900/30'
                                 }`}
                         >
-                            {showLockedOnly ? <Lock size={14} fill="currentColor" /> : <ShieldCheck size={14} />}
-                            {showLockedOnly ? 'Showing Locked' : `${lockedCount} Locked`}
+                            {showLockedOnly ? <Lock size={12} fill="currentColor" /> : <ShieldCheck size={12} />}
+                            {showLockedOnly ? 'Locked' : `${lockedCount} Locked`}
                         </button>
 
                         {posts.length > 0 && (
-                            <button onClick={handleDeleteAll} className="flex items-center gap-2 text-xs font-bold text-red-400 bg-red-900/10 px-3 py-1.5 rounded-lg border border-red-900/30 hover:bg-red-900/30 transition">
-                                <Trash2 size={14} /> Clear List
+                            <button onClick={handleDeleteAll} className="flex items-center gap-2 text-[10px] md:text-xs font-bold text-red-400 bg-red-900/10 px-3 py-1.5 rounded-lg border border-red-900/30 hover:bg-red-900/30 transition whitespace-nowrap shrink-0">
+                                <Trash2 size={12} /> Clear
                             </button>
                         )}
                     </div>
@@ -320,12 +320,12 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
 
                 {/* TABS & SEARCH */}
                 <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex bg-black/30 p-1 rounded-lg border border-gray-700 overflow-x-auto no-scrollbar">
+                    <div className="flex bg-black/30 p-1 rounded-lg border border-gray-700 overflow-x-auto no-scrollbar shrink-0">
                         {['all', 'single', 'campaign', 'remix'].map((t) => (
                             <button
                                 key={t}
                                 onClick={() => setFilterType(t as any)}
-                                className={`px-4 py-1.5 text-xs font-bold rounded-md capitalize transition whitespace-nowrap ${filterType === t ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-md capitalize transition whitespace-nowrap ${filterType === t ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
                             >
                                 {t}
                             </button>

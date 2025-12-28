@@ -2,9 +2,9 @@ import { Platform, Tone, PostObjective, SubscriptionTier } from './types';
 import { MessageCircle, ShoppingBag, BookOpen, Zap, MousePointerClick } from 'lucide-react';
 
 export const VAULT_LIMITS: Record<SubscriptionTier, number> = {
-  trial: 25,
-  pro: 1000,
-  agency: 10000 // Unlimited effectively
+  trial: 10,
+  pro: 25,
+  agency: 100
 };
 
 export const PLATFORMS = [

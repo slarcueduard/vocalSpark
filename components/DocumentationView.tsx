@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Map, ChevronRight, Zap, Fingerprint, Repeat, ImageIcon, Play, Wand2, Link, Layers, Sparkles, Briefcase } from 'lucide-react';
+import { BookOpen, Map, ChevronRight, Zap, Fingerprint, Repeat, ImageIcon, Play, Wand2, Link, Layers, Sparkles, Briefcase, Crown, Check } from 'lucide-react';
 
 interface DocumentationViewProps {
     onClose?: () => void;
@@ -12,13 +12,13 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
         <div className="max-w-4xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-row flex-wrap items-center justify-between gap-4 mb-6">
                 <div>
-                    <h2 className="text-3xl font-bold text-white tracking-tight">Documentation & Roadmap</h2>
-                    <p className="text-gray-400 mt-2">Master the Social Spark workspace and see what's coming next.</p>
+                    <h2 className="text-xl md:text-3xl font-bold text-white tracking-tight">Documentation</h2>
+                    <p className="text-gray-400 mt-1 text-xs md:text-base hidden sm:block">Master the Vocal Spark workspace.</p>
                 </div>
                 {onClose && (
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm font-medium transition">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-xs md:text-sm font-medium transition whitespace-nowrap border border-gray-700 sticky top-2 z-50 shadow-lg">
                         Back to App
                     </button>
                 )}
@@ -53,7 +53,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                     <div className="space-y-12 animate-in fade-in slide-in-from-left-4 duration-300">
                         {/* HERO */}
                         <div className="text-center border-b border-gray-800 pb-10">
-                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-indigo-400 mb-6 drop-shadow-sm">Social Spark AI</h1>
+                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-indigo-400 mb-6 drop-shadow-sm">Vocal Spark AI</h1>
                             <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
                                 The first AI workspace that truly understands <span className="text-white font-bold">Concept</span>, <span className="text-white font-bold">Context</span>, and <span className="text-white font-bold">Brand Voice</span>.
                             </p>
@@ -64,16 +64,16 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
 
                             <section>
                                 <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                                    <Sparkles className="text-blue-500" size={20} /> What is Social Spark AI?
+                                    <Sparkles className="text-blue-500" size={20} /> What is Vocal Spark AI?
                                 </h3>
                                 <p className="mb-4">
-                                    Social Spark AI is not just another content generator. It is a specialized <strong>Brand Voice Cloning Workspace</strong> designed for founders, creators, and marketing teams who refuse to publish generic, robotic AI content.
+                                    Vocal Spark AI is not just another content generator. It is a specialized <strong>Brand Voice Cloning Workspace</strong> designed for founders, creators, and marketing teams who refuse to publish generic, robotic AI content.
                                 </p>
                                 <p className="mb-4">
                                     In the current landscape of AI tools, most models (like ChatGPT, Claude, or Gemini) are trained to be "helpful assistants." This means they default to a neutral, overly polite, and often boring tone. While great for customer support, this is terrible for social media, where <strong>personality, opinion, and unique flair</strong> are the only things that stop the scroll.
                                 </p>
                                 <p>
-                                    Social Spark solves this by introducing a proprietary layer we call <strong>Voice DNA™</strong>. This technology analyzes your past successful posts, deconstructs your syntax, vocabulary, emoji usage, and sentence rhythm, and creates a custom "filter" that sits on top of advanced LLMs. The result is content that actually sounds like *you* wrote it on your best day.
+                                    Vocal Spark solves this by introducing a proprietary layer we call <strong>Voice DNA™</strong>. This technology analyzes your past successful posts, deconstructs your syntax, vocabulary, emoji usage, and sentence rhythm, and creates a custom "filter" that sits on top of advanced LLMs. The result is content that actually sounds like *you* wrote it on your best day.
                                 </p>
                             </section>
 
@@ -92,7 +92,12 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                                     <ul className="list-disc pl-5 space-y-2 marker:text-blue-500">
                                         <li><strong>Single Post Mode:</strong> Focused creation for one high-quality update. You input a topic or rough scribbles, select your Brand Profile, and get a polished post in seconds.</li>
                                         <li><strong>Campaign Mode:</strong> For strategic planning. Input a goal (e.g., "Launch our new leather boots line") and a duration (e.g., "7 days"). The AI generates a cohesive calendar of posts, mixing educational, promotional, and engagement-focused content.</li>
-                                        <li><strong>Remix Mode (The Content Engine):</strong> The most powerful feature for consistency. Paste a URL to a YouTube video, a blog post, or a news article. Social Spark digests the content and repurposes it into 5-10 native social media posts (Threads, LinkedIn carousels, Tweets) that are ready to publish.</li>
+                                        <li><strong>Remix Mode (The Content Engine):</strong> Now featuring two powerful tools:
+                                            <ul className="list-circle pl-5 mt-2 space-y-1 text-sm text-gray-400">
+                                                <li><strong>Repurpose Content:</strong> Paste a blog, article, or news link to auto-generate posts for LinkedIn, Twitter, and more. <span className="text-gray-500 italic">(YouTube URL support coming soon)</span></li>
+                                                <li><strong>Analyze Post (DNA):</strong> Paste any successful post to deconstruct its viral structure (Hook, Tone, Format). You can then generate a <em>Similar Variant</em> (same topic) or apply that structure to a <em>New Topic</em>.</li>
+                                            </ul>
+                                        </li>
                                     </ul>
                                 </div>
 
@@ -106,8 +111,32 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                                 <div className="mb-8 p-4 bg-gray-900/30 rounded-xl border border-gray-800/50">
                                     <h4 className="font-bold text-green-400 mb-2 text-lg">3. Visual Intelligence</h4>
                                     <p>
-                                        A post without an image is invisible. Social Spark integrates dual-engine image generation. Use the <strong>Standard Model (Flux)</strong> for fast, stylistic visuals, or switch to the <strong>Premium Model (DALL-E 3)</strong> for photorealistic, high-fidelity images that can even include accurate text rendering. The AI automatically reads your post context to suggest the perfect visual prompt.
+                                        A post without an image is invisible. Vocal Spark integrates dual-engine image generation. Use the <strong>Standard Model (Flux)</strong> for fast, stylistic visuals, or switch to the <strong>Premium Model (DALL-E 3)</strong> for photorealistic, high-fidelity images that can even include accurate text rendering. The AI automatically reads your post context to suggest the perfect visual prompt.
                                     </p>
+                                </div>
+
+                                <div className="mb-8 p-4 bg-gray-900/30 rounded-xl border border-gray-800/50">
+                                    <h4 className="font-bold text-white mb-2 text-lg flex items-center gap-2"><Crown size={18} className="text-yellow-500" /> Workspace Plans</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                        <div className="bg-[#0f1115] p-3 rounded-lg border border-gray-800">
+                                            <h5 className="font-bold text-purple-400 text-sm mb-2">Pro Plan</h5>
+                                            <ul className="space-y-1 text-xs text-gray-400">
+                                                <li className="flex items-center gap-2"><Check size={12} /> 2,000 Credits / mo</li>
+                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>2 Voice Profiles</strong> (1 General + 1 Custom)</li>
+                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>25 Saved Posts</strong> in Vault</li>
+                                                <li className="flex items-center gap-2"><Check size={12} /> Premium DALL-E 3 Images</li>
+                                            </ul>
+                                        </div>
+                                        <div className="bg-[#0f1115] p-3 rounded-lg border border-gray-800">
+                                            <h5 className="font-bold text-orange-400 text-sm mb-2">Agency Plan</h5>
+                                            <ul className="space-y-1 text-xs text-gray-400">
+                                                <li className="flex items-center gap-2"><Check size={12} /> 5,000 Credits / mo</li>
+                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>6 Voice Profiles</strong> (1 General + 5 Custom)</li>
+                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>100 Saved Posts</strong> in Vault</li>
+                                                <li className="flex items-center gap-2"><Check size={12} /> Bulk Generation</li>
+                                            </ul>
+                                        </div>
+                                    </div>
                                 </div>
                             </section>
 
@@ -120,7 +149,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                                 <div className="grid grid-cols-1 gap-6">
                                     <div className="bg-[#0f1115] p-5 rounded-lg border-l-4 border-blue-500">
                                         <h4 className="font-bold text-white mb-1">For Solo Founders</h4>
-                                        <p className="text-sm">You are building in public but don't have 2 hours a day to write. Use Social Spark to take your 10-minute brain dump and turn it into a week's worth of LinkedIn authority posts.</p>
+                                        <p className="text-sm">You are building in public but don't have 2 hours a day to write. Use Vocal Spark to take your 10-minute brain dump and turn it into a week's worth of LinkedIn authority posts.</p>
                                     </div>
                                     <div className="bg-[#0f1115] p-5 rounded-lg border-l-4 border-purple-500">
                                         <h4 className="font-bold text-white mb-1">For Content Creators</h4>
@@ -140,7 +169,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                     <div className="space-y-12">
 
                         <Section title="Getting Started" icon={<Zap className="text-yellow-400" />}>
-                            <p className="text-gray-400 mb-4">Social Spark isn't just a chatbot. It's a cohesive workspace designed to clone your brand voice.</p>
+                            <p className="text-gray-400 mb-4">Vocal Spark isn't just a chatbot. It's a cohesive workspace designed to clone your brand voice.</p>
 
                             <img src="/docs/creator-studio.png" alt="Creator Studio Dashboard" className="w-full rounded-xl border border-gray-700/50 shadow-lg mb-6 hover:scale-[1.01] transition duration-500" />
 
@@ -163,7 +192,15 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                                 <li className="flex flex-col gap-2">
                                     <div className="flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 shrink-0"></div>
-                                        <div><strong>Remix Mode:</strong> Turn one source (text/video) into multiple formats.</div>
+                                        <div><strong>Remix Mode (2-in-1):</strong></div>
+                                    </div>
+                                    <div className="pl-4 text-xs text-gray-400 space-y-2">
+                                        <p><strong>Option A: Repurpose Content</strong> - Paste a blog post or news article. The system will slice it into multiple social posts for different platforms (LinkedIn, Twitter, etc.).</p>
+                                        <p><strong>Option B: Analyze Post (DNA)</strong> - Paste a successful post to uncover its structure. You can then:</p>
+                                        <ul className="list-disc pl-4">
+                                            <li>Generate a <strong>Similar Variant</strong> (rewrite the same topic with the same DNA).</li>
+                                            <li>Generate with a <strong>New Topic</strong> (apply the DNA structure to a completely new idea).</li>
+                                        </ul>
                                     </div>
                                     <img src="/docs/remix-mode.png" alt="Remix Mode UI" className="w-3/4 rounded-lg border border-gray-700/50 opacity-80 hover:opacity-100 transition" />
                                 </li>
@@ -184,7 +221,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                                 <div className="bg-[#0f1115] p-4 rounded-xl border border-gray-700/50">
                                     <h4 className="font-bold text-white text-sm mb-2">2. How to Calibrate (Best Practices)</h4>
                                     <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400 ml-1">
-                                        <li>Go to <strong>Brand Identity</strong> &rarr; <strong>New Profile</strong>.</li>
+                                        <li>Go to <strong>Voice DNA</strong> &rarr; <strong>New Profile</strong>.</li>
                                         <li><strong>The "Magic" Step:</strong> You will be asked to paste content. <span className="text-yellow-400">This is crucial.</span></li>
                                         <li>
                                             <strong>DO NOT PASTE:</strong> Generic company descriptions, mission statements, or boring SEO articles.
@@ -252,7 +289,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                 ) : (
                     <div className="space-y-8">
                         <div className="text-center mb-10">
-                            <h3 className="text-xl font-bold text-white">The Future of Social Spark</h3>
+                            <h3 className="text-xl font-bold text-white">The Future of Vocal Spark</h3>
                             <p className="text-gray-400 text-sm mt-2">We are shipping weekly updates. Here is what we are building.</p>
                         </div>
 
@@ -267,7 +304,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                             status="in-progress"
                             quarter="Q1 2025"
                             title="Auto-Posting Integration"
-                            desc="Connect LinkedIn & Twitter API directly. Schedule posts and let Social Spark publish for you automatically. No more copy-paste."
+                            desc="Connect LinkedIn & Twitter API directly. Schedule posts and let Vocal Spark publish for you automatically. No more copy-paste."
                         />
 
                         <RoadmapItem
@@ -287,7 +324,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                         <div className="mt-12 p-6 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl border border-blue-500/30 text-center">
                             <h4 className="font-bold text-white mb-2">Have a feature request?</h4>
                             <p className="text-sm text-gray-400 mb-4">We build for you. Tell us what you need.</p>
-                            <a href="mailto:support@socialspark.ai" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition">Send Request</a>
+                            <a href="mailto:support@vocalspark.io" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition">Send Request</a>
                         </div>
                     </div>
                 )}
