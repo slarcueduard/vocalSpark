@@ -179,9 +179,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (cost <= 0) return true;
 
     if (current >= cost) {
-      // Scadem LOCAL pentru viteza UI
-      // Dar ascultatorul onSnapshot va corecta oricum in cateva ms
-      if (user) updateDoc(doc(db, 'users', user.uid), { credits: increment(-cost) });
+      // FIX: Do NOT deduct locally here. 
+      // The backend (server-side) handles the deduction to ensure transaction safety and avoid double billing.
+      // updateDoc(doc(db, 'users', user.uid), { credits: increment(-cost) });
       return true;
     }
     return false;

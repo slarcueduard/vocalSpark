@@ -22,7 +22,8 @@ export default async function handler(req, res) {
       // --- PREMIUM (DALL-E 3) ---
       // Aici așteptăm, că e DALL-E și merită
       let enhancedPrompt = prompt;
-      if (brandColors?.length) enhancedPrompt += ` The lighting and mood should reflect these tones: ${brandColors.join(', ')}. Ensure the image is a full-frame scene with NO color palette strip, NO border, and NO swatches at the bottom.`;
+      // Removed brand color injection to prevent DALL-E 3 from rendering color palettes/swatches on the image.
+      // if (brandColors?.length) enhancedPrompt += ...
 
       const response = await openai.images.generate({
         model: "dall-e-3",
@@ -36,15 +37,17 @@ export default async function handler(req, res) {
       imageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
 
     } else {
-      // --- STANDARD (Pollinations - INSTANT URL) ---
-      // NU descărcăm imaginea aici (evităm 504).
-      // Trimitem doar link-ul. Browserul o va descărca când o afișează.
+      // --- STANDARD (DALL-E 2) ---
+      // Replacing deprecated Pollinations with DALL-E 2 (Reliable, fast, affordable)
+      const response = await openai.images.generate({
+        model: "dall-e-2",
+        prompt: prompt.substring(0, 400), // DALL-E 2 limit
+        n: 1,
+        size: "512x512",
+        response_format: "b64_json"
+      });
 
-      const safePrompt = encodeURIComponent(prompt.substring(0, 200));
-      const seed = Math.floor(Math.random() * 999999);
-
-      // URL direct
-      imageUrl = `https://image.pollinations.ai/prompt/${safePrompt}?width=1024&height=1024&seed=${seed}&model=flux&nologo=true`;
+      imageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
     }
 
     // Scădem creditele

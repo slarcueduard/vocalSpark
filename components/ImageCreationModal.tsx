@@ -90,7 +90,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
 
         } catch (err: any) {
             console.error(err);
-            setError("Failed to generate image.");
+            setError(err.message || "Failed to generate image.");
             setIsImageLoading(false);
         } finally {
             setIsGenerating(false);

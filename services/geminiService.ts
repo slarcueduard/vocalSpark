@@ -138,7 +138,8 @@ export async function generateUrlRemix(
 export async function generateSocialMediaPosts(
     topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = "", isMultiPlatform: boolean = false, targetPlatforms: Platform[] = [], remixTargetTopic: string = "",
     xRayConstraints?: { hook: string, tone: string, structure: string }, // NEW: Explicit constraints
-    isReply: boolean = false, replyOptions: { useEmojis: boolean, question: string | boolean, link: string } = { useEmojis: true, question: '', link: '' }
+    isReply: boolean = false, replyOptions: { useEmojis: boolean, question: string | boolean, link: string } = { useEmojis: true, question: '', link: '' },
+    useGreenScreen: boolean = false // NEW: TikTok Green Screen Mode
 ): Promise<any[]> {
 
     // --- 1. PERSONA & IDENTITY LAYER ---
@@ -248,6 +249,17 @@ export async function generateSocialMediaPosts(
         4. LANGUAGE: ${language}
 
         ${analysisContext}
+
+        ${useGreenScreen && remixFormats.includes('TikTok Script') ? `
+        ### SPECIAL MODE: TIKTOK GREEN SCREEN
+        For the **TikTok Script** format, you MUST output a 3-COLUMN SCRIPT (Visual | Action | Script).
+        INSTRUCTION: Analyze the REFERENCE_CONTENT (Source Text).
+        Break it down into 3-5 segments.
+        For each segment:
+        - VISUAL: Identify the SPECIFIC SENTENCE or DATA POINT from the source text that the user should Screenshot. DIRECT QUOTE IT.
+        - ACTION: Direct the user (e.g., "Point at the headline", "Highlight the date").
+        - SCRIPT: Conversational, punchy commentary.
+        ` : ''}
 
         ### PHASE 2: THE REMIX (GENERATION)
         Generate a NEW POST about the NEW_TOPIC.
@@ -398,42 +410,26 @@ export async function generateImageForPost(
     brandColors: string[] = []
 ): Promise<string> {
 
-    // A. STANDARD (FLUX)
-    if (!isPremium) {
-        // Fix: Standard images should not be forced to use brand colors literally to avoid weird artifacts.
-        // We only use the core post text and style context, ignoring specific brand color logic for standard mode.
-        const cleanPrompt = encodeURIComponent(`${postText}`.slice(0, 500));
-        return `https://image.pollinations.ai/prompt/${cleanPrompt}?nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
-    }
+    // A. UNIFIED BACKEND GENERATION (Resolves Standard Image Preview & CORS Issues)
+    // We now use the backend for *all* generation:
+    // - Premium: DALL-E 3 (High Quality)
+    // - Standard: DALL-E 2 (Fast, Cheap, Reliable)
+    // This returns a Base64 string directly, preventing client-side preview failures.
 
-    // B. PREMIUM (DALL-E 3)
     try {
-        const imagePrompt = postText.length > 200 ? `Editorial photo: ${postText.substring(0, 200)}` : postText;
+        const imagePrompt = postText.length > 400 ? postText.substring(0, 400) : postText;
 
         const data = await safeFetch('/api/generate-image', {
             prompt: imagePrompt,
-            isPremium: true,
+            isPremium: isPremium,
             topic: topicContext,
             brandColors: brandColors
         });
 
-        const imageUrl = data.imageUrl;
+        return data.imageUrl;
 
-        if (imageUrl.startsWith('http')) {
-            try {
-                const proxyRes = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
-                if (!proxyRes.ok) return imageUrl;
-                const blob = await proxyRes.blob();
-                return new Promise(r => {
-                    const reader = new FileReader();
-                    reader.onload = () => r(reader.result as string);
-                    reader.readAsDataURL(blob);
-                });
-            } catch (err) { return imageUrl; }
-        }
-        return imageUrl;
-    } catch (e) {
-        console.error("Premium Image Gen Failed:", e);
+    } catch (e: any) {
+        console.error("Image Gen Failed:", e);
         throw e;
     }
 }
@@ -610,4 +606,110 @@ export async function autoGenerateBrandProfile(rawContent: string): Promise<Bran
             logoUrl: null
         };
     } catch (e) { throw new Error("Analysis failed."); }
+}
+// --- 5. IDEA GENERATOR ---
+export async function generatePostIdeas(niche: string): Promise<string> {
+    try {
+        // Add random seed to prevent caching/repetition
+        const seed = Math.random().toString(36).substring(7);
+
+        const prompt = `
+        ROLE: You are an experienced creator giving advice to a friend. NOT a robot.
+        TASK: Write a short, messy, "rough draft" post idea about: "${niche}".
+        CONTEXT: The user wants to write something authentic, vulnerable, or controversial.
+        
+        CRITICAL RULES:
+        1. NO ROBOTIC LANGUAGE (e.g. "Delve into", "Unlock", "Mastering", "In this post").
+        2. NO TITLES. Just the raw idea/hook.
+        3. DO NOT use the word "${niche}" literally if it sounds awkward (e.g. "My mistake in babies"). say "My mistake as a new parent" instead.
+        4. TONE: Conversational, slightly imperfect, human.
+        5. LENGTH: 2-3 sentences (approx 40 words).
+        
+        GOOD EXAMPLES:
+        - "Honestly, I used to think [Topic] was all about [Common Myth], but man was I wrong. "
+        - "Unpopular opinion: Stop trying to be perfect at [Topic]. It's killing your progress."
+        - "I wish someone told me this when I started... you don't need [Expensive Thing] to succeed."
+        
+        Generate ONE idea now. (Random Seed: ${seed})
+        `;
+
+        const data = await safeFetch('/api/generate-text', {
+            prompt: prompt,
+            temperature: 0.9 // High creativity
+        });
+
+        let output = data.output;
+
+        // --- ROBUST CLEANUP START ---
+        // 1. If it looks like JSON/Array, parse it.
+        if (output.trim().match(/^\[|^\{/)) {
+            try {
+                const raw = output.replace(/```json|```/g, '').trim();
+                const parsed = JSON.parse(raw);
+                const item = Array.isArray(parsed) ? parsed[0] : parsed;
+                if (item.content) output = item.content;
+                else if (item.post) output = item.post;
+                else if (typeof item === 'string') output = item;
+            } catch (e) {
+                // Parse failed, fall to regex
+            }
+        }
+
+        // 2. Forced Regex Cleanup (The "Nuclear" Option)
+        // Removes {"content": and [{"content": wrappers
+        output = output.replace(/^\[?\{?\s*["']?content["']?\s*:\s*["']?/i, '');
+        // Removes closing }]" at the end
+        output = output.replace(/["']?\s*\}?\]?$/i, '');
+        // Removes plain "content": prefix if left
+        output = output.replace(/["']?content["']?\s*:\s*/i, '');
+        // Standard cleanup
+        output = output.replace(/^["']|["']$/g, '').replace(/^Topic:\s*/i, '').trim();
+        // --- ROBUST CLEANUP END ---
+
+        return output;
+    } catch (e) {
+        console.error("Idea Generation Failed:", e);
+
+        // LARGE set of high-quality fallback templates to prevent repetition
+        const templates = [
+            `I used to think that successful ${niche} was just about luck, but I was wrong. The real secret is...`,
+            `Unpopular opinion: Most people are overcomplicating ${niche}. You really only need to focus on one thing.`,
+            `If I could go back to start over in ${niche}, I would tell myself to stop worrying about the metrics.`,
+            `The biggest lie everyone tells you about ${niche} is that you need to be an expert to start.`,
+            `I learned more about ${niche} from my biggest failure than I ever did from my wins.`,
+            `Don't let anyone tell you that ${niche} is easy. It's hard, but it's worth it because...`,
+            `My entire perspective on ${niche} changed when I stopped trying to copy others.`,
+            `The best advice I ever got about ${niche}? Keep it simple.`,
+            `Why is nobody talking about the mental toll of ${niche}? Let's be real for a second.`,
+            `Stop waiting for the "perfect moment" to start in ${niche}. It doesn't exist.`
+        ];
+        return templates[Math.floor(Math.random() * templates.length)];
+    }
+}
+
+// --- 6. SMART SOURCE FINDER ---
+export async function findTrendingContent(niche: string): Promise<string> {
+    try {
+        const prompt = `
+        TASK: Search for a trending, high-performing news article or blog post related to: "${niche}".
+        CRITICAL: Return ONLY the URL (https://...). No title, no introductory text.
+        REQUIREMENT: Must be recent (last 24-48 hours).
+        `;
+
+        const data = await safeFetch('/api/generate-text', {
+            prompt,
+            useRealTime: true
+        });
+
+        // Clean up output to ensure it's just a URL
+        let url = data.output.trim();
+        // Remove 'Here is a link...' wrappers if they persist
+        const urlMatch = url.match(/(https?:\/\/[^\s]+)/);
+        if (urlMatch) return urlMatch[0];
+
+        return url;
+    } catch (e) {
+        console.error("Smart Source Setup Failed", e);
+        throw e;
+    }
 }
