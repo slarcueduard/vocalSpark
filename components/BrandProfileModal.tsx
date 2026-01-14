@@ -39,9 +39,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [language, setLanguage] = useState('English');
     const [targetAudience, setTargetAudience] = useState('');
 
-    // Visuals
-    const [brandColors, setBrandColors] = useState<string[]>(['#3B82F6', '#8B5CF6', '#FFFFFF']);
-    const [hexInput, setHexInput] = useState('#');
+    // Logo
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
 
     // Rules
@@ -79,11 +77,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 setHashtags('');
             }
 
-            if (currentProfile.brandColors && currentProfile.brandColors.length > 0) {
-                setBrandColors(currentProfile.brandColors);
-            } else {
-                setBrandColors(['#3B82F6', '#8B5CF6', '#FFFFFF']);
-            }
+
 
             setLogoPreview(currentProfile.logoUrl || null);
 
@@ -150,18 +144,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         }
     };
 
-    const handleAddColor = () => {
-        if (/^#[0-9A-F]{6}$/i.test(hexInput)) {
-            setBrandColors([...brandColors, hexInput]);
-            setHexInput('#');
-        } else {
-            alert("Please enter a valid Hex code (e.g. #124444)");
-        }
-    };
 
-    const removeColor = (colorToRemove: string) => {
-        setBrandColors(brandColors.filter(c => c !== colorToRemove));
-    };
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -231,7 +214,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             voiceDNA: finalVoiceDNA,
             language,
             fixedHashtags: finalHashtags,
-            brandColors: brandColors,
+            brandColors: ['#3B82F6', '#8B5CF6', '#FFFFFF'], // Default colors (not user-editable)
             logoUrl: logoPreview,
             description: targetAudience,
             toneScore: sliders.tone,
@@ -482,7 +465,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         {activeTab === 'visuals' && (
                             <div className="space-y-6 animate-in fade-in">
                                 <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Logo</label>
+                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Logo (Watermark)</label>
                                     <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/png, image/jpeg, image/jpg" />
                                     <div className="flex items-center gap-4">
                                         <div onClick={triggerFileInput} className="w-24 h-24 bg-[#1c1c2e] border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:border-blue-500 hover:text-blue-500 transition cursor-pointer group overflow-hidden relative">
@@ -490,24 +473,10 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         </div>
                                         <div className="flex-1">
                                             <h4 className="text-sm font-bold text-white">Upload Brand Logo</h4>
-                                            <p className="text-xs text-gray-500 mt-1">Files are auto-resized for performance.</p>
+                                            <p className="text-xs text-gray-500 mt-1">Your logo will be added as a watermark when generating images.</p>
+                                            <p className="text-[10px] text-blue-400 mt-2">✓ Applied to all generated images (can be toggled off)</p>
                                             <button onClick={triggerFileInput} className="mt-3 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded border border-gray-600 transition">Choose File</button>
                                         </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Colors</label>
-                                    <div className="flex flex-wrap gap-3 mb-4">
-                                        {brandColors.map((color, idx) => (
-                                            <div key={idx} className="group relative w-16 h-16 rounded-xl shadow-lg border border-gray-700" style={{ backgroundColor: color }}>
-                                                <button onClick={() => removeColor(color)} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm z-10"><X size={10} /></button>
-                                                <div className="absolute inset-0 flex items-end justify-center pb-1"><span className="text-[9px] font-bold px-1 py-0.5 bg-black/50 rounded text-white">{color}</span></div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <input type="text" value={hexInput} onChange={(e) => setHexInput(e.target.value)} className="bg-[#1c1c2e] border border-gray-700 text-white rounded-lg px-3 py-2 text-sm w-32 focus:border-blue-500 outline-none" placeholder="#124444" />
-                                        <button onClick={handleAddColor} className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm transition"><Plus size={16} /> Add Color</button>
                                     </div>
                                 </div>
                             </div>
