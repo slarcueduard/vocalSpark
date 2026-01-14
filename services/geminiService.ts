@@ -590,7 +590,8 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'ins
         const data = await safeFetch('/api/generate-text', {
             prompt: prompt,
             postCount: 1,
-            isCampaign: false
+            isCampaign: false,
+            isAnalysis: true // NEW Flag
         });
         const cleanJson = data.output.replace(/```json|```/g, '').trim();
         const parsed = JSON.parse(cleanJson);

@@ -15,20 +15,20 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount, isFollowUp, parentContent, isReply } = req.body;
+    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount, isFollowUp, parentContent, isReply, isAnalysis } = req.body;
 
     // 1. CALCUL COST
     let count = 1;
     if (isCampaign) count = postCount || 3;
     if (isRemix && remixFormats) count = remixFormats.length;
-    // Follow-up is single post cost (1)
+    // Follow-up, Analysis is single cost (1)
 
     const COST = useRealTime ? 10 : (1 * count);
 
     const { userRef, userData } = await verifyUserAndCredits(req, COST);
     const tier = userData.subscriptionTier || 'trial';
 
-    // 2. SELECTIE MODEL
+    // 2. MODEL SELECTION
     let client = openai;
     let model = "gpt-4o-mini";
 
@@ -45,11 +45,16 @@ export default async function handler(req, res) {
 
     let systemPrompt = `You are an expert Social Media Manager. 
     CRITICAL: Write strictly in ${targetLanguage}.
-    OUTPUT FORMAT: You must return a valid JSON OBJECT with a "posts" key containing an array.`;
+    OUTPUT FORMAT: You must return a valid JSON OBJECT.`;
 
     let userMessage = prompt;
 
-    if (isRemix) {
+    if (isAnalysis) {
+      systemPrompt = `You are an Expert Content Analyst.
+        TASK: Analyze text to extract style, tone, and patterns.
+        OUTPUT: JSON ONLY. No markdown. No conversational text.`;
+      // We leave userMessage as the detailed prompt provided by the client
+    } else if (isRemix) {
       systemPrompt += `
         TASK: Repurpose content into: ${remixFormats?.join(', ')}.
         STRUCTURE: { "posts": [{"platform": "Name", "content": "The text...", "type": "post"}] }
