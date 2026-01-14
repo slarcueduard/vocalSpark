@@ -487,52 +487,87 @@ export async function analyzeViralStructure(content: string): Promise<{ hook: st
         };
     }
 }
-export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'influencer' = 'personal') => {
+export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'insights' = 'personal') => {
     if (!content || content.length < 10) {
         throw new Error("Content is too short.");
     }
 
-    const modeSpecificPrompt = mode === 'influencer'
+    const modeSpecificPrompt = mode === 'insights'
         ? `
-        ROLE: You are a Ghostwriter analyzing SOMEONE ELSE'S style to extract replicable patterns.
+        ROLE: You are a Writing Coach providing detailed feedback.
         
-        OBJECTIVE: Extract their TEACHABLE FORMULA (not plagiarism).
-        FOCUS ON:
-        - Hook patterns (how they start posts)
-        - Recurring phrases and vocabulary
-        - Storytelling structure
-        - What makes their content shareable
+        OBJECTIVE: Analyze this content and provide ACTIONABLE INSIGHTS.
+        THIS IS FOR LEARNING ONLY - no profile will be created.
         
-        This is for LEARNING their strategy, not copying.
+        PROVIDE:
+        1. Detected patterns (hook styles, structure, tone)
+        2. What works well (strengths)
+        3. Specific suggestions for improvement
+        4. Vocabulary analysis
         `
         : `
-        ROLE: You are a Brand Strategist analyzing YOUR CLIENT'S authentic voice.
+        ROLE: You are a Brand Strategist creating a voice profile.
         
-        OBJECTIVE: Build a consistent personal brand identity.
+        OBJECTIVE: Extract consistent brand voice parameters.
+        THIS WILL BE SAVED as the user's brand profile.
+        
         FOCUS ON:
-        - Their natural writing quirks
-        - Unique phrases they use
+        - Natural writing quirks
         - Tone consistency
-        - Audience connection style
-        
-        This is for MAINTAINING their authentic voice.
+        - Unique style markers
         `;
+
+    const outputFormat = mode === 'insights'
+        ? `
+    {
+      "niche": "Primary topic",
+      "audience": "Target audience",
+      "tone_score": number 0-100,
+      "emoji_score": number 0-100,
+      "length_score": number 0-100,
+      "voice_description": "Brief style summary",
+      "suggested_hashtags": ["#tag1", "#tag2", "#tag3"],
+      "patterns_detected": {
+        "hook_style": "How they start posts (e.g., Question, Bold Statement, Story)",
+        "structure": "Post structure pattern (e.g., Problem-Solution, Listicle, Story)",
+        "sentence_rhythm": "Short and punchy / Long and flowing / Mixed"
+      },
+      "strengths": [
+        "What works well in this writing",
+        "Specific effective techniques used",
+        "Audience engagement tactics"
+      ],
+      "suggestions": [
+        "Specific improvement suggestion 1",
+        "Specific improvement suggestion 2",
+        "Specific improvement suggestion 3"
+      ],
+      "vocabulary_analysis": {
+        "common_words": ["word1", "word2", "word3"],
+        "unique_phrases": ["phrase1", "phrase2"],
+        "tone_consistency": "High / Medium / Low"
+      }
+    }
+    `
+        : `
+    {
+      "niche": "Primary industry/topic",
+      "audience": "Target audience description",
+      "tone_score": number 0-100 (0=casual, 100=formal),
+      "emoji_score": number 0-100 (0=minimal, 100=heavy),
+      "length_score": number 0-100 (0=short punchy, 100=long detailed),
+      "voice_description": "2-sentence style instruction for this personal voice",
+      "suggested_hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"]
+    }
+    `;
 
     const prompt = `
     ${modeSpecificPrompt}
     
     CONTENT TO ANALYZE: "${content.substring(0, 3000)}"
     
-    Extract "Voice DNA" into JSON:
-    {
-      "niche": "Primary industry/topic (e.g., Tech Startups, Fitness, Marketing)",
-      "audience": "Target audience description",
-      "tone_score": number 0-100 (0=casual, 100=formal),
-      "emoji_score": number 0-100 (0=minimal, 100=heavy),
-      "length_score": number 0-100 (0=short punchy, 100=long detailed),
-      "voice_description": "2-sentence style instruction for this ${mode === 'influencer' ? 'style pattern' : 'personal voice'}",
-      "suggested_hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"]
-    }
+    Extract analysis into JSON:
+    ${outputFormat}
     
     HASHTAG RULES:
     - Provide MINIMUM 3, MAXIMUM 5 hashtags
@@ -552,7 +587,7 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
         return JSON.parse(cleanJson);
     } catch (error) {
         console.error("Error analyzing brand voice:", error);
-        return {
+        const baseReturn = {
             niche: "General",
             audience: "General Audience",
             tone_score: 50,
@@ -561,6 +596,26 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
             voice_description: "Professional yet accessible.",
             suggested_hashtags: ["#Business", "#Marketing", "#Growth"]
         };
+
+        if (mode === 'insights') {
+            return {
+                ...baseReturn,
+                patterns_detected: {
+                    hook_style: "Direct Statement",
+                    structure: "Standard Post",
+                    sentence_rhythm: "Mixed"
+                },
+                strengths: ["Clear communication", "Engaging tone"],
+                suggestions: ["Try adding more specific examples", "Consider varying sentence length"],
+                vocabulary_analysis: {
+                    common_words: ["business", "growth", "success"],
+                    unique_phrases: [],
+                    tone_consistency: "Medium"
+                }
+            };
+        }
+
+        return baseReturn;
     }
 };
 

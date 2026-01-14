@@ -32,6 +32,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [textInput, setTextInput] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
+    const [insightsResults, setInsightsResults] = useState<any>(null);
 
     // State Brand
     const [profileName, setProfileName] = useState('My Brand');
@@ -122,23 +123,30 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         setIsAnalyzing(true);
         try {
             const analysis = await analyzeBrandVoice(contentToAnalyze, analysisMode);
-            setSliders({
-                tone: analysis.tone_score,
-                emoji: analysis.emoji_score,
-                length: analysis.length_score
-            });
-            setIndustry(analysis.niche);
-            setTargetAudience(analysis.audience);
-            const prefix = analysisMode === 'influencer' ? "Style Cloned: " : "Brand Voice: ";
-            setVoiceDNA(`${prefix}${analysis.voice_description}`);
 
-            // Auto-update hashtags from analysis
-            if (analysis.suggested_hashtags && analysis.suggested_hashtags.length > 0) {
-                const hashtagString = analysis.suggested_hashtags.join(' ');
-                setSuggestedHashtags(analysis.suggested_hashtags);
-                // Auto-fill if hashtags field is empty
-                if (!hashtags) {
-                    setHashtags(hashtagString);
+            if (analysisMode === 'insights') {
+                // Insights mode: Just display results, don't save to profile
+                setInsightsResults(analysis);
+                setSuggestedHashtags(analysis.suggested_hashtags || []);
+            } else {
+                // Personal mode: Save to profile
+                setSliders({
+                    tone: analysis.tone_score,
+                    emoji: analysis.emoji_score,
+                    length: analysis.length_score
+                });
+                setIndustry(analysis.niche);
+                setTargetAudience(analysis.audience);
+                setVoiceDNA(`Brand Voice: ${analysis.voice_description}`);
+
+                // Auto-update hashtags from analysis
+                if (analysis.suggested_hashtags && analysis.suggested_hashtags.length > 0) {
+                    const hashtagString = analysis.suggested_hashtags.join(' ');
+                    setSuggestedHashtags(analysis.suggested_hashtags);
+                    // Auto-fill if hashtags field is empty
+                    if (!hashtags) {
+                        setHashtags(hashtagString);
+                    }
                 }
             }
 
@@ -362,12 +370,12 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                     <div className={`absolute top-0 left-0 w-1 h-full ${analysisMode === 'influencer' ? 'bg-purple-600' : 'bg-blue-600'}`}></div>
                                     <div className="flex flex-wrap gap-2 bg-black/20 p-1 rounded-lg w-max mb-4">
                                         <button onClick={() => setAnalysisMode('personal')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'personal' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><User size={12} /> My Voice DNA</button>
-                                        <button onClick={() => setAnalysisMode('influencer')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'influencer' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><UserCheck size={12} /> Style Library</button>
+                                        <button onClick={() => setAnalysisMode('insights')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'insights' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><UserCheck size={12} /> Voice Insights</button>
                                     </div>
                                     <p className="text-[10px] text-gray-400 mb-3">
                                         {analysisMode === 'personal'
-                                            ? "📊 Analyze YOUR content to build a consistent personal brand"
-                                            : "🎯 Extract proven patterns from top creators (ethical learning)"}
+                                            ? "📊 Analyze YOUR content to build and save your brand voice profile"
+                                            : "🔍 Analyze ANY content for detailed insights and suggestions (read-only)"}
                                     </p>
                                     <div className="space-y-3">
                                         <div className="relative">
@@ -376,11 +384,11 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         </div>
                                         <p className="text-[10px] text-gray-500 px-1">*Social Media links (LinkedIn, IG) are blocked. Use Copy-Paste below.</p>
                                         <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider">AND / OR</div>
-                                        <textarea placeholder={analysisMode === 'influencer' ? "Paste 3-5 examples of their best posts/articles..." : "Paste your bio, past posts, or articles..."} className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono" value={textInput} onChange={(e) => setTextInput(e.target.value)} />
+                                        <textarea placeholder={analysisMode === 'insights' ? "Paste any content to analyze (yours or others)..." : "Paste your bio, past posts, or articles..."} className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono" value={textInput} onChange={(e) => setTextInput(e.target.value)} />
                                     </div>
-                                    <button onClick={handleAnalyze} disabled={isAnalyzing} className={`w-full mt-4 text-white font-bold py-2.5 rounded-lg transition shadow-lg flex items-center justify-center gap-2 ${analysisMode === 'influencer' ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
-                                        {isAnalyzing ? <RefreshCw size={16} className="animate-spin" /> : (analysisMode === 'influencer' ? <Copy size={16} /> : <Sparkles size={16} />)}
-                                        {isAnalyzing ? 'Analyzing...' : (analysisMode === 'influencer' ? 'Extract Patterns' : 'Analyze DNA')}
+                                    <button onClick={handleAnalyze} disabled={isAnalyzing} className={`w-full mt-4 text-white font-bold py-2.5 rounded-lg transition shadow-lg flex items-center justify-center gap-2 ${analysisMode === 'insights' ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
+                                        {isAnalyzing ? <RefreshCw size={16} className="animate-spin" /> : (analysisMode === 'insights' ? <Copy size={16} /> : <Sparkles size={16} />)}
+                                        {isAnalyzing ? 'Analyzing...' : (analysisMode === 'insights' ? 'Get Insights' : 'Analyze & Save DNA')}
                                     </button>
 
                                     {/* Suggested Hashtags Display */}
