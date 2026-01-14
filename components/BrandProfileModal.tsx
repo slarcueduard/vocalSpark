@@ -146,13 +146,48 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     };
 
     const handleAnalyze = async () => {
-        const contentToAnalyze = textInput || urlInput;
-        if (!contentToAnalyze || contentToAnalyze.length < 10) {
-            alert("Please paste text from a post, article, or bio to analyze.");
+        if (!textInput && !urlInput) {
+            alert("Please paste text or enter a URL to analyze.");
             return;
         }
+
         setIsAnalyzing(true);
         try {
+            let contentToAnalyze = textInput;
+
+            // If URL is provided, scrape it first
+            if (urlInput && !textInput) {
+                try {
+                    const scrapeResponse = await fetch('/api/scrape-url', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: urlInput })
+                    });
+
+                    if (!scrapeResponse.ok) {
+                        throw new Error('Failed to scrape URL. Try copying the content manually.');
+                    }
+
+                    const scrapeData = await scrapeResponse.json();
+                    contentToAnalyze = scrapeData.content;
+
+                    if (!contentToAnalyze || contentToAnalyze.length < 50) {
+                        throw new Error('Not enough content found at this URL.');
+                    }
+                } catch (scrapeError: any) {
+                    alert(scrapeError.message || 'Could not scrape URL. Please paste the content manually in the text area below.');
+                    setIsAnalyzing(false);
+                    return;
+                }
+            }
+
+            // Now analyze the content (either from text input or scraped)
+            if (!contentToAnalyze || contentToAnalyze.length < 10) {
+                alert("Content is too short to analyze.");
+                setIsAnalyzing(false);
+                return;
+            }
+
             const analysis = await analyzeBrandVoice(contentToAnalyze, 'personal');
 
             // Save to profile
@@ -177,7 +212,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
         } catch (error) {
             console.error("Analysis failed", error);
-            alert("Could not analyze text.");
+            alert("Could not analyze content. Please try again.");
         } finally {
             setIsAnalyzing(false);
         }
