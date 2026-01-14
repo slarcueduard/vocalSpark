@@ -148,11 +148,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             preview += `\n\n${hashtags}`;
         }
 
-        // Add call-to-action if available
-        if (callToAction && callToAction.trim()) {
-            preview += `\n\n${callToAction}`;
-        }
-
         return preview;
     };
 
