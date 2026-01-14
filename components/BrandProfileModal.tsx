@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-    X, Sparkles, Link as LinkIcon,
+    X, Sparkles, Link as LinkIcon, Globe,
     Upload, Hash, Palette, Check, RefreshCw,
     User, UserCheck, Copy, Ban, MessageSquare, Plus, Trash2,
     Lock
@@ -61,16 +61,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
     // Populare Data
     useEffect(() => {
-        console.log("🔄 BrandProfileModal: useEffect triggered", { currentProfile, activeProfileIndex });
         if (currentProfile) {
             setProfileName(currentProfile.name || `Brand #${activeProfileIndex + 1}`);
-            // ... logs continue ...
-            console.log("🔄 BrandProfileModal: Setting sliders", {
-                tone: currentProfile.toneScore,
-                emoji: currentProfile.emojiScore,
-                length: currentProfile.lengthScore,
-                english: currentProfile.englishProficiency
-            });
             setVoiceDNA(currentProfile.voiceDNA || '');
             setIndustry(currentProfile.industry || '');
             setLanguage(currentProfile.language || 'English');
@@ -571,7 +563,6 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                     </div>
 
                                     <div className="md:col-span-2">
-                                        {console.log("🎨 Rendering English Proficiency Slider", { englishProficiency })}
                                         <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-2">
                                             <Globe size={14} /> English Proficiency
                                         </label>
