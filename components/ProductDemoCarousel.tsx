@@ -70,10 +70,10 @@ export function ProductDemoCarousel() {
                 {/* Header */}
                 <div className="text-center mb-12">
                     <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                        See Social Spark in Action
+                        See Vocal Spark in Action
                     </h2>
                     <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                        A quick tour of the features that make Social Spark the smartest AI workspace for content creators.
+                        A quick tour of the features that make Vocal Spark the smartest AI workspace for content creators.
                     </p>
                 </div>
 
