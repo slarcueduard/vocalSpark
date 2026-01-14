@@ -81,10 +81,15 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
             setLogoPreview(currentProfile.logoUrl || null);
 
+            const safeNumber = (val: any) => {
+                const num = Number(val);
+                return isNaN(num) ? 50 : num;
+            };
+
             setSliders({
-                tone: currentProfile.toneScore ?? 50,
-                emoji: currentProfile.emojiScore ?? 50,
-                length: currentProfile.lengthScore ?? 50
+                tone: safeNumber(currentProfile.toneScore),
+                emoji: safeNumber(currentProfile.emojiScore),
+                length: safeNumber(currentProfile.lengthScore)
             });
 
             // Load links
@@ -209,11 +214,17 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             console.log("🧬 Analyzing content of length:", contentToAnalyze.length);
             const analysis = await analyzeBrandVoice(contentToAnalyze, 'personal');
 
+            // Validate numbers to prevent NaN errors
+            const safeNumber = (val: any) => {
+                const num = Number(val);
+                return isNaN(num) ? 50 : num;
+            };
+
             // Save to profile
             setSliders({
-                tone: analysis.tone_score,
-                emoji: analysis.emoji_score,
-                length: analysis.length_score
+                tone: safeNumber(analysis.tone_score),
+                emoji: safeNumber(analysis.emoji_score),
+                length: safeNumber(analysis.length_score)
             });
             setIndustry(analysis.niche);
             setTargetAudience(analysis.audience);
