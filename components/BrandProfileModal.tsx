@@ -745,18 +745,32 @@ function TabButton({ label, isActive, onClick }: { label: string, isActive: bool
 function SliderControl({ label, leftLabel, rightLabel, value, onChange, color = 'blue', disabled = false }: any) {
     const colorClass = color === 'purple' ? 'accent-purple-500 text-purple-400' : (color === 'indigo' ? 'accent-indigo-500 text-indigo-400' : 'accent-blue-600 text-blue-400');
 
+    // Ensure value is a valid number 0-100
+    const safeValue = isNaN(Number(value)) ? 50 : Math.max(0, Math.min(100, Number(value)));
+
     return (
         <div className={disabled ? 'opacity-50 pointer-events-none grayscale' : ''}>
             <div className="flex justify-between mb-2">
                 <span className="text-sm font-medium text-white flex items-center gap-2">
                     {label}
                 </span>
-                <span className={`text-xs font-bold ${color === 'purple' ? 'text-purple-400' : (color === 'indigo' ? 'text-indigo-400' : 'text-blue-400')}`}>{value}%</span>
+                <span className={`text-xs font-bold ${color === 'purple' ? 'text-purple-400' : (color === 'indigo' ? 'text-indigo-400' : 'text-blue-400')}`}>{safeValue}%</span>
             </div>
             <div className="relative h-2 bg-gray-700 rounded-lg">
-                <div className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${color === 'purple' ? 'bg-purple-600' : (color === 'indigo' ? 'bg-indigo-600' : 'bg-blue-600')}`} style={{ width: `${value}%` }}></div>
-                <input type="range" min="0" max="100" value={value} onChange={(e) => onChange(parseInt(e.target.value))} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" disabled={disabled} />
-                <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 pointer-events-none transition-all duration-100 ${color === 'purple' ? 'border-purple-600' : (color === 'indigo' ? 'border-indigo-600' : 'border-blue-600')}`} style={{ left: `calc(${value}% - 8px)` }}></div>
+                <div className={`absolute left-0 top-0 h-full rounded-lg transition-all duration-300 ${color === 'purple' ? 'bg-purple-600' : (color === 'indigo' ? 'bg-indigo-600' : 'bg-blue-600')}`} style={{ width: `${safeValue}%` }}></div>
+                <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={safeValue}
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value);
+                        onChange(isNaN(val) ? 50 : val);
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    disabled={disabled}
+                />
+                <div className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 pointer-events-none transition-all duration-100 ${color === 'purple' ? 'border-purple-600' : (color === 'indigo' ? 'border-indigo-600' : 'border-blue-600')}`} style={{ left: `calc(${safeValue}% - 8px)` }}></div>
             </div>
             <div className="flex justify-between mt-2"><span className="text-[10px] text-gray-500 uppercase font-medium">{leftLabel}</span><span className="text-[10px] text-gray-500 uppercase font-medium">{rightLabel}</span></div>
         </div>
