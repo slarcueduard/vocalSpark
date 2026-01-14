@@ -111,6 +111,40 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
     // Removed lock logic - sliders always editable
 
+    // Generate live preview post based on slider values
+    const generatePreviewPost = () => {
+        const { tone, emoji, length } = sliders;
+
+        // Base content variations
+        const toneVariants = {
+            casual: "Hey! Want to grow your business? I've been testing this strategy for months.",
+            balanced: "Looking to grow your business? I have been testing this strategy for months.",
+            formal: "Are you seeking to expand your business operations? I have conducted extensive testing of this strategic approach over several months."
+        };
+
+        const lengthContent = {
+            short: "The results are impressive.",
+            medium: "The results have been impressive. I have seen significant improvements in engagement and conversion rates.",
+            long: "The results have been truly impressive and exceeded my initial expectations. I have seen significant improvements across multiple key performance indicators, including engagement rates, conversion metrics, and overall audience growth. The data clearly demonstrates the effectiveness of this strategic approach."
+        };
+
+        // Determine tone variant
+        let toneText = tone < 40 ? toneVariants.casual : tone < 70 ? toneVariants.balanced : toneVariants.formal;
+
+        // Determine length variant
+        let lengthText = length < 40 ? lengthContent.short : length < 70 ? lengthContent.medium : lengthContent.long;
+
+        // Add emojis based on emoji slider
+        let emojiString = '';
+        if (emoji > 20 && emoji < 50) emojiString = '✨';
+        else if (emoji >= 50 && emoji < 80) emojiString = '✨💡';
+        else if (emoji >= 80) emojiString = '🚀✨💡🔥';
+
+        // Combine into final preview
+        const preview = `${toneText} ${lengthText} ${emojiString}`.trim();
+        return preview;
+    };
+
     const handleAnalyze = async () => {
         const contentToAnalyze = textInput || urlInput;
         if (!contentToAnalyze || contentToAnalyze.length < 10) {
@@ -412,6 +446,25 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         <SliderControl label="Emoji Usage" leftLabel="Minimal" rightLabel="Heavy" value={sliders.emoji} onChange={(val: number) => setSliders({ ...sliders, emoji: val })} color="purple" />
                                         <SliderControl label="Sentence Length" leftLabel="Short / Punchy" rightLabel="Long / Detailed" value={sliders.length} onChange={(val: number) => setSliders({ ...sliders, length: val })} color="indigo" />
                                     </div>
+                                </div>
+
+                                {/* Live Preview Section */}
+                                <div className="mt-6 p-4 bg-gradient-to-br from-blue-900/10 to-purple-900/10 border border-blue-500/20 rounded-xl">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-xs font-bold text-blue-200 uppercase tracking-wider flex items-center gap-2">
+                                            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                            Live Preview
+                                        </h4>
+                                        <span className="text-[10px] text-gray-400">Updates as you adjust sliders</span>
+                                    </div>
+                                    <div className="bg-black/40 rounded-lg p-4 border border-gray-700">
+                                        <p className="text-sm text-white leading-relaxed whitespace-pre-wrap">
+                                            {generatePreviewPost()}
+                                        </p>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-2 italic">
+                                        ↑ This is how your posts will sound with current settings
+                                    </p>
                                 </div>
 
 
