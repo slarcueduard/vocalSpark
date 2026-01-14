@@ -492,23 +492,54 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
         throw new Error("Content is too short.");
     }
 
-    const taskDescription = mode === 'influencer'
-        ? "You are a Ghostwriter. REVERSE ENGINEER the writing style."
-        : "You are a Brand Strategist. Analyze this content.";
+    const modeSpecificPrompt = mode === 'influencer'
+        ? `
+        ROLE: You are a Ghostwriter analyzing SOMEONE ELSE'S style to extract replicable patterns.
+        
+        OBJECTIVE: Extract their TEACHABLE FORMULA (not plagiarism).
+        FOCUS ON:
+        - Hook patterns (how they start posts)
+        - Recurring phrases and vocabulary
+        - Storytelling structure
+        - What makes their content shareable
+        
+        This is for LEARNING their strategy, not copying.
+        `
+        : `
+        ROLE: You are a Brand Strategist analyzing YOUR CLIENT'S authentic voice.
+        
+        OBJECTIVE: Build a consistent personal brand identity.
+        FOCUS ON:
+        - Their natural writing quirks
+        - Unique phrases they use
+        - Tone consistency
+        - Audience connection style
+        
+        This is for MAINTAINING their authentic voice.
+        `;
 
     const prompt = `
-    ${taskDescription}
-    CONTENT: "${content.substring(0, 3000)}"
-
+    ${modeSpecificPrompt}
+    
+    CONTENT TO ANALYZE: "${content.substring(0, 3000)}"
+    
     Extract "Voice DNA" into JSON:
     {
-      "niche": "Industry",
-      "audience": "Target Audience",
-      "tone_score": number 0-100,
-      "emoji_score": number 0-100,
-      "length_score": number 0-100,
-      "voice_description": "2-sentence style instruction."
+      "niche": "Primary industry/topic (e.g., Tech Startups, Fitness, Marketing)",
+      "audience": "Target audience description",
+      "tone_score": number 0-100 (0=casual, 100=formal),
+      "emoji_score": number 0-100 (0=minimal, 100=heavy),
+      "length_score": number 0-100 (0=short punchy, 100=long detailed),
+      "voice_description": "2-sentence style instruction for this ${mode === 'influencer' ? 'style pattern' : 'personal voice'}",
+      "suggested_hashtags": ["#hashtag1", "#hashtag2", "#hashtag3", "#hashtag4", "#hashtag5"]
     }
+    
+    HASHTAG RULES:
+    - Provide MINIMUM 3, MAXIMUM 5 hashtags
+    - Base them on the detected niche and audience
+    - Mix: 1-2 broad niche tags + 2-3 specific topic tags
+    - Use proper capitalization (e.g., #ContentMarketing, not #contentmarketing)
+    - No spaces in hashtags
   `;
 
     try {
@@ -527,7 +558,8 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
             tone_score: 50,
             emoji_score: 50,
             length_score: 50,
-            voice_description: "Professional yet accessible."
+            voice_description: "Professional yet accessible.",
+            suggested_hashtags: ["#Business", "#Marketing", "#Growth"]
         };
     }
 };

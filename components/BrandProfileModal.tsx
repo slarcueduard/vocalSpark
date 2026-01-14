@@ -31,6 +31,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [urlInput, setUrlInput] = useState('');
     const [textInput, setTextInput] = useState('');
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [suggestedHashtags, setSuggestedHashtags] = useState<string[]>([]);
 
     // State Brand
     const [profileName, setProfileName] = useState('My Brand');
@@ -132,8 +133,13 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             setVoiceDNA(`${prefix}${analysis.voice_description}`);
 
             // Auto-update hashtags from analysis
-            if (analysis.niche && !hashtags) {
-                setHashtags(`#${analysis.niche.replace(/\s+/g, '')} #${profileName.replace(/\s+/g, '')}`);
+            if (analysis.suggested_hashtags && analysis.suggested_hashtags.length > 0) {
+                const hashtagString = analysis.suggested_hashtags.join(' ');
+                setSuggestedHashtags(analysis.suggested_hashtags);
+                // Auto-fill if hashtags field is empty
+                if (!hashtags) {
+                    setHashtags(hashtagString);
+                }
             }
 
         } catch (error) {
@@ -355,9 +361,14 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                 <div className={`border rounded-xl p-4 md:p-5 relative overflow-hidden transition-colors duration-300 ${analysisMode === 'influencer' ? 'bg-[#1a1625] border-purple-500/30' : 'bg-[#161b22] border-blue-900/30'}`}>
                                     <div className={`absolute top-0 left-0 w-1 h-full ${analysisMode === 'influencer' ? 'bg-purple-600' : 'bg-blue-600'}`}></div>
                                     <div className="flex flex-wrap gap-2 bg-black/20 p-1 rounded-lg w-max mb-4">
-                                        <button onClick={() => setAnalysisMode('personal')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'personal' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><User size={12} /> Analyze Me</button>
-                                        <button onClick={() => setAnalysisMode('influencer')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'influencer' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><UserCheck size={12} /> Clone Influencer</button>
+                                        <button onClick={() => setAnalysisMode('personal')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'personal' ? 'bg-blue-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><User size={12} /> My Voice DNA</button>
+                                        <button onClick={() => setAnalysisMode('influencer')} className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition ${analysisMode === 'influencer' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}><UserCheck size={12} /> Style Library</button>
                                     </div>
+                                    <p className="text-[10px] text-gray-400 mb-3">
+                                        {analysisMode === 'personal'
+                                            ? "📊 Analyze YOUR content to build a consistent personal brand"
+                                            : "🎯 Extract proven patterns from top creators (ethical learning)"}
+                                    </p>
                                     <div className="space-y-3">
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><LinkIcon size={14} /></div>
@@ -365,12 +376,26 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         </div>
                                         <p className="text-[10px] text-gray-500 px-1">*Social Media links (LinkedIn, IG) are blocked. Use Copy-Paste below.</p>
                                         <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider">AND / OR</div>
-                                        <textarea placeholder={analysisMode === 'influencer' ? "Paste 2-3 examples of their best posts here..." : "Paste your bio, mission, or past captions..."} className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono" value={textInput} onChange={(e) => setTextInput(e.target.value)} />
+                                        <textarea placeholder={analysisMode === 'influencer' ? "Paste 3-5 examples of their best posts/articles..." : "Paste your bio, past posts, or articles..."} className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono" value={textInput} onChange={(e) => setTextInput(e.target.value)} />
                                     </div>
                                     <button onClick={handleAnalyze} disabled={isAnalyzing} className={`w-full mt-4 text-white font-bold py-2.5 rounded-lg transition shadow-lg flex items-center justify-center gap-2 ${analysisMode === 'influencer' ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-600 hover:bg-blue-500'}`}>
                                         {isAnalyzing ? <RefreshCw size={16} className="animate-spin" /> : (analysisMode === 'influencer' ? <Copy size={16} /> : <Sparkles size={16} />)}
-                                        {isAnalyzing ? 'Analyzing...' : (analysisMode === 'influencer' ? 'Extract Style' : 'Analyze DNA')}
+                                        {isAnalyzing ? 'Analyzing...' : (analysisMode === 'influencer' ? 'Extract Patterns' : 'Analyze DNA')}
                                     </button>
+
+                                    {/* Suggested Hashtags Display */}
+                                    {suggestedHashtags.length > 0 && (
+                                        <div className="mt-4 p-3 bg-green-900/10 border border-green-500/30 rounded-lg">
+                                            <p className="text-xs font-bold text-green-400 mb-2">✓ Suggested Hashtags (auto-filled):</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {suggestedHashtags.map((tag, idx) => (
+                                                    <span key={idx} className="text-xs px-2 py-1 bg-green-600/20 text-green-300 rounded border border-green-500/30">
+                                                        {tag}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex items-center justify-between mb-6">
