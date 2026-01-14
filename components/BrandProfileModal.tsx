@@ -140,8 +140,19 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         else if (emoji >= 50 && emoji < 80) emojiString = '✨💡';
         else if (emoji >= 80) emojiString = '🚀✨💡🔥';
 
-        // Combine into final preview
-        const preview = `${toneText} ${lengthText} ${emojiString}`.trim();
+        // Combine main content
+        let preview = `${toneText} ${lengthText} ${emojiString}`.trim();
+
+        // Add hashtags from Rules tab if available
+        if (hashtags && hashtags.trim()) {
+            preview += `\n\n${hashtags}`;
+        }
+
+        // Add call-to-action if available
+        if (callToAction && callToAction.trim()) {
+            preview += `\n\n${callToAction}`;
+        }
+
         return preview;
     };
 
