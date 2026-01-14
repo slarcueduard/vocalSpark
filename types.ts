@@ -56,6 +56,7 @@ export interface BrandProfile {
   postLength?: 'short' | 'medium' | 'long';
   detailLevel?: 'minimal' | 'balanced' | 'deep';
   innovationFactor?: 'safe' | 'balanced' | 'unique';
+  englishProficiency?: 'basic' | 'intermediate' | 'advanced' | 'native';
 }
 
 export interface Post {

@@ -23,7 +23,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const { allProfiles, activeProfileIndex, switchProfile, addNewProfile, deleteProfile, userProfile } = useAuth();
 
     const [activeTab, setActiveTab] = useState<Tab>('core');
-    const [viewMode, setViewMode] = useState<'simple' | 'advanced'>('simple'); // NEW: View Mode
+    // Removed viewMode - always show all features
     const [isSaving, setIsSaving] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -114,21 +114,9 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         setTextInput('');
         setAnalysisMode('personal');
         setActiveTab('core');
-        // Reset to Simple view by default
-        setViewMode('simple');
     }, [activeProfileIndex]);
 
-    // NEW: Check if this is the "General" profile
-    // Assuming "General" profile has name "General" or "My Brand" with no DNA? 
-    // The prompt says "If Profile == Custom (Voice DNA)". So if VoiceDNA is set, it's custom.
-    // But "General" might be a specific fallback. 
-    // Let's use a heuristic: If it has Voice DNA, it's "Custom" for the purpose of locking.
-    // UNLESS the name is explicitly "General".
-    const isGeneralProfile = profileName.toLowerCase() === 'general';
-    const isCustomProfile = !isGeneralProfile && voiceDNA.length > 10;
-
-    // Lock sliders if: Simple Mode AND Custom Profile
-    const areSlidersLocked = viewMode === 'simple' && isCustomProfile;
+    // Removed lock logic - sliders always editable
 
     const handleAnalyze = async () => {
         const contentToAnalyze = textInput || urlInput;
@@ -274,7 +262,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-0 md:p-4">
-            <div className="bg-[#0f1115] w-full h-[100dvh] md:h-auto md:max-h-[90vh] md:rounded-2xl border border-gray-800 shadow-2xl flex flex-col md:flex-row overflow-hidden">
+            <div className="bg-[#0f1115] w-full h-[100dvh] md:h-auto md:max-h-[90vh] md:max-w-6xl md:rounded-2xl border border-gray-800 shadow-2xl flex flex-col md:flex-row overflow-hidden">
 
                 {/* === 1. MOBILE PROFILE SELECTOR (BARA ORIZONTALA DOAR PE MOBIL) === */}
                 <div className="md:hidden bg-[#0a0c10] border-b border-gray-800 p-3 shrink-0 flex items-center gap-3 overflow-x-auto custom-scrollbar">
@@ -365,25 +353,14 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                             <p className="text-xs md:text-sm text-gray-400">Writing as: <span className="text-blue-400 font-mono">{profileName}</span></p>
                         </div>
 
-                        {/* VIEW MODE TOGGLE (Moved to Header) */}
-                        <div className="flex items-center gap-3">
-                            <div className="bg-[#161b22] p-1 rounded-lg border border-gray-700 flex ml-4">
-                                <button onClick={() => setViewMode('simple')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition ${viewMode === 'simple' ? 'bg-blue-600 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>Simple</button>
-                                <button onClick={() => setViewMode('advanced')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition ${viewMode === 'advanced' ? 'bg-purple-600 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}>Advanced</button>
-                            </div>
-                            <button onClick={onClose} className="text-gray-500 hover:text-white transition p-1"><X size={24} /></button>
-                        </div>
+                        <button onClick={onClose} className="text-gray-500 hover:text-white transition p-1"><X size={24} /></button>
                     </div>
 
                     {/* Tabs */}
                     <div className="flex border-b border-gray-800 bg-[#0f1115]">
                         <TabButton label="Voice DNA" isActive={activeTab === 'core'} onClick={() => setActiveTab('core')} />
-                        {viewMode === 'advanced' && (
-                            <>
-                                <TabButton label="Visuals" isActive={activeTab === 'visuals'} onClick={() => setActiveTab('visuals')} />
-                                <TabButton label="Rules" isActive={activeTab === 'rules'} onClick={() => setActiveTab('rules')} />
-                            </>
-                        )}
+                        <TabButton label="Visuals" isActive={activeTab === 'visuals'} onClick={() => setActiveTab('visuals')} />
+                        <TabButton label="Rules" isActive={activeTab === 'rules'} onClick={() => setActiveTab('rules')} />
                     </div>
 
                     {/* Scrollable Form */}
@@ -419,99 +396,85 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                 </div>
 
                                 <div className="flex flex-col md:flex-row items-center gap-8">
-                                    {/* Visualization - HIDDEN IN SIMPLE MODE */}
-                                    {viewMode === 'advanced' && (
-                                        <div className="w-full md:w-1/2 flex justify-center bg-[#0a0c10] rounded-xl border border-gray-800 py-4 shadow-inner animate-in fade-in">
-                                            <VoiceRadarChart tone={sliders.tone} emoji={sliders.emoji} length={sliders.length} />
-                                        </div>
-                                    )}
+                                    {/* Visualization */}
+                                    <div className="w-full md:w-1/2 flex justify-center bg-[#0a0c10] rounded-xl border border-gray-800 py-4 shadow-inner">
+                                        <VoiceRadarChart tone={sliders.tone} emoji={sliders.emoji} length={sliders.length} />
+                                    </div>
 
                                     {/* Controls */}
-                                    <div className={`w-full ${viewMode === 'advanced' ? 'md:w-1/2' : 'md:w-full'} space-y-6`}>
-                                        {areSlidersLocked && (
-                                            <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-start gap-3 mb-4">
-                                                <Lock size={16} className="text-blue-400 mt-0.5 shrink-0" />
-                                                <div>
-                                                    <p className="text-xs font-bold text-blue-200">Settings Locked</p>
-                                                    <p className="text-[10px] text-blue-300/80">Matching your <strong>{profileName}</strong> DNA. Switch to <strong>General</strong> to edit manually, or use <strong>Advanced View</strong> to override.</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <SliderControl disabled={areSlidersLocked} label="Tone" leftLabel="Casual / Friendly" rightLabel="Formal / Professional" value={sliders.tone} onChange={(val: number) => setSliders({ ...sliders, tone: val })} color="blue" />
-                                        <SliderControl disabled={areSlidersLocked} label="Emoji Usage" leftLabel="Minimal" rightLabel="Heavy" value={sliders.emoji} onChange={(val: number) => setSliders({ ...sliders, emoji: val })} color="purple" />
-                                        <SliderControl disabled={areSlidersLocked} label="Sentence Length" leftLabel="Short / Punchy" rightLabel="Long / Detailed" value={sliders.length} onChange={(val: number) => setSliders({ ...sliders, length: val })} color="indigo" />
+                                    <div className="w-full md:w-1/2 space-y-6">
+                                        <SliderControl label="Tone" leftLabel="Casual / Friendly" rightLabel="Formal / Professional" value={sliders.tone} onChange={(val: number) => setSliders({ ...sliders, tone: val })} color="blue" />
+                                        <SliderControl label="Emoji Usage" leftLabel="Minimal" rightLabel="Heavy" value={sliders.emoji} onChange={(val: number) => setSliders({ ...sliders, emoji: val })} color="purple" />
+                                        <SliderControl label="Sentence Length" leftLabel="Short / Punchy" rightLabel="Long / Detailed" value={sliders.length} onChange={(val: number) => setSliders({ ...sliders, length: val })} color="indigo" />
                                     </div>
                                 </div>
 
 
-                                {/* DNA, Audience, Niche - HIDDEN IN SIMPLE MODE UNLESS ADVANCED */}
-                                {viewMode === 'advanced' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in">
-                                        <div>
-                                            <label className="text-xs text-gray-400 block mb-1.5">Language</label>
-                                            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
-                                                <option value="English">English (US)</option>
-                                                <option value="Romanian">Romanian</option>
-                                                <option value="Spanish">Spanish</option>
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-xs text-gray-400 block mb-1.5">Niche</label>
-                                            <input type="text" value={industry} onChange={(e) => setIndustry(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white" />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="text-xs text-gray-400 block mb-1.5">Target Audience</label>
-                                            <input type="text" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white" />
-                                        </div>
-                                        <div className="md:col-span-2">
-                                            <label className="text-xs text-gray-400 block mb-1.5">Generated Voice DNA (Editable)</label>
-                                            <textarea value={voiceDNA} onChange={(e) => setVoiceDNA(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white h-24" />
-                                        </div>
+                                {/* DNA, Audience, Niche */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="text-xs text-gray-400 block mb-1.5">Language</label>
+                                        <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+                                            <option value="English">English (US)</option>
+                                            <option value="Romanian">Romanian</option>
+                                            <option value="Spanish">Spanish</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-400 block mb-1.5">Niche</label>
+                                        <input type="text" value={industry} onChange={(e) => setIndustry(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white" />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs text-gray-400 block mb-1.5">Target Audience</label>
+                                        <input type="text" value={targetAudience} onChange={(e) => setTargetAudience(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white" />
+                                    </div>
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs text-gray-400 block mb-1.5">Generated Voice DNA (Editable)</label>
+                                        <textarea value={voiceDNA} onChange={(e) => setVoiceDNA(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white h-24" />
+                                    </div>
 
-                                        {/* NEW: URL Links Section */}
-                                        <div className="md:col-span-2">
-                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-2">
-                                                <LinkIcon size={14} /> Your URL Links (Optional)
-                                            </label>
-                                            <p className="text-[10px] text-gray-500 mb-3">Add up to 2 URLs (website, portfolio, LinkedIn, etc.)</p>
-                                            <div className="space-y-2">
-                                                {links.map((link, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2">
-                                                        <div className="flex-1 relative">
-                                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-                                                                <LinkIcon size={14} />
-                                                            </div>
-                                                            <input
-                                                                type="url"
-                                                                value={link}
-                                                                onChange={(e) => {
-                                                                    const newLinks = [...links];
-                                                                    newLinks[idx] = e.target.value;
-                                                                    setLinks(newLinks);
-                                                                }}
-                                                                placeholder={`Link #${idx + 1} (e.g., https://yourwebsite.com)`}
-                                                                className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition"
-                                                            />
+                                    {/* NEW: URL Links Section */}
+                                    <div className="md:col-span-2">
+                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-2">
+                                            <LinkIcon size={14} /> Your URL Links (Optional)
+                                        </label>
+                                        <p className="text-[10px] text-gray-500 mb-3">Add up to 2 URLs (website, portfolio, LinkedIn, etc.)</p>
+                                        <div className="space-y-2">
+                                            {links.map((link, idx) => (
+                                                <div key={idx} className="flex items-center gap-2">
+                                                    <div className="flex-1 relative">
+                                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
+                                                            <LinkIcon size={14} />
                                                         </div>
-                                                        {link && (
-                                                            <button
-                                                                onClick={() => {
-                                                                    const newLinks = [...links];
-                                                                    newLinks[idx] = '';
-                                                                    setLinks(newLinks);
-                                                                }}
-                                                                className="p-2 text-gray-500 hover:text-red-400 transition"
-                                                            >
-                                                                <X size={16} />
-                                                            </button>
-                                                        )}
+                                                        <input
+                                                            type="url"
+                                                            value={link}
+                                                            onChange={(e) => {
+                                                                const newLinks = [...links];
+                                                                newLinks[idx] = e.target.value;
+                                                                setLinks(newLinks);
+                                                            }}
+                                                            placeholder={`Link #${idx + 1} (e.g., https://yourwebsite.com)`}
+                                                            className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 transition"
+                                                        />
                                                     </div>
-                                                ))}
-                                            </div>
+                                                    {link && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const newLinks = [...links];
+                                                                newLinks[idx] = '';
+                                                                setLinks(newLinks);
+                                                            }}
+                                                            className="p-2 text-gray-500 hover:text-red-400 transition"
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         )}
 
