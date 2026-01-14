@@ -179,11 +179,20 @@ export async function generateSocialMediaPosts(
     if (innovPref === 'balanced') innovInstruction = "RISK: Medium. Engaging.";
     if (innovPref === 'unique') innovInstruction = "RISK: High. Polarizing, metaphor-heavy, unconventional structure. BREAK PATTERNS.";
 
+    // English Proficiency Layer
+    const proficiency = brandProfile?.englishProficiency || 'native';
+    let proficiencyInstruction = "";
+    if (proficiency === 'basic') proficiencyInstruction = "LANGUAGE COMPLEXITY: BASIC. Use simple words (A1/A2). Short sentences. Avoid idioms and metaphors. Easy to understand for non-native speakers.";
+    if (proficiency === 'intermediate') proficiencyInstruction = "LANGUAGE COMPLEXITY: INTERMEDIATE. Standard business English (B1/B2). Clear structure. Minimal idioms.";
+    if (proficiency === 'advanced') proficiencyInstruction = "LANGUAGE COMPLEXITY: ADVANCED. Rich vocabulary (C1). Varied sentence structure. Professional fluency.";
+    if (proficiency === 'native') proficiencyInstruction = "LANGUAGE COMPLEXITY: NATIVE. Use idiomatic expressions, cultural nuances, sophisticated phrasing (C2). Fully natural flow.";
+
     const preferenceLayer = `
     PREFERENCES:
     - ${lengthInstruction}
     - ${detailInstruction}
     - ${innovInstruction}
+    - ${proficiencyInstruction}
     `;
 
     // --- 2. OBJECTIVE & STRATEGY LAYER ---

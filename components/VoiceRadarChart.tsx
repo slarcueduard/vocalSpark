@@ -12,9 +12,15 @@ export function VoiceRadarChart({ tone, emoji, length }: VoiceRadarChartProps) {
     const center = size / 2;
     const radius = 80;
 
+    // Safe value helper
+    const safe = (val: number) => {
+        const num = Number(val);
+        return isNaN(num) ? 50 : Math.max(0, Math.min(100, num));
+    };
+
     // Convert 0-100 score to radius distance
     // We add a base size (20%) so 0 isn't invisible
-    const scale = (value: number) => radius * (0.2 + (value / 100) * 0.8);
+    const scale = (value: number) => radius * (0.2 + (safe(value) / 100) * 0.8);
 
     // Calculate points
     // 1. Tone (Top) - Angle -90 degrees (or 270)
@@ -96,9 +102,9 @@ export function VoiceRadarChart({ tone, emoji, length }: VoiceRadarChartProps) {
                 <text x={center + radius * Math.cos(angleLeft) - 10} y={center + radius * Math.sin(angleLeft) + 10} textAnchor="end" fill="#9CA3AF" fontSize="10" fontWeight="bold">Emoji</text>
 
                 {/* Values */}
-                <text x={center} y={center - radius - 5} textAnchor="middle" fill="#60A5FA" fontSize="10">{tone}%</text>
-                <text x={center + radius * Math.cos(angleRight) + 10} y={center + radius * Math.sin(angleRight) + 20} textAnchor="start" fill="#60A5FA" fontSize="10">{length}%</text>
-                <text x={center + radius * Math.cos(angleLeft) - 10} y={center + radius * Math.sin(angleLeft) + 20} textAnchor="end" fill="#60A5FA" fontSize="10">{emoji}%</text>
+                <text x={center} y={center - radius - 5} textAnchor="middle" fill="#60A5FA" fontSize="10">{safe(tone)}%</text>
+                <text x={center + radius * Math.cos(angleRight) + 10} y={center + radius * Math.sin(angleRight) + 20} textAnchor="start" fill="#60A5FA" fontSize="10">{safe(length)}%</text>
+                <text x={center + radius * Math.cos(angleLeft) - 10} y={center + radius * Math.sin(angleLeft) + 20} textAnchor="end" fill="#60A5FA" fontSize="10">{safe(emoji)}%</text>
             </svg>
         </div>
     );
