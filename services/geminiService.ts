@@ -1,5 +1,6 @@
 import { Post, Tone, Platform, RefinementType, BrandProfile, PostObjective } from "../types";
 import { auth } from "./firebase";
+import { UNIVERSAL_STYLE_RULES } from "../constants/universalRules";
 
 // --- HELPER: Auth Headers ---
 async function getAuthHeader() {
@@ -330,6 +331,8 @@ export async function generateSocialMediaPosts(
     }
 
     const fullPrompt = `
+    ${UNIVERSAL_STYLE_RULES}
+    
     ${identityLayer}
     ${preferenceLayer}
     ${strategyLayer}
@@ -533,7 +536,7 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'inf
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {
         const data = await safeFetch('/api/generate-text', {
-            prompt: `Adapt for ${platform}: "${originalContent}"`
+            prompt: `${UNIVERSAL_STYLE_RULES}\n\nAdapt for ${platform}: "${originalContent}"`
         });
         let output = data.output;
 
@@ -562,7 +565,7 @@ export async function adaptPostForPlatform(originalContent: string, platform: Pl
 
 export async function refinePostContent(content: string, type: RefinementType): Promise<string> {
     try {
-        const data = await safeFetch('/api/generate-text', { prompt: `Rewrite (${type}): "${content}"` });
+        const data = await safeFetch('/api/generate-text', { prompt: `${UNIVERSAL_STYLE_RULES}\n\nRewrite (${type}): "${content}"` });
         let output = data.output;
 
         // Check if output is JSON formatted
