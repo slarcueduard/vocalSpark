@@ -240,7 +240,7 @@ export async function generateSocialMediaPosts(
 
         strategyLayer = `
         ### ROLE & OBJECTIVE
-        You are Social Spark AI. "Reverse Engineer" the reference content and rewrite the NEW_TOPIC using the SAME formula.
+        You are Vocal Spark AI. "Reverse Engineer" the reference content and rewrite the NEW_TOPIC using the SAME formula.
 
         ### INPUT DATA
         1. REFERENCE_CONTENT: "${topic}"
