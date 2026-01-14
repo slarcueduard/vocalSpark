@@ -518,6 +518,37 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         <SliderControl label="Tone" leftLabel="Casual / Friendly" rightLabel="Formal / Professional" value={sliders.tone} onChange={(val: number) => setSliders({ ...sliders, tone: val })} color="blue" />
                                         <SliderControl label="Emoji Usage" leftLabel="Minimal" rightLabel="Heavy" value={sliders.emoji} onChange={(val: number) => setSliders({ ...sliders, emoji: val })} color="purple" />
                                         <SliderControl label="Sentence Length" leftLabel="Short / Punchy" rightLabel="Long / Detailed" value={sliders.length} onChange={(val: number) => setSliders({ ...sliders, length: val })} color="indigo" />
+
+                                        {/* English Proficiency - Integrated Style */}
+                                        <div>
+                                            <div className="flex justify-between mb-2">
+                                                <span className="text-sm font-medium text-white flex items-center gap-2">English Proficiency</span>
+                                                <span className="text-xs font-bold text-green-400 uppercase">{englishProficiency}</span>
+                                            </div>
+                                            <div className="relative h-2 bg-gray-700 rounded-lg">
+                                                <div className="absolute left-0 top-0 h-full rounded-lg bg-green-600 transition-all duration-300" style={{ width: englishProficiency === 'basic' ? '0%' : englishProficiency === 'intermediate' ? '33%' : englishProficiency === 'advanced' ? '66%' : '100%' }}></div>
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    step="33"
+                                                    value={englishProficiency === 'basic' ? 0 : englishProficiency === 'intermediate' ? 33 : englishProficiency === 'advanced' ? 66 : 100}
+                                                    onChange={(e) => {
+                                                        const val = Number(e.target.value);
+                                                        if (val < 16) setEnglishProficiency('basic');
+                                                        else if (val < 50) setEnglishProficiency('intermediate');
+                                                        else if (val < 84) setEnglishProficiency('advanced');
+                                                        else setEnglishProficiency('native');
+                                                    }}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                />
+                                                <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg border-2 border-green-600 pointer-events-none transition-all duration-300" style={{ left: englishProficiency === 'basic' ? '0%' : englishProficiency === 'intermediate' ? '33%' : englishProficiency === 'advanced' ? '66%' : '100%' }}></div>
+                                            </div>
+                                            <div className="flex justify-between mt-2">
+                                                <span className="text-[10px] text-gray-500 uppercase font-medium">Basic (A1)</span>
+                                                <span className="text-[10px] text-gray-500 uppercase font-medium">Native (C2)</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -564,47 +595,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         <textarea value={voiceDNA} onChange={(e) => setVoiceDNA(e.target.value)} className="w-full bg-[#1c1c2e] border border-gray-700 rounded-lg p-2.5 text-sm text-white h-24" />
                                     </div>
 
-                                    <div className="md:col-span-2">
-                                        <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2 flex items-center gap-2">
-                                            <Globe size={14} /> English Proficiency
-                                        </label>
-                                        <div className="bg-[#1c1c2e] p-4 rounded-xl border border-gray-700">
-                                            <div className="flex justify-between text-xs text-gray-400 mb-2 uppercase font-semibold">
-                                                <span>Basic</span>
-                                                <span>Native</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="100"
-                                                step="33"
-                                                value={
-                                                    englishProficiency === 'basic' ? 0 :
-                                                        englishProficiency === 'intermediate' ? 33 :
-                                                            englishProficiency === 'advanced' ? 66 : 100
-                                                }
-                                                onChange={(e) => {
-                                                    const val = Number(e.target.value);
-                                                    if (val < 16) setEnglishProficiency('basic');
-                                                    else if (val < 50) setEnglishProficiency('intermediate');
-                                                    else if (val < 84) setEnglishProficiency('advanced');
-                                                    else setEnglishProficiency('native');
-                                                }}
-                                                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                                            />
-                                            <div className="flex justify-between items-center mt-3">
-                                                <span className="text-xs text-blue-400 font-bold uppercase tracking-wider">
-                                                    {englishProficiency}
-                                                </span>
-                                                <span className="text-[10px] text-gray-500 italic text-right max-w-[200px]">
-                                                    {englishProficiency === 'basic' && "Simple words. Short sentences. A1/A2 Level."}
-                                                    {englishProficiency === 'intermediate' && "Standard business English. B1/B2 Level."}
-                                                    {englishProficiency === 'advanced' && "Rich vocabulary. C1 Level."}
-                                                    {englishProficiency === 'native' && "Idioms, cultural nuance, complex structure. C2 Level."}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
+
 
                                     {/* NEW: URL Links Section */}
                                     <div className="md:col-span-2">
