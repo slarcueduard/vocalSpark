@@ -433,22 +433,22 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#0f1115]">
 
                     {/* Header */}
-                    <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-start">
+                    <div className="p-3 md:p-4 border-b border-gray-800 flex justify-between items-start shrink-0">
                         <div>
-                            <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center gap-2 mb-1">
                                 <input
                                     type="text"
                                     value={profileName}
                                     onChange={(e) => setProfileName(e.target.value)}
-                                    className="bg-transparent text-lg md:text-xl font-bold text-white outline-none border-b border-transparent hover:border-gray-700 focus:border-blue-500 transition w-full placeholder-gray-600"
-                                    placeholder="Profile Name (e.g. Personal)"
+                                    className="bg-transparent text-lg font-bold text-white outline-none border-b border-transparent hover:border-gray-700 focus:border-blue-500 transition w-full placeholder-gray-600"
+                                    placeholder="Profile Name"
                                 />
-                                <div className="bg-blue-600/20 p-1.5 rounded-lg shrink-0"><Sparkles size={16} className="text-blue-500" /></div>
+                                <div className="bg-blue-600/20 p-1 rounded-md shrink-0"><Sparkles size={14} className="text-blue-500" /></div>
                             </div>
-                            <p className="text-xs md:text-sm text-gray-400">Writing as: <span className="text-blue-400 font-mono">{profileName}</span></p>
+                            <p className="text-xs text-gray-500">Writing as: <span className="text-blue-400 font-mono">{profileName}</span></p>
                         </div>
 
-                        <button onClick={onClose} className="text-gray-500 hover:text-white transition p-1"><X size={24} /></button>
+                        <button onClick={onClose} className="text-gray-500 hover:text-white transition p-1"><X size={20} /></button>
                     </div>
 
                     {/* Tabs */}
