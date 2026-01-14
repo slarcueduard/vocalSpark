@@ -219,6 +219,8 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             console.log("🧬 Analyzing content of length:", contentToAnalyze.length);
             const analysis = await analyzeBrandVoice(contentToAnalyze, 'personal');
 
+            console.log("📊 Raw Analysis Result:", analysis); // Debug log
+
             // Validate numbers to prevent NaN errors
             const safeNumber = (val: any) => {
                 const num = Number(val);

@@ -593,7 +593,9 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'ins
             isCampaign: false
         });
         const cleanJson = data.output.replace(/```json|```/g, '').trim();
-        return JSON.parse(cleanJson);
+        const parsed = JSON.parse(cleanJson);
+        // If AI returns an array (common mistake), take the first item
+        return Array.isArray(parsed) ? parsed[0] : parsed;
     } catch (error) {
         console.error("Error analyzing brand voice:", error);
         const baseReturn = {
