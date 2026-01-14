@@ -176,6 +176,9 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                     const scrapeData = await scrapeResponse.json();
                     contentToAnalyze = scrapeData.content;
 
+                    // Auto-fill textarea so user can see/edit the scraped content
+                    setTextInput(contentToAnalyze);
+
                     console.log("✅ Scraped content length:", contentToAnalyze?.length);
                     console.log("📝 Scraped content preview:", contentToAnalyze?.substring(0, 200));
 
