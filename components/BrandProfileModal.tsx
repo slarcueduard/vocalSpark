@@ -157,6 +157,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
             // If URL is provided, scrape it first
             if (urlInput && !textInput) {
+                console.log("🔗 Scraping URL:", urlInput);
                 try {
                     const scrapeResponse = await fetch('/api/scrape-url', {
                         method: 'POST',
@@ -164,18 +165,26 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                         body: JSON.stringify({ url: urlInput })
                     });
 
+                    console.log("📊 Scrape response status:", scrapeResponse.status);
+
                     if (!scrapeResponse.ok) {
-                        throw new Error('Failed to scrape URL. Try copying the content manually.');
+                        const errorData = await scrapeResponse.json();
+                        console.error("❌ Scrape failed:", errorData);
+                        throw new Error(errorData.error || 'Failed to scrape URL');
                     }
 
                     const scrapeData = await scrapeResponse.json();
                     contentToAnalyze = scrapeData.content;
 
+                    console.log("✅ Scraped content length:", contentToAnalyze?.length);
+                    console.log("📝 Scraped content preview:", contentToAnalyze?.substring(0, 200));
+
                     if (!contentToAnalyze || contentToAnalyze.length < 50) {
-                        throw new Error('Not enough content found at this URL.');
+                        throw new Error(`Not enough content found (${contentToAnalyze?.length || 0} characters). Try copying the text manually.`);
                     }
                 } catch (scrapeError: any) {
-                    alert(scrapeError.message || 'Could not scrape URL. Please paste the content manually in the text area below.');
+                    console.error("❌ Scrape error:", scrapeError);
+                    alert(`URL Scraping Failed: ${scrapeError.message}\n\nPlease copy the content manually and paste it in the text area below.`);
                     setIsAnalyzing(false);
                     return;
                 }
@@ -188,6 +197,7 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 return;
             }
 
+            console.log("🧬 Analyzing content of length:", contentToAnalyze.length);
             const analysis = await analyzeBrandVoice(contentToAnalyze, 'personal');
 
             // Save to profile
