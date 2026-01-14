@@ -1,12 +1,14 @@
 {
   "name": "vocal-spark-ai",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "powershell -ExecutionPolicy Bypass -File ./scripts/deploy.ps1",
+    "rollback": "powershell -ExecutionPolicy Bypass -File ./scripts/rollback.ps1"
   },
   "dependencies": {
     "clsx": "^2.1.1",
