@@ -11,18 +11,22 @@ import { db, auth } from './services/firebase';
 
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target, Youtube, Smile, AlertTriangle, Sparkles, MessageCircle, Mic, Lightbulb, MonitorPlay } from 'lucide-react';
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target, Youtube, Smile, AlertTriangle, Sparkles, MessageCircle, Mic, Lightbulb, MonitorPlay, AlignLeft, Check } from 'lucide-react';
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MainLayout } from './layouts/MainLayout';
 import { PhonePreview } from './components/PhonePreview';
+import { RemixStudio } from './components/RemixStudio';
 import { PostCard } from './components/PostCard';
 import { LandingPage } from './components/LandingPage';
 import { HistoryView } from './components/HistoryView';
 import { CalendarView } from './components/CalendarView';
 import { NotificationManager } from './components/NotificationManager';
 import { DocumentationView } from './components/DocumentationView';
+import { FounderModeContainer } from './components/FounderMode/FounderModeContainer';
+import { TodaysPostWidget } from './components/TodaysPost/TodaysPostSettings';
+import { TodaysPostFeed } from './components/TodaysPost/TodaysPostFeed';
 
 // FIX: Separate links for different upgrade paths
 const STRIPE_PRO_LINK = "https://buy.stripe.com/8x2cN51DI9ZZ3BTczkaAw06";
@@ -33,6 +37,7 @@ const HOOKS: ViralHook[] = ['Straight to the Point', 'Storytime', 'Controversial
 
 const SocialSparkApp: React.FC = () => {
     const { user, brandProfile, saveBrandProfile, checkCredits, refundCredits, isTrialExpired, loading, userProfile, logout } = useAuth();
+    console.log("SocialSparkApp Mounting..."); // DEBUG LOG
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -47,11 +52,13 @@ const SocialSparkApp: React.FC = () => {
 
 
 
-    const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar' | 'docs'>('create');
+    const [currentView, setCurrentView] = useState<'create' | 'history' | 'calendar' | 'docs' | 'daily'>('create');
 
     // Starea pentru Moduri
     // UPDATED: Default to 'multi' (Creator Studio) instead of 'creator' (Single)
-    const [appMode, setAppMode] = useState<AppMode>('multi');
+    // Starea pentru Moduri
+    // UPDATED: Default to 'multi' (Creator Studio) instead of 'creator' (Single)
+    const [appMode, setAppMode] = useState<AppMode | 'founder'>('multi'); // Added 'founder'
 
     // Niche input state for General Profile
     const [manualNiche, setManualNiche] = useState('');
@@ -84,7 +91,8 @@ const SocialSparkApp: React.FC = () => {
     const [selectedPlatform, setSelectedPlatform] = useState<Platform>(Platform.Instagram);
     const [objective, setObjective] = useState<PostObjective>('engagement');
     const [campaignCount, setCampaignCount] = useState(3);
-    const [remixFormats, setRemixFormats] = useState<string[]>(['LinkedIn Post', 'Twitter Thread']);
+    const [detailLevel, setDetailLevel] = useState<'min' | 'medium' | 'long' | 'detailed'>('medium'); // Control for post length/detail
+    const [remixFormats, setRemixFormats] = useState<string[]>([]);
     const [useGreenScreen, setUseGreenScreen] = useState(false); // NEW: TikTok Green Screen Mode
     const [multiPlatformTargets, setMultiPlatformTargets] = useState<Platform[]>([Platform.Instagram, Platform.Facebook, Platform.LinkedIn, Platform.X]);
     const [remixSource, setRemixSource] = useState<'text' | 'youtube'>('text');
@@ -98,6 +106,8 @@ const SocialSparkApp: React.FC = () => {
     const [useRealTime, setUseRealTime] = useState(false);
     const [vibeMessage, setVibeMessage] = useState<string | null>(null);
     const [notification, setNotification] = useState<string | null>(null);
+    const [useSavedHooks, setUseSavedHooks] = useState(false); // Saved Hooks Toggle
+    const [selectedHook, setSelectedHook] = useState<string | null>(null); // Specific Hook Selection
 
     const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [isBrandProfileModalOpen, setIsBrandProfileModalOpen] = useState(false);
@@ -109,6 +119,15 @@ const SocialSparkApp: React.FC = () => {
     const [refiningPostId, setRefiningPostId] = useState<string | null>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
     const recognitionRef = useRef<any>(null); // For Audio Rant Mode
+
+    // Sync Preview Platform with Selected Targets
+    useEffect(() => {
+        if (multiPlatformTargets.length > 0) {
+            // Pick a random platform from the selected ones to show in preview
+            const randomPlatform = multiPlatformTargets[Math.floor(Math.random() * multiPlatformTargets.length)];
+            setSelectedPlatform(randomPlatform);
+        }
+    }, [multiPlatformTargets]);
 
     // --- LOGICA FILTRARE VIZUALA ---
     const visiblePosts = posts.filter(post => {
@@ -279,15 +298,31 @@ const SocialSparkApp: React.FC = () => {
         finally { setIsLoading(false); }
     };
 
-    const handleGenerate = async () => {
-        if (!topic.trim() && !attachedImage) { setError(appMode === 'remix' ? "Paste content to remix." : "Please write a topic."); return; }
+    const handleGenerate = async (
+        overrideTopic?: string,
+        isRemixOverride?: boolean,
+        remixDataOverride?: any
+    ) => {
+        // Use overrides or fallback to state
+        const activeTopic = overrideTopic || topic;
+        const isRemixMode = isRemixOverride !== undefined ? isRemixOverride : (appMode === 'remix');
+
+        if (!activeTopic.trim() && !attachedImage) {
+            setError(isRemixMode ? "Paste content to remix." : "Please write a topic.");
+            return;
+        }
 
         // --- NEW: GENERIC URL REMIX (Twitter, Blog, etc.) ---
         // If we are in Remix Mode AND 'text' is selected, check if input is a URL.
-        const cleanTopic = topic.trim();
+        const cleanTopic = activeTopic.trim();
         const isUrl = cleanTopic.match(/^https?:\/\//);
 
-        if (appMode === 'remix' && remixSource === 'text' && isUrl) {
+        // If explicitly passed remix data (e.g. from Analyze First flow), skip URL check and go straight to generation
+        if (remixDataOverride && remixDataOverride.mode === 'variant') {
+            // Handle "Steal Structure" / Variant Generation immediately
+            // Logic will fall through to standard generation but with xRayData attached
+        }
+        else if (isRemixMode && remixSource === 'text' && isUrl) {
             // It's a URL but NOT YouTube (since user didn't switch to YouTube toggle, or we can auto-detect)
             // If it IS YouTube, we might want to guide them to use the YouTube toggle OR just handle it here too.
             // But our specific YouTube pipeline is better. Let's redirect logic internally if needed, or just let them use the toggle.
@@ -355,10 +390,10 @@ const SocialSparkApp: React.FC = () => {
         }
 
         // --- YOUTUBE REMIX LOGIC (GROUNDED PIPELINE) ---
-        if (appMode === 'remix' && remixSource === 'youtube') {
+        if (isRemixMode && remixSource === 'youtube') {
             try {
                 // Determine if valid URL
-                const cleanTopic = topic.trim();
+                const cleanTopic = activeTopic.trim();
                 const isYouTube = cleanTopic.match(/^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/);
                 if (!isYouTube) { setError("Please paste a valid YouTube URL."); return; }
 
@@ -413,7 +448,7 @@ const SocialSparkApp: React.FC = () => {
 
         let count = 1;
         if (isCampaignMode) count = campaignCount;
-        if (appMode === 'remix') count = remixFormats.length;
+        if (isRemixMode) count = remixFormats.length;
         if (appMode === 'multi') count = multiPlatformTargets.length;
 
         const cost = useRealTime ? 10 : (1 * count);
@@ -432,21 +467,31 @@ const SocialSparkApp: React.FC = () => {
                 }
             }
 
+            const filteredHooks = (brandProfile?.customHooks || []).filter(h => typeof h === 'string' && h.length > 5);
+            const hooksToUse = useSavedHooks
+                ? (selectedHook ? [selectedHook] : filteredHooks)
+                : [];
+
             const generatedPosts = await generateSocialMediaPosts(
-                topic, tone, count, brandProfile?.language || 'English',
+                activeTopic, tone, count, brandProfile?.language || 'English',
                 useBrandVoice ? (brandProfile?.voiceDNA || '') : '',
                 useBrandVoice ? (brandProfile || undefined) : undefined,
-                imgData, imgMime, objective, useRealTime, isCampaignMode, appMode === 'remix', remixFormats, false, "", appMode === 'multi', multiPlatformTargets, remixTargetTopic,
-                xRayData || undefined, // Pass X-Ray constraints if they exist
+                imgData, imgMime, objective, useRealTime, isCampaignMode,
+                isRemixMode, // Use override
+                remixFormats, false, "", appMode === 'multi', multiPlatformTargets,
+                remixDataOverride?.remixTargetTopic || remixTargetTopic, // Use override topic if available
+                remixDataOverride || xRayData || undefined, // Use override or state X-Ray
                 appMode === 'reply',
                 appMode === 'reply' ? replyOptions : undefined,
-                useGreenScreen // NEW: Green Screen Flag
+                useGreenScreen,
+                hooksToUse,
+                detailLevel // Pass detail level
             );
 
             if (!generatedPosts || !Array.isArray(generatedPosts) || generatedPosts.length === 0) throw new Error("AI returned an empty response.");
 
             let genType: GenerationType = 'single';
-            if (appMode === 'remix') genType = 'remix';
+            if (isRemixMode) genType = 'remix';
             else if (appMode === 'multi') genType = 'single'; // Treat as single posts visually, or maybe 'multi'? Let's use 'single' so they show up normally.
             else if (isCampaignMode) genType = 'campaign';
 
@@ -465,14 +510,12 @@ const SocialSparkApp: React.FC = () => {
             setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
             showVibe();
 
-            if (user) {
+            if (user && appMode !== 'reply') {
                 // Use centralized limit logic
                 const tier = userProfile?.subscriptionTier || 'trial';
                 const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
-                if (appMode !== 'reply') {
-                    for (const postData of newPostsData) {
-                        await savePostToHistory(user.uid, postData, topic, limit);
-                    }
+                for (const postData of newPostsData) {
+                    await savePostToHistory(user.uid, postData, activeTopic, limit);
                 }
             }
         } catch (err: any) {
@@ -574,6 +617,7 @@ const SocialSparkApp: React.FC = () => {
             onOpenBrandProfile={() => setIsBrandProfileModalOpen(true)}
             currentView={currentView}
             onViewChange={setCurrentView}
+            onResetMode={() => setAppMode('multi')}
         >
             {vibeMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3"><span className="text-xl">✨</span><span className="font-bold text-sm">{vibeMessage}</span></div>}
             {notification && <div className="fixed top-20 right-6 z-50 animate-in fade-in bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex gap-3 cursor-pointer" onClick={() => setCurrentView('history')}><div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div></div>}
@@ -594,417 +638,290 @@ const SocialSparkApp: React.FC = () => {
                 </div>
             )}
 
-            {currentView === 'history' ? <HistoryView onNavigateToCalendar={() => setCurrentView('calendar')} /> : currentView === 'calendar' ? (
+            {currentView === 'history' && (
+                <HistoryView />
+            )}
+            {currentView === 'calendar' && (
                 <CalendarView
                     onNavigateToVault={() => setCurrentView('history')}
-                    onNavigateToCreate={(data) => {
-                        setTopic(data.title);
-                        setPlanningContext({ date: data.date, title: data.title, eventId: data.id });
-                        setCurrentView('create');
-                    }}
                 />
-            ) : currentView === 'docs' ? (
+            )}
+            {currentView === 'docs' && (
                 <DocumentationView onClose={() => setCurrentView('create')} />
+            )}
+            {currentView === 'daily' && (
+                <div className="max-w-3xl mx-auto pb-20 pt-6 px-4">
+                    <h1 className="text-2xl font-bold text-white mb-6">Today's Post <span className="text-sm font-normal text-gray-400">| Daily Series</span></h1>
+                    <div className="mb-8">
+                        <TodaysPostWidget onRefresh={() => { }} />
+                    </div>
+                    <TodaysPostFeed />
+                </div>
+            )}
+
+            {/* FOUNDER MODE OVERLAY */}
+            {appMode === 'founder' && currentView === 'create' ? (
+                <FounderModeContainer onClose={() => setAppMode('multi')} />
             ) : (
-                <div className="flex h-full gap-6 relative">
-                    <div className="flex-1 min-w-0">
-                        <div className="max-w-2xl mx-auto pb-20">
-                            <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                <div>
-                                    {/* Brand Badge Removed to dedup "Writing as" */}
+                currentView === 'create' && (
+                    <div className="flex h-full gap-6 relative">
+                        <div className="flex-1 min-w-0">
+                            <div className="max-w-2xl mx-auto pb-20">
+                                <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                        {/* Brand Badge Removed to dedup "Writing as" */}
 
-                                    <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">{appMode === 'remix' ? 'Content Remix ♻️' : appMode === 'reply' ? 'Smart Reply 💬' : isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}</h2>
-                                    <p className="text-gray-500 text-sm mt-1">{appMode === 'remix' ? 'Repurpose content instantly.' : appMode === 'reply' ? 'Generate engaging replies in your voice.' : isCampaignMode ? 'Generate a content calendar.' : 'Create content for multiple platforms.'}</p>
-                                </div>
-                                <div className="flex w-full md:w-auto bg-[#161b22] p-1 rounded-xl border border-gray-700 overflow-x-auto no-scrollbar">
-                                    {/* Removed 'Single' Tab. Renamed 'Multiple' to 'Creator Studio' behavior (which is 'multi' mode) */}
-                                    <button onClick={() => handleSwitchMode('multi')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition ${appMode === 'multi' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Creator Studio</button>
+                                        <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">{appMode === 'remix' ? 'Content Remix ♻️' : appMode === 'reply' ? 'Smart Reply 💬' : isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}</h2>
+                                        <p className="text-gray-500 text-sm mt-1">{appMode === 'remix' ? 'Repurpose content instantly.' : appMode === 'reply' ? 'Generate engaging replies in your voice.' : isCampaignMode ? 'Generate a content calendar.' : 'Create content for multiple platforms.'}</p>
+                                    </div>
+                                    <div className="flex w-full md:w-auto bg-[#161b22] p-1 rounded-xl border border-gray-700 overflow-x-auto no-scrollbar">
+                                        {/* Removed 'Single' Tab. Renamed 'Multiple' to 'Creator Studio' behavior (which is 'multi' mode) */}
+                                        <button onClick={() => handleSwitchMode('multi')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition ${appMode === 'multi' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Creator Studio</button>
 
-                                    <button onClick={() => handleSwitchMode('campaign')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'creator' && isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
-                                        Campaign {(userProfile?.subscriptionTier !== 'agency') && <Lock size={10} />}
-                                    </button>
+                                        <button onClick={() => handleSwitchMode('remix')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
 
-                                    <button onClick={() => handleSwitchMode('remix')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
+                                        <button onClick={() => handleSwitchMode('campaign')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'creator' && isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
+                                            Campaign {(userProfile?.subscriptionTier !== 'agency') && <Lock size={10} />}
+                                        </button>
 
-                                    <button onClick={() => handleSwitchMode('reply')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'reply' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
-                                        Reply {(userProfile?.subscriptionTier !== 'agency') && <Lock size={10} />}
-                                    </button>
-                                </div>
-                            </header>
-                            <div className="space-y-8">
-                                <section className="space-y-3">
-                                    <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <label className="text-sm font-bold text-gray-300 tracking-wide flex items-center gap-2">
-                                            <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span>
-                                            {appMode === 'remix' ? 'Source Content' : appMode === 'reply' ? 'Original Comment / Message' : "Post Topic"}
-                                        </label>
+                                        <button onClick={() => handleSwitchMode('reply')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'reply' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
+                                            Reply {(userProfile?.subscriptionTier !== 'agency') && <Lock size={10} />}
+                                        </button>
 
-                                        {/* REMIX: SMART SOURCE BUTTON */}
-                                        {appMode === 'remix' && (
-                                            <button
-                                                onClick={async () => {
-                                                    if (!checkCredits(2)) return alert("2 Credits required for Auto-Source");
+                                        <button onClick={() => setAppMode('founder')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 border border-yellow-500/30 ${appMode === 'founder' ? 'bg-yellow-500 text-black shadow-lg' : 'text-yellow-500 hover:bg-yellow-500/10'}`}>
+                                            Founder Mode 👑
+                                        </button>
+                                    </div>
+                                </header>
+                                <div className="space-y-8">
+                                    <section className="space-y-3">
+                                        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <label className="text-sm font-bold text-gray-300 tracking-wide flex items-center gap-2">
+                                                <span className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] text-white">1</span>
+                                                {appMode === 'remix' ? 'Source Content' : appMode === 'reply' ? 'Original Comment / Message' : "Post Topic"}
+                                            </label>
 
-                                                    let searchTerm = "";
-                                                    if (useBrandVoice && brandProfile?.niche) {
-                                                        searchTerm = brandProfile.niche;
-                                                    } else {
-                                                        const userTopic = prompt("What topic/niche should we search for?");
-                                                        if (!userTopic) return;
-                                                        searchTerm = userTopic;
-                                                    }
-
-                                                    setIsFindingSource(true);
-                                                    try {
-                                                        const url = await findTrendingContent(searchTerm);
-                                                        if (url) {
-                                                            setTopic(url);
-                                                        } else {
-                                                            alert("No URL found.");
-                                                        }
-                                                    } catch (error) {
-                                                        alert("Could not find a trending URL. Try a different topic.");
-                                                    } finally {
-                                                        setIsFindingSource(false);
-                                                    }
-                                                }}
-                                                disabled={isFindingSource}
-                                                className="flex items-center gap-2 px-3 py-1 bg-blue-900/20 hover:bg-blue-800/40 border border-blue-500/30 rounded-lg text-blue-300 text-xs font-bold transition disabled:opacity-50"
-                                            >
-                                                {isFindingSource ? <Loader size="sm" /> : <Globe size={12} />}
-                                                {isFindingSource ? "Searching..." : "Auto-Grab Source"}
-                                            </button>
-                                        )}
-
-                                        {/* DAILY INSPIRATION & NICHE INPUT */}
-                                        {appMode !== 'remix' && appMode !== 'reply' && (
-                                            <div className="flex flex-wrap items-center gap-2 mb-2 sm:mb-0">
-                                                {/* Show Niche Input if in General Mode (!useBrandVoice) */}
-                                                {!useBrandVoice && (
-                                                    <input
-                                                        type="text"
-                                                        className="bg-[#161b22] border border-gray-700 rounded-lg px-2 py-1 text-xs text-white focus:border-blue-500 outline-none w-24 md:w-32 placeholder-gray-500"
-                                                        placeholder="Your Niche..."
-                                                        value={manualNiche}
-                                                        onChange={(e) => setManualNiche(e.target.value)}
-                                                    />
-                                                )}
-
+                                            {/* REMIX: SMART SOURCE BUTTON */}
+                                            {appMode === 'remix' && (
                                                 <button
-                                                    disabled={isGeneratingIdea}
                                                     onClick={async () => {
-                                                        const activeNiche = useBrandVoice
-                                                            ? (brandProfile?.industry || "Marketing")
-                                                            : (manualNiche || "Marketing");
+                                                        if (!checkCredits(2)) return alert("2 Credits required for Auto-Source");
 
-                                                        setIsGeneratingIdea(true);
+                                                        let searchTerm = "";
+                                                        if (useBrandVoice && brandProfile?.niche) {
+                                                            searchTerm = brandProfile.niche;
+                                                        } else {
+                                                            const userTopic = prompt("What topic/niche should we search for?");
+                                                            if (!userTopic) return;
+                                                            searchTerm = userTopic;
+                                                        }
+
+                                                        setIsFindingSource(true);
                                                         try {
-                                                            const newIdea = await generatePostIdeas(activeNiche);
-                                                            setTopic(newIdea);
-                                                        } catch (e) {
-                                                            console.error("Failed to get idea", e);
+                                                            const url = await findTrendingContent(searchTerm);
+                                                            if (url) {
+                                                                setTopic(url);
+                                                            } else {
+                                                                alert("No URL found.");
+                                                            }
+                                                        } catch (error) {
+                                                            alert("Could not find a trending URL. Try a different topic.");
                                                         } finally {
-                                                            setIsGeneratingIdea(false);
+                                                            setIsFindingSource(false);
                                                         }
                                                     }}
-                                                    className={`flex items-center gap-1.5 px-3 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-bold rounded-full hover:bg-yellow-500/20 transition whitespace-nowrap ${isGeneratingIdea ? 'opacity-50 cursor-wait' : ''}`}
+                                                    disabled={isFindingSource}
+                                                    className="flex items-center gap-2 px-3 py-1 bg-blue-900/20 hover:bg-blue-800/40 border border-blue-500/30 rounded-lg text-blue-300 text-xs font-bold transition disabled:opacity-50"
                                                 >
-                                                    {isGeneratingIdea ? <Loader size={12} className="animate-spin" /> : <Lightbulb size={12} />}
-                                                    {isGeneratingIdea ? 'Thinking...' : 'Need Ideas?'}
+                                                    {isFindingSource ? <Loader size="sm" /> : <Globe size={12} />}
+                                                    {isFindingSource ? "Searching..." : "Auto-Grab Source"}
                                                 </button>
-                                            </div>
-                                        )}
+                                            )}
 
+                                            {/* DAILY INSPIRATION & NICHE INPUT */}
+                                            {appMode !== 'remix' && appMode !== 'reply' && (
+                                                <div className="flex flex-wrap items-center gap-2 mb-2 sm:mb-0">
+                                                    {/* Show Niche Input if in General Mode (!useBrandVoice) */}
+                                                    {!useBrandVoice && (
+                                                        <input
+                                                            type="text"
+                                                            className="bg-[#161b22] border border-gray-700 rounded-lg px-2 py-1 text-xs text-white focus:border-blue-500 outline-none w-24 md:w-32 placeholder-gray-500"
+                                                            placeholder="Your Niche..."
+                                                            value={manualNiche}
+                                                            onChange={(e) => setManualNiche(e.target.value)}
+                                                        />
+                                                    )}
 
-                                        <div className="flex flex-col items-start gap-2 w-full sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-                                            {/* REMIX SOURCE TOGGLE */}
-                                            {appMode === 'remix' && (
-                                                <div className="flex bg-[#0f1115] p-1 rounded-lg border border-gray-700">
                                                     <button
-                                                        onClick={() => setRemixSource('text')}
-                                                        className={`px-3 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 ${remixSource === 'text' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                                        disabled={isGeneratingIdea}
+                                                        onClick={async () => {
+                                                            const activeNiche = useBrandVoice
+                                                                ? (brandProfile?.industry || "Marketing")
+                                                                : (manualNiche || "Marketing");
+
+                                                            setIsGeneratingIdea(true);
+                                                            try {
+                                                                const newIdea = await generatePostIdeas(activeNiche);
+                                                                setTopic(newIdea);
+                                                            } catch (e) {
+                                                                console.error("Failed to get idea", e);
+                                                            } finally {
+                                                                setIsGeneratingIdea(false);
+                                                            }
+                                                        }}
+                                                        className={`flex items-center gap-1.5 px-3 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-bold rounded-full hover:bg-yellow-500/20 transition whitespace-nowrap ${isGeneratingIdea ? 'opacity-50 cursor-wait' : ''}`}
                                                     >
-                                                        Text
-                                                    </button>
-                                                    <button
-                                                        disabled
-                                                        className="px-3 py-1 rounded text-[10px] font-bold transition flex items-center gap-1 opacity-50 cursor-not-allowed text-gray-500 border border-transparent"
-                                                        title="Coming Soon in next update"
-                                                    >
-                                                        <Youtube size={10} /> YouTube <span className="text-[8px] bg-gray-800 px-1 py-0.5 rounded text-gray-400 ml-1">SOON</span>
+                                                        {isGeneratingIdea ? <Loader size={12} className="animate-spin" /> : <Lightbulb size={12} />}
+                                                        {isGeneratingIdea ? 'Thinking...' : 'Need Ideas?'}
                                                     </button>
                                                 </div>
                                             )}
 
-                                            {brandProfile && (
-                                                <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
-                                                    <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
 
-                                                    {/* NEW SEGMENTED CONTROL FOR VOICE */}
-                                                    <div className="flex bg-[#0f1115] p-1 rounded-lg border border-gray-700">
-                                                        <button
-                                                            onClick={() => setUseBrandVoice(true)}
-                                                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-all ${useBrandVoice ? 'bg-blue-600 text-white shadow-lg ring-1 ring-blue-500' : 'bg-gray-800 text-gray-500 hover:text-gray-300'}`}
-                                                            title="Use your calibrated Brand Voice"
-                                                        >
-                                                            <Fingerprint size={10} />
-                                                            {brandProfile.name || "My Brand"}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setUseBrandVoice(false)}
-                                                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-all ${!useBrandVoice ? 'bg-gray-700 text-white shadow-lg' : 'bg-transparent text-gray-600 hover:text-gray-400'}`}
-                                                            title="Switch to General Mode (No Niche Bias)"
-                                                        >
-                                                            <Globe size={10} />
-                                                            General
-                                                        </button>
+                                            <div className="flex flex-col items-start gap-2 w-full sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+                                                {/* (Remix Source Toggle Removed - handled inside RemixStudio) */}
+
+                                                {brandProfile && (
+                                                    <div className="flex items-center gap-2 animate-in fade-in slide-in-from-right-2">
+                                                        <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider hidden sm:block">Writing as:</span>
+
+                                                        {/* NEW SEGMENTED CONTROL FOR VOICE */}
+                                                        <div className="flex bg-[#0f1115] p-1 rounded-lg border border-gray-700">
+                                                            <button
+                                                                onClick={() => setUseBrandVoice(true)}
+                                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-all ${useBrandVoice ? 'bg-blue-600 text-white shadow-lg ring-1 ring-blue-500' : 'bg-gray-800 text-gray-500 hover:text-gray-300'}`}
+                                                                title="Use your calibrated Brand Voice"
+                                                            >
+                                                                <Fingerprint size={10} />
+                                                                {brandProfile.name || "My Brand"}
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setUseBrandVoice(false)}
+                                                                className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-all ${!useBrandVoice ? 'bg-gray-700 text-white shadow-lg' : 'bg-transparent text-gray-600 hover:text-gray-400'}`}
+                                                                title="Switch to General Mode (No Niche Bias)"
+                                                            >
+                                                                <Globe size={10} />
+                                                                General
+                                                            </button>
+                                                        </div>
+
                                                     </div>
-
-                                                </div>
-                                            )}
-                                            {attachedImage && (
-                                                <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
-                                                    <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12} /> Image Attached</span>
-                                                    <button onClick={() => setAttachedImage(null)} className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"><X size={10} /></button>
-                                                </div>
-                                            )}
+                                                )}
+                                                {attachedImage && (
+                                                    <div className="flex items-center gap-2 bg-green-900/20 px-2 py-1 rounded-full border border-green-500/30 animate-in fade-in">
+                                                        <span className="text-xs text-green-400 flex items-center gap-1"><ImageIcon size={12} /> Image Attached</span>
+                                                        <button onClick={() => setAttachedImage(null)} className="text-green-500 hover:text-white transition rounded-full p-0.5 hover:bg-green-800"><X size={10} /></button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    </section>
 
+                                    {/* --- DYNAMIC CONTENT AREA --- */}
                                     <div className="relative group">
-                                        {appMode === 'remix' && remixSource === 'youtube' ? (
+
+                                        {/* OPTION 1: REMIX STUDIO (New Modular Component) */}
+                                        {appMode === 'remix' ? (
+                                            <RemixStudio
+                                                userProfile={userProfile}
+                                                brandProfile={brandProfile}
+                                                checkCredits={checkCredits}
+                                                onGenerate={handleGenerate}
+                                                remixFormats={remixFormats}
+                                                setRemixFormats={setRemixFormats}
+                                                tone={tone}
+                                                setTone={setTone}
+                                                detailLevel={detailLevel}
+                                                setDetailLevel={setDetailLevel}
+                                                objective={objective}
+                                                setObjective={setObjective}
+                                                isLoading={isLoading} // --- Pass loading state
+                                                savedTemplates={brandProfile?.savedTemplates || []} // --- Pass saved templates
+                                                useBrandVoice={useBrandVoice} // --- Pass locked state
+                                                onUpdateProfile={async (updated) => {
+                                                    if (!brandProfile) return;
+                                                    try {
+                                                        // Merge current profile with updates
+                                                        const newProfile = { ...brandProfile, ...updated };
+                                                        await saveBrandProfile(newProfile);
+                                                    } catch (e) {
+                                                        console.error("Failed to save profile", e);
+                                                    }
+                                                }}
+                                            />
+                                        ) : (
                                             <div className="relative">
                                                 <div className="absolute top-3 left-3 flex items-center gap-2 z-10 pointer-events-none">
-                                                    <span className="bg-red-600 text-white p-1.5 rounded-lg shadow-lg shadow-red-600/20"><Youtube size={16} /></span>
-                                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Paste Video URL</span>
+                                                    {appMode === 'reply' && <span className="bg-indigo-600 text-white p-1.5 rounded-lg shadow-lg shadow-indigo-600/20"><MessageCircle size={16} /></span>}
+                                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{appMode === 'reply' ? 'Paste Comment' : ''}</span>
                                                 </div>
                                                 <textarea
                                                     value={topic}
                                                     onChange={(e) => setTopic(e.target.value)}
-                                                    placeholder="https://www.youtube.com/watch?v=..."
-                                                    className="w-full h-32 bg-[#161b22] border border-gray-700 rounded-xl p-4 pt-12 text-white placeholder-gray-600 focus:border-red-500 focus:ring-1 focus:ring-red-500/50 outline-none resize-none transition-all shadow-inner"
+                                                    rows={4}
+                                                    placeholder={appMode === 'reply' ? "Paste the comment or message you want to reply to..." : "What topic should we post about today? (e.g. 'AI Trends in 2024')"}
+                                                    className={`w-full bg-[#161b22] border border-gray-700 rounded-xl p-4 ${appMode === 'reply' ? 'pt-12' : ''} text-white placeholder-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 outline-none resize-none transition-all shadow-inner`}
                                                 />
-                                            </div>
-                                        ) : (
-                                            <div className="relative space-y-4">
-                                                {/* REMIX MODE TABS */}
-                                                {appMode === 'remix' && (
-                                                    <div className="flex bg-[#0f1115] p-1 rounded-xl mb-4 border border-gray-800">
+                                                {appMode !== 'remix' && appMode !== 'reply' && (
+                                                    <div className="absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1.5 md:gap-2 z-20">
+                                                        {!attachedImage && (
+                                                            <button
+                                                                onClick={openImageModalGlobal}
+                                                                className="p-2 md:p-3 bg-gray-800/80 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm border border-transparent hover:border-gray-600 group"
+                                                                title="Add Image"
+                                                            >
+                                                                <ImageIcon className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover:scale-110" />
+                                                            </button>
+                                                        )}
                                                         <button
-                                                            onClick={() => setRemixSubMode('repurpose')}
-                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${remixSubMode === 'repurpose' ? 'bg-[#1c1c2e] text-purple-400 shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
+                                                            onClick={() => {
+                                                                if (!('webkitSpeechRecognition' in window)) {
+                                                                    alert("Voice dictation is not supported in this browser. Please use Chrome/Safari.");
+                                                                    return;
+                                                                }
+                                                                if (isListening) {
+                                                                    recognitionRef.current?.stop();
+                                                                    setIsListening(false);
+                                                                    return;
+                                                                }
+                                                                const recognition = new (window as any).webkitSpeechRecognition();
+                                                                recognitionRef.current = recognition;
+                                                                recognition.continuous = false;
+                                                                recognition.interimResults = true;
+                                                                recognition.lang = 'en-US';
+                                                                recognition.onstart = () => {
+                                                                    setIsListening(true);
+                                                                    setTopic('');
+                                                                };
+                                                                recognition.onresult = (event: any) => {
+                                                                    const transcript = event.results[0][0].transcript;
+                                                                    setTopic(transcript);
+                                                                };
+                                                                recognition.onerror = (event: any) => {
+                                                                    console.error("Speech error", event);
+                                                                    if (event.error === 'not-allowed') {
+                                                                        alert("Microphone blocked. Please allow access in browser settings.");
+                                                                    }
+                                                                    setIsListening(false);
+                                                                };
+                                                                recognition.onend = () => {
+                                                                    setIsListening(false);
+                                                                };
+                                                                recognition.start();
+                                                            }}
+                                                            className={`transition-all p-2 md:p-3 rounded-full shadow-lg flex items-center justify-center ${isListening ? 'bg-red-600 text-white animate-pulse scale-110' : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-red-600/20 backdrop-blur-sm border border-transparent hover:border-red-500/30'}`}
+                                                            title={isListening ? "Tap to Stop" : "Rant Mode: Tap to Record"}
                                                         >
-                                                            Repurpose Content
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setRemixSubMode('xray')}
-                                                            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${remixSubMode === 'xray' ? 'bg-[#1c1c2e] text-green-400 shadow-lg' : 'text-gray-500 hover:text-gray-300'}`}
-                                                        >
-                                                            Analyze Post (DNA)
+                                                            {isListening ? <div className="w-4 h-4 md:w-5 md:h-5 bg-white rounded-sm animate-spin" /> : <Mic className="w-4 h-4 md:w-[22px] md:h-[22px]" />}
                                                         </button>
                                                     </div>
                                                 )}
-
-                                                {/* X-RAY REMIX INPUTS */}
-                                                {appMode === 'remix' && remixSubMode === 'xray' ? (
-                                                    <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-                                                        {/* Step 1: Input to Analyze */}
-                                                        <div className="space-y-2">
-                                                            <div className="flex items-center justify-between">
-                                                                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Source Post</label>
-                                                                {!xRayData && <span className="text-[10px] text-green-400 bg-green-900/20 px-2 py-0.5 rounded border border-green-500/30">Step 1: Paste & Analyze</span>}
-                                                            </div>
-                                                            <div className="relative">
-                                                                <textarea
-                                                                    value={topic}
-                                                                    onChange={(e) => setTopic(e.target.value)}
-                                                                    rows={xRayData ? 2 : 4}
-                                                                    placeholder={appMode === 'remix' ? "Paste a URL (Blog/News) or raw text below. We will restructure it into native social posts instantly." : "Post topic for today?"}
-                                                                    className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-3 focus:ring-2 focus:ring-green-500 outline-none resize-none text-white placeholder-gray-600 text-sm transition-all"
-                                                                />
-
-                                                                {/* RANT BUTTON (Audio Input) */}
-
-
-                                                                {topic.length > 5 && !xRayData && appMode === 'remix' && remixSubMode === 'xray' && (
-                                                                    <button
-                                                                        onClick={async () => {
-                                                                            if ((userProfile?.subscriptionTier || 'pro') !== 'agency') {
-                                                                                alert("🔒 Advanced DNA Analysis is available only on the Agency Plan.");
-                                                                                return;
-                                                                            }
-                                                                            setIsAnalyzing(true);
-                                                                            try {
-                                                                                const result = await analyzeViralStructure(topic);
-                                                                                setXRayData(result);
-                                                                            } catch (e) {
-                                                                                console.error(e);
-                                                                            }
-                                                                            setIsAnalyzing(false);
-                                                                        }}
-                                                                        disabled={isAnalyzing}
-                                                                        className="absolute bottom-3 right-3 bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-lg flex items-center gap-2"
-                                                                    >
-                                                                        {(userProfile?.subscriptionTier !== 'agency') && <Lock size={10} />}
-                                                                        {isAnalyzing ? "Scanning..." : <><Sparkles size={12} /> Analyze DNA</>}
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Step 2: Analysis Results & Choices */}
-                                                        {xRayData && (
-                                                            <div className="space-y-4">
-                                                                {/* Results Display */}
-                                                                <div className="bg-[#1c1c2e]/50 border border-green-500/30 rounded-xl p-4 animate-in zoom-in-95 duration-300">
-                                                                    <div className="flex justify-between items-center mb-3">
-                                                                        <h4 className="text-xs font-bold text-green-400 uppercase tracking-wider flex items-center gap-2">
-                                                                            <Sparkles size={12} /> Post DNA Decoded
-                                                                        </h4>
-                                                                        <button onClick={() => { setXRayData(null); setTopic(''); }} className="text-xs text-gray-500 hover:text-white">Reset</button>
-                                                                    </div>
-                                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-                                                                        <div className="space-y-1">
-                                                                            <label className="text-[9px] text-gray-500 uppercase font-bold">Hook Type</label>
-                                                                            <div className="bg-[#0f1115] border border-gray-700 rounded-md p-1.5 text-[10px] text-gray-300">{xRayData.hook}</div>
-                                                                        </div>
-                                                                        <div className="space-y-1">
-                                                                            <label className="text-[9px] text-gray-500 uppercase font-bold">Tone</label>
-                                                                            <div className="bg-[#0f1115] border border-gray-700 rounded-md p-1.5 text-[10px] text-gray-300">{xRayData.tone}</div>
-                                                                        </div>
-                                                                        <div className="space-y-1">
-                                                                            <label className="text-[9px] text-gray-500 uppercase font-bold">Structure</label>
-                                                                            <div className="bg-[#0f1115] border border-gray-700 rounded-md p-1.5 text-[10px] text-gray-300 truncate" title={xRayData.structure}>{xRayData.structure}</div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Actions */}
-                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500 delay-100">
-                                                                    {/* Option A: Similar Variant */}
-                                                                    <div className="bg-[#0f1115] border border-gray-800 p-4 rounded-xl hover:border-blue-500/30 transition-all group">
-                                                                        <h5 className="font-bold text-sm text-gray-200 mb-1 group-hover:text-blue-400 transition">Similar Variant</h5>
-                                                                        <p className="text-[10px] text-gray-500 mb-3">Generate a new post about the <span className="text-gray-300">same topic</span> using this exact DNA.</p>
-                                                                        <button
-                                                                            onClick={() => handleGenerate()} // Uses topic as is
-                                                                            className="w-full py-2 bg-gray-800 hover:bg-blue-600 text-gray-300 hover:text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
-                                                                        >
-                                                                            <Repeat size={12} /> Generate Variant
-                                                                        </button>
-                                                                    </div>
-
-                                                                    {/* Option B: New Topic */}
-                                                                    <div className="bg-[#0f1115] border border-gray-800 p-4 rounded-xl hover:border-green-500/30 transition-all group">
-                                                                        <h5 className="font-bold text-sm text-gray-200 mb-1 group-hover:text-green-400 transition">New Topic</h5>
-                                                                        <p className="text-[10px] text-gray-500 mb-3">Apply this DNA structure to a <span className="text-gray-300">completely different subject</span>.</p>
-
-                                                                        <div className="relative">
-                                                                            <input
-                                                                                value={remixTargetTopic}
-                                                                                onChange={(e) => setRemixTargetTopic(e.target.value)}
-                                                                                placeholder="E.g. Launching a SaaS..."
-                                                                                className="w-full bg-[#161b22] border border-gray-700 rounded-lg p-2 pr-10 text-xs text-white placeholder-gray-600 focus:border-green-500 outline-none mb-2"
-                                                                            />
-                                                                            <button
-                                                                                onClick={() => handleGenerate()}
-                                                                                disabled={!remixTargetTopic}
-                                                                                className="w-full py-2 bg-green-600 hover:bg-green-500 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
-                                                                            >
-                                                                                <Sparkles size={12} /> Generate
-                                                                            </button>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    // STANDARD / REPURPOSE INPUT
-                                                    <div className="relative">
-                                                        <textarea
-                                                            value={topic}
-                                                            onChange={(e) => setTopic(e.target.value)}
-                                                            rows={3}
-                                                            placeholder={appMode === 'remix' ? "Paste content from a blog, article, or news to repurpose into social posts (YouTube support coming soon)..." : appMode === 'reply' ? "Paste the comment, post, or message you want to reply to..." : "What do you want to post about today?"}
-                                                            className="w-full bg-[#161b22] border border-gray-700 rounded-xl p-3 md:p-4 pr-24 md:pr-32 focus:ring-2 focus:ring-blue-500 outline-none resize-none text-white placeholder-gray-600 text-sm md:text-lg transition-all"
-                                                        />
-                                                        {appMode !== 'remix' && appMode !== 'reply' && (
-                                                            <div className="absolute bottom-2 right-2 md:bottom-3 md:right-3 flex items-center gap-1.5 md:gap-2 z-20">
-                                                                {/* Image Button */}
-                                                                {!attachedImage && (
-                                                                    <button
-                                                                        onClick={openImageModalGlobal}
-                                                                        className="p-2 md:p-3 bg-gray-800/80 hover:bg-gray-700 text-gray-400 hover:text-white rounded-full transition-all shadow-lg backdrop-blur-sm border border-transparent hover:border-gray-600 group"
-                                                                        title="Add Image"
-                                                                    >
-                                                                        <ImageIcon className="w-4 h-4 md:w-5 md:h-5 transition-transform group-hover:scale-110" />
-                                                                    </button>
-                                                                )}
-
-                                                                {/* Mic Button */}
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (!('webkitSpeechRecognition' in window)) {
-                                                                            alert("Voice dictation is not supported in this browser. Please use Chrome/Safari.");
-                                                                            return;
-                                                                        }
-
-                                                                        // STOP if already listening
-                                                                        if (isListening) {
-                                                                            recognitionRef.current?.stop();
-                                                                            setIsListening(false);
-                                                                            return;
-                                                                        }
-
-                                                                        const recognition = new (window as any).webkitSpeechRecognition();
-                                                                        recognitionRef.current = recognition;
-
-                                                                        recognition.continuous = false;
-                                                                        recognition.interimResults = true;
-                                                                        recognition.lang = 'en-US';
-
-                                                                        recognition.onstart = () => {
-                                                                            setIsListening(true);
-                                                                            setTopic('');
-                                                                        };
-
-                                                                        recognition.onresult = (event: any) => {
-                                                                            const transcript = event.results[0][0].transcript;
-                                                                            setTopic(transcript);
-                                                                        };
-
-                                                                        recognition.onerror = (event: any) => {
-                                                                            console.error("Speech error", event);
-                                                                            if (event.error === 'not-allowed') {
-                                                                                alert("Microphone blocked. Please allow access in browser settings.");
-                                                                            }
-                                                                            setIsListening(false);
-                                                                        };
-
-                                                                        recognition.onend = () => {
-                                                                            setIsListening(false);
-                                                                        };
-
-                                                                        recognition.start();
-                                                                    }}
-                                                                    className={`transition-all p-2 md:p-3 rounded-full shadow-lg flex items-center justify-center ${isListening ? 'bg-red-600 text-white animate-pulse scale-110' : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-red-600/20 backdrop-blur-sm border border-transparent hover:border-red-500/30'}`}
-                                                                    title={isListening ? "Tap to Stop" : "Rant Mode: Tap to Record"}
-                                                                >
-                                                                    {isListening ? <div className="w-4 h-4 md:w-5 md:h-5 bg-white rounded-sm animate-spin" /> : <Mic className="w-4 h-4 md:w-[22px] md:h-[22px]" />}
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-
                                                 {appMode === 'reply' && (
                                                     <div className="bg-[#1c1c2e]/50 border border-indigo-500/20 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 space-y-3">
                                                         <label className="text-xs font-bold text-indigo-400 uppercase flex items-center gap-2">
                                                             <MessageCircle size={14} /> Reply Filters
                                                         </label>
                                                         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-                                                            {/* Checkbox: Emojis */}
                                                             <label className="flex items-center gap-2 cursor-pointer group bg-[#0f1115] border border-gray-700 px-3 py-2 rounded-lg hover:border-indigo-500/50 transition-all h-[42px]">
                                                                 <input
                                                                     type="checkbox"
@@ -1014,8 +931,6 @@ const SocialSparkApp: React.FC = () => {
                                                                 />
                                                                 <span className="text-xs text-gray-300 group-hover:text-white font-medium">Use Emojis 🎨</span>
                                                             </label>
-
-                                                            {/* Input: Question */}
                                                             <label className={`flex items-center gap-2 cursor-pointer group px-3 py-2 rounded-lg border transition-all h-[42px] ${replyOptions.question ? 'bg-indigo-900/30 border-indigo-500' : 'bg-[#0f1115] border-gray-700 hover:border-indigo-500/50'}`}>
                                                                 <input
                                                                     type="checkbox"
@@ -1025,8 +940,6 @@ const SocialSparkApp: React.FC = () => {
                                                                 />
                                                                 <span className={`text-xs font-medium ${replyOptions.question ? 'text-indigo-300' : 'text-gray-300 group-hover:text-white'}`}>Ask a Question? ❓</span>
                                                             </label>
-
-                                                            {/* Input: Link */}
                                                             <div className="flex-1">
                                                                 <label className="block text-[10px] font-bold text-gray-400 mb-1.5 ml-1 uppercase tracking-wider">Add Link</label>
                                                                 <input
@@ -1040,8 +953,6 @@ const SocialSparkApp: React.FC = () => {
                                                         </div>
                                                     </div>
                                                 )}
-
-
                                             </div>
                                         )}
                                     </div>
@@ -1057,49 +968,7 @@ const SocialSparkApp: React.FC = () => {
                                         </section>
                                     )}
 
-                                    {appMode === 'remix' && (
-                                        <section className="bg-green-900/10 border border-green-500/30 p-4 rounded-xl animate-in fade-in">
-                                            <div className="flex justify-between items-center mb-3"><label className="text-xs font-bold text-green-400 uppercase flex items-center gap-2"><Repeat size={14} /> Remix Formats</label><span className="text-[10px] text-green-300 bg-green-900/30 px-2 py-0.5 rounded">{remixFormats.length} Selected</span></div>
-                                            <div className="flex flex-wrap gap-2 pb-1">
-                                                {['LinkedIn Post', 'Twitter Thread', 'TikTok Script', 'Instagram Carousel', 'Newsletter Email', 'Facebook Story'].map(fmt => (
-                                                    <button key={fmt} onClick={() => toggleRemixFormat(fmt)} className={`px-2 py-1.5 rounded-lg text-xs border transition ${remixFormats.includes(fmt) ? 'bg-green-600 border-green-500 text-white shadow-lg' : 'bg-[#0f1115] border-gray-700 text-gray-400 hover:border-gray-500'}`}>{fmt}</button>
-                                                ))}
-                                            </div>
 
-                                            {/* Green Screen Toggle for TikTok */}
-                                            {remixFormats.includes('TikTok Script') && (
-                                                <div className="mt-3 pt-3 border-t border-green-500/20 animate-in fade-in slide-in-from-top-1">
-                                                    <label className={`flex items-center justify-between p-2 rounded-lg border transition ${userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'pro' ? 'bg-[#0f1115] border-green-500/30 cursor-pointer hover:border-green-500' : 'bg-gray-900/50 border-gray-800 opacity-60 cursor-not-allowed'}`}>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className={`p-1.5 rounded-md ${useGreenScreen ? 'bg-green-500 text-white' : 'bg-gray-800 text-gray-400'}`}>
-                                                                <MonitorPlay size={14} />
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-bold text-gray-200">Green Screen Mode</span>
-                                                                <span className="text-[10px] text-gray-500">Auto-selects screenshot segments</span>
-                                                            </div>
-                                                        </div>
-
-                                                        {userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'pro' ? (
-                                                            <div className="relative">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={useGreenScreen}
-                                                                    onChange={(e) => setUseGreenScreen(e.target.checked)}
-                                                                    className="sr-only peer"
-                                                                />
-                                                                <div className="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-green-500"></div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="flex items-center gap-1 text-[10px] text-yellow-500 font-bold bg-yellow-900/20 px-2 py-0.5 rounded border border-yellow-700/30">
-                                                                <Lock size={10} /> PRO
-                                                            </div>
-                                                        )}
-                                                    </label>
-                                                </div>
-                                            )}
-                                        </section>
-                                    )}
                                     {isCampaignMode && appMode === 'creator' && (
                                         <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
                                             <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2"><BriefcaseIcon size={14} /> Campaign Length</label><span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">{campaignCount} Posts</span></div>
@@ -1107,36 +976,123 @@ const SocialSparkApp: React.FC = () => {
                                         </section>
                                     )}
                                     <div className="flex items-center justify-between mt-2 px-1">
-                                        {isPremiumUser ? <label className="flex items-center gap-2 cursor-pointer group"><div className="relative"><input type="checkbox" checked={useRealTime} onChange={e => setUseRealTime(e.target.checked)} className="sr-only peer" /><div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500"></div></div><span className={`text-xs font-bold flex items-center gap-1 ${useRealTime ? 'text-blue-400' : 'text-gray-500'}`}><Globe size={12} /> Real-Time Data <span className="opacity-60 font-normal ml-1 text-[10px]">(10 Cr)</span></span></label> : <div className="flex items-center gap-2 opacity-50 cursor-not-allowed"><Globe size={12} /><span className="text-xs text-gray-500">Real-Time Data (PRO)</span></div>}
                                     </div>
-                                </section>
 
-                                <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4"><Target size={12} /> Goal</label>
-                                        <div className="relative"><select value={objective} onChange={(e) => setObjective(e.target.value as PostObjective)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600">{OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4"><SparklesIcon className="w-3 h-3" /> Tone</label>
-                                        <div className="relative"><select value={tone} onChange={(e) => setTone(e.target.value as Tone)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600">{TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4"><Globe size={12} /> Platform</label>
-                                        <div className="relative"><select value={selectedPlatform} onChange={(e) => setSelectedPlatform(e.target.value as Platform)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600">{PLATFORMS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}</select></div>
-                                    </div>
-                                </section>
 
-                                {!(appMode === 'remix' && remixSubMode === 'xray') && (
-                                    <div className="flex flex-col sm:flex-row gap-3">
+                                </div>
+                                {appMode !== 'remix' && (
+                                    <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4"><Target size={12} /> Goal</label>
+                                            <div className="relative"><select value={objective} onChange={(e) => setObjective(e.target.value as PostObjective)} className="w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600">{OBJECTIVES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className={`text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4 ${useBrandVoice ? 'opacity-50' : ''}`}><SparklesIcon className="w-3 h-3" /> Tone</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={tone}
+                                                    onChange={(e) => setTone(e.target.value as Tone)}
+                                                    disabled={useBrandVoice}
+                                                    className={`w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600 ${useBrandVoice ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    title={useBrandVoice ? "Tone is determined by your active Brand Profile" : "Select a tone"}
+                                                >
+                                                    {TONES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className={`text-[10px] font-bold text-gray-500 uppercase flex items-center gap-1.5 h-4 ${useBrandVoice ? 'opacity-50' : ''}`}><AlignLeft size={12} /> Length & Detail</label>
+                                            <div className="relative">
+                                                <select
+                                                    value={detailLevel}
+                                                    onChange={(e) => setDetailLevel(e.target.value as any)}
+                                                    disabled={useBrandVoice}
+                                                    className={`w-full bg-[#161b22] border border-gray-700 text-white rounded-xl px-4 py-3 text-sm appearance-none focus:border-blue-500 focus:outline-none transition hover:border-gray-600 ${useBrandVoice ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    title={useBrandVoice ? "Length is determined by your active Brand Profile" : "Select length"}
+                                                >
+                                                    <option value="min">Min (Short)</option>
+                                                    <option value="medium">Medium</option>
+                                                    <option value="long">Long Form</option>
+                                                    <option value="detailed">Max Detail (Remix)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        {useBrandVoice && (
+                                            <div className="col-span-full flex items-center gap-2 mt-2 px-1 animate-in fade-in">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></div>
+                                                <p className="text-[10px] text-blue-400 font-medium">
+                                                    Voice DNA Active: Tone & Length are optimized by your brand profile.
+                                                </p>
+                                            </div>
+                                        )}
+                                    </section>
+                                )}
+
+                                {/* OPTION: Use Saved Hooks (If Available - Filtered for Strings) */}
+                                {brandProfile?.customHooks && appMode !== 'remix' && appMode !== 'reply' && (
+                                    <div className={`flex items-center gap-2 mt-4 px-1 animate-in fade-in ${(brandProfile?.customHooks || []).filter(h => typeof h === 'string').length === 0 ? 'opacity-50 grayscale' : ''}`}>
+                                        <label className="flex items-center gap-2 cursor-pointer group select-none">
+                                            <div className="relative">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={useSavedHooks}
+                                                    onChange={(e) => setUseSavedHooks(e.target.checked)}
+                                                    className="sr-only peer"
+                                                    disabled={(brandProfile?.customHooks || []).filter(h => typeof h === 'string').length === 0}
+                                                />
+                                                <div className={`w-4 h-4 rounded border transition-colors flex items-center justify-center ${useSavedHooks ? 'bg-pink-600 border-pink-500' : 'bg-gray-800 border-gray-600 group-hover:border-gray-500'}`}>
+                                                    {useSavedHooks && <Check size={10} className="text-white bg-pink-600" />}
+                                                </div>
+                                            </div>
+                                            <span className={`text-xs font-bold transition-colors ${useSavedHooks ? 'text-pink-400' : 'text-gray-500 group-hover:text-gray-400'}`}>
+                                                Include my Saved Hooks
+                                            </span>
+                                        </label>
+                                        <span className="text-[10px] text-gray-600">({(brandProfile?.customHooks || []).filter(h => typeof h === 'string').length} available)</span>
+                                    </div>
+                                )}
+
+                                {/* DROPDOWN: Select Specific Hook (Visible only if checked) */}
+                                {useSavedHooks && (
+                                    <div className="mt-2 animate-in fade-in slide-in-from-top-1 px-1">
+                                        <select
+                                            value={selectedHook || ''}
+                                            onChange={(e) => setSelectedHook(e.target.value || null)}
+                                            className="w-full bg-[#1c2128] border border-gray-700 text-gray-300 text-xs rounded-lg px-3 py-2 appearance-none focus:border-pink-500 outline-none hover:border-gray-600 transition"
+                                        >
+                                            <option value="">🎲 Random (Surprise Me)</option>
+                                            {/* Standard Saved Hooks */}
+                                            {(brandProfile?.customHooks || [])
+                                                .filter(h => typeof h === 'string')
+                                                .map((hook: string, i: number) => (
+                                                    <option key={`hook-${i}`} value={hook}>
+                                                        Example: {hook.length > 50 ? hook.substring(0, 50) + "..." : hook}
+                                                    </option>
+                                                ))
+                                            }
+                                            {/* Saved Winning Structures (Remix Templates) */}
+                                            {(brandProfile?.savedTemplates || []).map((t: any, i: number) => (
+                                                <option key={`template-${i}`} value={t.hook}>
+                                                    Template: {t.hook.length > 50 ? t.hook.substring(0, 50) + "..." : t.hook}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                {appMode === 'remix' && remixSource === 'youtube' && <p className="text-[10px] text-gray-500 mt-2 text-center italic">Analysis runs on our Grounded Visual Pipeline (Beta)</p>}
+
+                                {appMode !== 'remix' && (
+                                    <div className="flex flex-col sm:flex-row gap-3 mt-8">
                                         <button onClick={() => handleGenerate()} disabled={isLoading || (isTrialExpired && !checkCredits(1))} className="flex-1 py-4 rounded-xl font-bold text-lg bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_auto] animate-gradient text-white flex items-center justify-center gap-3 hover:scale-[1.01] transition-all shadow-xl shadow-blue-900/30 disabled:opacity-70 disabled:cursor-not-allowed">
                                             {isLoading ? <Loader /> : <SparklesIcon className="w-6 h-6" />}
                                             {isLoading
-                                                ? (appMode === 'remix' ? 'Remixing...' : appMode === 'reply' ? 'Drafting Reply...' : isCampaignMode ? 'Launching Campaign...' : appMode === 'multi' ? 'Generating Multi-Post...' : 'Creating Magic...')
-                                                : (appMode === 'remix' ? `Remix Content(${useRealTime ? 10 : remixFormats.length} Cr) ♻️`
-                                                    : appMode === 'reply' ? `Generate Reply(${useRealTime ? 10 : 1} Cr) 💬`
-                                                        : isCampaignMode ? `Generate Campaign(${useRealTime ? 10 : campaignCount} Cr) 🚀`
-                                                            : appMode === 'multi' ? `Generate All Posts(${useRealTime ? 10 : multiPlatformTargets.length} Cr) ⚡`
-                                                                : `Craft my Post(${useRealTime ? 10 : 1} Cr) ✨`)}
+                                                ? (appMode === 'reply' ? 'Drafting Reply...' : isCampaignMode ? 'Launching Campaign...' : appMode === 'multi' ? 'Generating Multi-Post...' : 'Creating Magic...')
+                                                : (appMode === 'reply' ? `Generate Reply(${useRealTime ? 10 : 1} Cr) 💬`
+                                                    : isCampaignMode ? `Generate Campaign(${useRealTime ? 10 : campaignCount} Cr) 🚀`
+                                                        : appMode === 'multi' ? `Generate All Posts(${useRealTime ? 10 : multiPlatformTargets.length} Cr) ⚡`
+                                                            : `Craft my Post(${useRealTime ? 10 : 1} Cr) ✨`)}
                                         </button>
                                     </div>
                                 )}
@@ -1163,21 +1119,14 @@ const SocialSparkApp: React.FC = () => {
                                                                 setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
                                                                 updatePostInHistory(id, { content: newContent });
                                                             }}
-                                                            onSchedule={async (id, date) => {
-                                                                if (userProfile?.subscriptionTier !== 'pro' && userProfile?.subscriptionTier !== 'agency') {
-                                                                    alert("Scheduling is a Pro feature! Upgrade to plan your campaign.");
-                                                                    return;
-                                                                }
-                                                                await schedulePost(id, date);
-                                                                setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
-                                                            }}
                                                             onMarkPublished={async (id) => {
                                                                 await markPostAsPublished(id);
                                                                 setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
                                                             }}
-                                                            onNavigateToCalendar={() => setCurrentView('calendar')}
+                                                            // onNavigateToCalendar removed
                                                             onFollowUp={handleFollowUp}
                                                             brandProfile={brandProfile}
+                                                            userProfile={userProfile}
                                                         />
                                                     </div>
 
@@ -1199,47 +1148,51 @@ const SocialSparkApp: React.FC = () => {
                                                                     setPosts(prev => prev.map(p => p.id === id ? { ...p, content: newContent } : p));
                                                                     updatePostInHistory(id, { content: newContent });
                                                                 }}
-                                                                onSchedule={async (id, date) => {
-                                                                    if (userProfile?.subscriptionTier !== 'pro' && userProfile?.subscriptionTier !== 'agency') {
-                                                                        alert("Scheduling is a Pro feature! Upgrade to plan your campaign.");
-                                                                        return;
-                                                                    }
-                                                                    await schedulePost(id, date);
-                                                                    setPosts(prev => prev.map(p => p.id === id ? { ...p, scheduledDate: date } : p));
-                                                                }}
                                                                 onMarkPublished={async (id) => {
                                                                     await markPostAsPublished(id);
                                                                     setPosts(prev => prev.map(p => p.id === id ? { ...p, isPublished: true } : p));
                                                                 }}
-                                                                onNavigateToCalendar={() => setCurrentView('calendar')}
+                                                                // onNavigateToCalendar removed
                                                                 onFollowUp={handleFollowUp}
                                                                 brandProfile={brandProfile}
+                                                                userProfile={userProfile}
                                                             />
                                                         </div>
                                                     ))}
                                                 </div>
                                             ))}
+                                            <div className="pt-4 border-t border-gray-800">
+                                                <button
+                                                    onClick={() => setCurrentView('daily')}
+                                                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition ${currentView === 'daily' ? 'bg-blue-900/20 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-[#161b22]'}`}
+                                                >
+                                                    <Zap size={18} />
+                                                    <span className="font-medium text-sm">Today's Post</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
                             </div>
+
+
+                        </div>
+                        <div className="hidden xl:block w-[400px] shrink-0">
+                            <div className="sticky top-6">
+                                <PhonePreview
+                                    platform={selectedPlatform}
+                                    content={activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : topic}
+                                    imageUrl={attachedImage || activePost?.imageUrl || null}
+                                    isGenerating={isLoading}
+                                    isImageGenerating={activePost?.isGeneratingImage || false}
+                                    topic={topic}
+                                    userName={user?.displayName || user?.email?.split('@')[0]}
+                                    userImage={user?.photoURL}
+                                />
+                            </div>
                         </div>
                     </div>
-                    <div className="hidden xl:block w-[400px] shrink-0">
-                        <div className="sticky top-6">
-                            <PhonePreview
-                                platform={selectedPlatform}
-                                content={activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : topic}
-                                imageUrl={attachedImage || activePost?.imageUrl || null}
-                                isGenerating={isLoading}
-                                isImageGenerating={activePost?.isGeneratingImage || false}
-                                topic={topic}
-                                userName={user?.displayName || user?.email?.split('@')[0]}
-                                userImage={user?.photoURL}
-                            />
-                        </div>
-                    </div>
-                </div >
+                )
             )}
 
             {isImageModalOpen && <ImageCreationModal onClose={() => setIsImageModalOpen(false)} onSelectImage={handleImageSelected} initialPrompt={currentPromptForImage} />}

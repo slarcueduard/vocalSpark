@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         if (!url) return res.status(400).json({ error: 'Missing YouTube URL' });
 
         // --- TIMEOUT PROTECTION CONSTANTS ---
-        const TIMEOUT_MS = 8000;
+        const TIMEOUT_MS = 25000; // Increased to 25s for multi-post generation
 
         const openaiKey = process.env.OPENAI_API_KEY;
         if (!openaiKey) return res.status(500).json({ error: "Missing OpenAI API Key" });
@@ -90,19 +90,28 @@ export default async function handler(req, res) {
             const openai = new OpenAI({ apiKey: openaiKey });
             const cleanText = fullText.substring(0, 15000); // HARD CAP for speed
 
+            const targetPlatforms = platforms && platforms.length > 0 ? platforms.join(', ') : 'LinkedIn, X';
+
             const prompt = `
             ROLE: Social Media Strategist.
             TASK: Create grounded posts based on this text.
             INPUT: "${cleanText}"
             URL: ${url}
-            PLATFORMS: ${platforms ? platforms.join(', ') : 'LinkedIn, X'}
+            PLATFORMS TO GENERATE: ${targetPlatforms}
             TONE: ${tone || 'professional'}
             LANGUAGE: ${language || 'English'}
+
+            CRITICAL INSTRUCTION:
+            You MUST generate exactly one post for EACH platform listed in "PLATFORMS TO GENERATE".
+            Do not skip any platforms.
 
             OUTPUT JSON:
             {
                 "analysis": { "main_idea": "...", "key_takeaways": ["..."], "keywords": ["..."] },
-                "posts": [ { "platform": "linkedin", "content": "..." }, { "platform": "x", "content": "..." } ]
+                "posts": [ 
+                    { "platform": "PLATFORM_NAME", "content": "..." }
+                    // ... Ensure there is an entry for every requested platform
+                ]
             }
             `;
 

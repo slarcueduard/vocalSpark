@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount, isFollowUp, parentContent, isReply, isAnalysis } = req.body;
+    const { prompt, brandContext, language, platform, objective, useRealTime, isRemix, remixFormats, isCampaign, postCount, isFollowUp, parentContent, isReply, isAnalysis, isHookGen, isNicheHooks, isHookRewrite, hookText, customHookPrompt, brandTone, profileData } = req.body; // Added isNicheHooks, profileData
 
     // 1. CALCUL COST
     let count = 1;
@@ -54,6 +54,85 @@ export default async function handler(req, res) {
         TASK: Analyze text to extract style, tone, and patterns.
         OUTPUT: JSON ONLY. No markdown. No conversational text.`;
       // We leave userMessage as the detailed prompt provided by the client
+    } else if (isHookGen) {
+      systemPrompt = `You are a viral copywriting expert specializing in "Stop Rate" optimization for social media.
+      YOUR GOAL: Rewrite the OPENING LINE (The Hook) of the provided post to maximize attention retention.
+      
+      FRAMEWORKS:
+      1. 🔴 Negative/Warning: Focus on a mistake/myth.
+      2. ❓ Curiosity Gap: Create an information gap.
+      3. 🔢 List/Data: Start with a number/promise.
+      4. 🛡️ Vulnerable/Story: Start in the middle of a moment.
+      5. 🥊 Contrarian: Challenge a popular belief.
+      
+      CONSTRAINTS:
+      - Length: UNDER 20 words per hook.
+      - Tone: ${brandTone || 'Professional'}. matching the user's voice.
+      - Integrity: Must flow logically into the content. No clickbait lie.
+      - No Emojis at start (unless vital).
+      
+      OUTPUT FORMAT (STRICT JSON):
+      {
+        "hooks": [
+          { "type": "negative", "label": "🔴 The Warning", "text": "..." },
+          { "type": "curiosity", "label": "❓ Curiosity Gap", "text": "..." },
+          { "type": "data", "label": "🔢 The Data/List", "text": "..." },
+          { "type": "story", "label": "🛡️ Personal Story", "text": "..." },
+          { "type": "contrarian", "label": "🥊 The Contrarian", "text": "..." }
+        ]
+      }`;
+      userMessage = `Original Content: ${prompt}`;
+
+      if (customHookPrompt) {
+        systemPrompt = `You are a viral copywriting expert.
+          YOUR GOAL: Generate 3 UNIQUE HOOK variations for the provided content based STRICTLY on the user's instruction.
+          
+          USER INSTRUCTION: "${customHookPrompt}"
+          
+          CONSTRAINTS:
+          - Length: UNDER 20 words per hook.
+          - Output: JSON with 'hooks' array.
+          
+          OUTPUT FORMAT:
+          {
+            "hooks": [
+              { "type": "custom", "label": "✨ Custom Idea 1", "text": "..." },
+              { "type": "custom", "label": "✨ Custom Idea 2", "text": "..." },
+              { "type": "custom", "label": "✨ Custom Idea 3", "text": "..." }
+            ]
+          }`;
+      }
+    } else if (isNicheHooks) {
+      const { industry, targetAudience, voiceDNA } = profileData || {};
+      systemPrompt = `You are a specialized content strategist for the "${industry || 'General'}" industry.
+      YOUR GOAL: Generate 3 HIGH-CONVERTING HOOKS tailored specifically for:
+      - Audience: ${targetAudience || 'General Audience'}
+      - Voice/Style: ${voiceDNA || 'Professional'}
+      - Tone: ${brandTone || 'Professional'}
+      
+      These hooks should be "Plug-and-Play" templates or specific opening lines that the user can use for their niche.
+      
+      OUTPUT FORMAT (STRICT JSON):
+       {
+        "hooks": [
+          { "type": "niche", "label": "🎯 Niche Specific", "text": "..." },
+          { "type": "pain_point", "label": "😫 Pain Point", "text": "..." },
+          { "type": "insider", "label": "🤫 Insider Secret", "text": "..." }
+        ]
+      }`;
+      userMessage = `Generate 3 viral hooks for my brand profile.`;
+    } else if (isHookRewrite) {
+      systemPrompt = `You are a viral editor.
+       TASK: Rewrite the provided content to START with the provided HOOK data.
+       GOAL: Ensure the rest of the post flows logically from this new hook.
+       CONSTRAINTS:
+       - The FIRST LINE must be the provided hook (or very similar).
+       - Keep the original core message, facts, and value.
+       - Do NOT delete the main points. Just smooth the transition.
+       - Tone: ${brandTone || 'Professional'}.
+       - Output: JSON with 'content' key.
+       `;
+      userMessage = `HOOK: ${hookText}\n\nORIGINAL CONTENT: ${prompt}`;
     } else if (isRemix) {
       systemPrompt += `
         TASK: Repurpose content into: ${remixFormats?.join(', ')}.

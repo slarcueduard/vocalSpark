@@ -18,11 +18,13 @@ import { SidebarSocials } from '../components/SocialSupportButtons';
 interface MainLayoutProps {
   children: React.ReactNode;
   onOpenBrandProfile: () => void;
-  currentView: 'create' | 'history' | 'calendar' | 'docs';
-  onViewChange: (view: 'create' | 'history' | 'calendar' | 'docs') => void;
+  onOpenBrandProfile: () => void;
+  currentView: 'create' | 'history' | 'calendar' | 'docs' | 'daily';
+  onViewChange: (view: 'create' | 'history' | 'calendar' | 'docs' | 'daily') => void;
+  onResetMode?: () => void;
 }
 
-export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange }: MainLayoutProps) {
+export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange, onResetMode }: MainLayoutProps) {
   const { userProfile, logout, user, brandProfile } = useAuth();
 
   const credits = userProfile?.credits ?? 0;
@@ -37,8 +39,9 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
 
   const isPremium = userProfile?.subscriptionTier !== 'trial';
 
-  const handleNavClick = (view: 'create' | 'history' | 'calendar' | 'docs') => {
+  const handleNavClick = (view: 'create' | 'history' | 'calendar' | 'docs' | 'daily') => {
     onViewChange(view);
+    if (onResetMode) onResetMode();
     setIsSidebarOpen(false);
   };
 
@@ -82,7 +85,9 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
           <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace</div>
           <div onClick={() => handleNavClick('create')}><NavItem icon={<LayoutDashboard size={20} />} label="Creator Studio" active={currentView === 'create'} /></div>
           <div onClick={() => handleNavClick('history')}><NavItem icon={<Archive size={20} />} label="Content Vault" active={currentView === 'history'} /></div>
+
           <div onClick={() => handleNavClick('calendar')}><NavItem icon={<CalendarIcon size={20} />} label="Calendar" active={currentView === 'calendar'} /></div>
+          <div onClick={() => handleNavClick('daily')}><NavItem icon={<Zap size={20} />} label="Today's Post" active={currentView === 'daily'} /></div>
           <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">Strategy</div>
           <div onClick={() => { onOpenBrandProfile(); setIsSidebarOpen(false); }} className="cursor-pointer">
             <NavItem icon={<Briefcase size={20} />} label="Voice DNA" />

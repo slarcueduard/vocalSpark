@@ -3,7 +3,7 @@ import admin from 'firebase-admin';
 // --- 1. Inițializare Firebase Admin (Singleton) ---
 // Verificăm dacă există deja o aplicație pornită pentru a evita erorile la redeploy sau hot-reload
 if (!admin.apps.length) {
-  
+
   // Curățăm cheia privată: Vercel stochează newline-urile ca string "\\n", 
   // dar Firebase are nevoie de newline-uri reale "\n".
   const privateKey = process.env.FIREBASE_PRIVATE_KEY
@@ -21,6 +21,10 @@ if (!admin.apps.length) {
       privateKey: privateKey,
     }),
   });
+}
+
+export function initFirebaseAdmin() {
+  return admin;
 }
 
 const db = admin.firestore();

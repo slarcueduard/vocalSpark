@@ -12,7 +12,8 @@ import { ImageCreationModal } from './ImageCreationModal';
 import { AnimatedVault } from './AnimatedVault';
 import { generateSocialMediaPosts, adaptPostForPlatform, refinePostContent } from '../services/geminiService';
 
-export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: () => void }) {
+export function HistoryView() {
+    console.log("HistoryView Mounting..."); // DEBUG LOG
     const { user, checkCredits, refundCredits, userProfile } = useAuth();
     // ... (lines 15-296 same) ...
 
@@ -181,15 +182,7 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
         setIsImageModalOpen(false);
     };
 
-    const handleSchedule = async (id: string, date: Date) => {
-        try {
-            await updatePostInHistory(id, { scheduledDate: date });
-            alert(`Post scheduled for ${date.toLocaleDateString()}!`);
-        } catch (error) {
-            console.error("Scheduling error:", error);
-            alert("Failed to schedule post.");
-        }
-    };
+    // const handleSchedule removed
 
     const handleFollowUp = async (parentId: string, parentContent: string) => {
         if (!user) return;
@@ -394,8 +387,6 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                                                         onToggleLock={handleToggleLock}
                                                         onManualEdit={handleUpdateContent}
                                                         onFollowUp={handleFollowUp}
-                                                        onNavigateToCalendar={onNavigateToCalendar}
-                                                        onSchedule={handleSchedule}
                                                         brandProfile={userProfile?.brandProfile}
                                                     />
                                                 </div>
@@ -446,8 +437,6 @@ export function HistoryView({ onNavigateToCalendar }: { onNavigateToCalendar?: (
                                                                 onToggleLock={handleToggleLock}
                                                                 onManualEdit={handleUpdateContent}
                                                                 onFollowUp={handleFollowUp}
-                                                                onNavigateToCalendar={onNavigateToCalendar}
-                                                                onSchedule={handleSchedule}
                                                                 brandProfile={userProfile?.brandProfile}
                                                             />
                                                         </div>

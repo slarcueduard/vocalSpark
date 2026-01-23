@@ -3,10 +3,11 @@ import {
     Copy, Share2, Trash2, Calendar, Check,
     Lock, Unlock, ChevronDown, ChevronUp, Image as ImageIcon, Sparkles,
     Linkedin, Twitter, Instagram, Facebook, Wand2, MessageCircle, Hash, Smile,
-    ArrowRightCircle, MoveRight, ArrowUpRight, Repeat, Edit2
+    ArrowRightCircle, MoveRight, ArrowUpRight, Repeat, Edit2, Anchor
 } from 'lucide-react';
 import { Post, Platform, RefinementType } from '../types';
-import { DatePickerModal } from './DatePickerModal';
+import { generateViralHooks, rewritePostWithHook } from '../services/geminiService';
+
 
 interface PostCardProps {
     post: Post;
@@ -17,11 +18,10 @@ interface PostCardProps {
     onDelete: (id: string) => void | Promise<void>;
     onToggleLock: (id: string) => void | Promise<void>;
     onManualEdit: (id: string, newContent: string) => void | Promise<void>;
-    onSchedule?: (id: string, date: Date) => void | Promise<void>;
-    onMarkPublished?: (id: string) => void | Promise<void>;
-    onFollowUp?: (id: string, content: string) => void | Promise<void>;
-    onNavigateToCalendar?: () => void;
+    // onSchedule?: (id: string, date: Date) => void | Promise<void>; 
+    // onNavigateToCalendar?: () => void;
     brandProfile?: any; // Add brandProfile prop
+    userProfile?: any; // Add userProfile prop for gating features
 }
 
 export function PostCard({
@@ -33,10 +33,11 @@ export function PostCard({
     onDelete,
     onToggleLock,
     onManualEdit,
-    onSchedule,
+    // onSchedule,
     onFollowUp,
-    onNavigateToCalendar,
-    brandProfile
+    // onNavigateToCalendar,
+    brandProfile,
+    userProfile
 }: PostCardProps) {
 
 
@@ -45,12 +46,18 @@ export function PostCard({
     const [editContent, setEditContent] = useState(post.content);
     const [isExpanded, setIsExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+    // const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
     // State pentru meniul Magic
     const [showMagicMenu, setShowMagicMenu] = useState(false);
     const [magicLoading, setMagicLoading] = useState<string | null>(null); // Track which magic option is loading
+
     const [showUrlSubmenu, setShowUrlSubmenu] = useState(false);
+
+    // Hooks State
+    const [generatedHooks, setGeneratedHooks] = useState<{ type: string, label: string, text: string }[]>([]);
+    const [showHooksModal, setShowHooksModal] = useState(false);
+    const [hookLoadingState, setHookLoadingState] = useState<'idle' | 'generating' | 'rewriting'>('idle');
 
     const handleCopy = () => {
         navigator.clipboard.writeText(post.content);
@@ -98,6 +105,54 @@ export function PostCard({
 
     const contentPreview = isExpanded ? post.content : post.content.slice(0, 300) + (post.content.length > 300 ? '...' : '');
 
+    // --- HOOK GENERATOR LOGIC ---
+    const [customHookPrompt, setCustomHookPrompt] = useState("");
+
+    const handleGenerateHooks = async (isCustom = false) => {
+        setHookLoadingState('generating');
+        if (!isCustom) setShowMagicMenu(false);
+
+        try {
+            const promptToUse = isCustom ? customHookPrompt : undefined;
+            const hooks = await generateViralHooks(post.content, brandProfile?.tone || 'Professional', promptToUse);
+            setGeneratedHooks(hooks);
+            setShowHooksModal(true);
+            if (isCustom) setCustomHookPrompt(""); // Clear input on success
+        } catch (error) {
+            alert("Failed to generate hooks. Try again.");
+        } finally {
+            setHookLoadingState('idle');
+        }
+    };
+
+    const applyHook = async (hookText: string) => {
+        setHookLoadingState('rewriting');
+        setShowHooksModal(false);
+
+        try {
+            // Use AI to rewrite the post with the new hook
+            const newContent = await rewritePostWithHook(post.content, hookText, brandProfile?.tone || 'Professional');
+
+            onManualEdit(post.id, newContent);
+            setEditContent(newContent);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to apply hook. Please try again.");
+        } finally {
+            setHookLoadingState('idle');
+        }
+    };
+
+    // Hook Tabs
+    const [activeHookTab, setActiveHookTab] = useState<'viral' | 'custom'>('viral');
+
+    // Aggregate Custom Hooks
+    const myCustomHooks = [
+        ...(brandProfile?.nicheHooks || []),
+        ...(brandProfile?.customHooks || [])
+    ];
+
+
     // --- TAGGING LOGIC ---
     let badgeLabel = 'SINGLE POST';
     let badgeColor = 'bg-blue-900/30 text-blue-400 border-blue-800';
@@ -122,7 +177,7 @@ export function PostCard({
     };
 
     return (
-        <div className={`bg-[#161b22] border rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl ${post.isLocked ? 'border-yellow-500/50 shadow-yellow-900/10' : 'border-gray-800 hover:border-gray-600'}`}>
+        <div className={`relative bg-[#161b22] border rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl ${post.isLocked ? 'border-yellow-500/50 shadow-yellow-900/10' : 'border-gray-800 hover:border-gray-600'}`}>
 
             {/* HEADER */}
             <div className="flex items-center justify-between p-4 border-b border-gray-800 bg-[#0f1115]/50">
@@ -155,24 +210,7 @@ export function PostCard({
                         </span>
                     )}
 
-                    {post.scheduledDate && (
-                        <span className="text-[10px] flex items-center gap-1 text-green-400 border border-green-900/30 bg-green-900/10 px-2 py-1 rounded">
-                            <Calendar size={10} /> {new Date(post.scheduledDate).toLocaleDateString()}
-                        </span>
-                    )}
 
-                    {post.linkedEventId && (
-                        <button
-                            onClick={() => onNavigateToCalendar && onNavigateToCalendar()}
-                            className={`text-[10px] flex items-center gap-1 text-orange-400 border border-orange-900/30 bg-orange-900/10 px-2 py-1 rounded transition-all hover:bg-orange-900/30 hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-900/20 active:scale-95 ${onNavigateToCalendar ? 'cursor-pointer' : 'cursor-default'}`}
-                            title="View in Calendar"
-                        >
-                            <Calendar size={10} />
-                            <span className="font-bold">{post.linkedEventTitle || "Planned Event"}</span>
-                            {post.scheduledDate && <span className="opacity-75">({new Date(post.scheduledDate).toLocaleDateString()})</span>}
-                            {onNavigateToCalendar && <ArrowUpRight size={10} className="ml-0.5 opacity-60" />}
-                        </button>
-                    )}
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -551,6 +589,23 @@ export function PostCard({
                                     >
                                         <Wand2 size={14} /> Magic
                                     </button>
+
+                                    {/* PROMINENT HOOK BUTTON */}
+                                    <button
+                                        onClick={() => {
+                                            if (userProfile?.subscriptionTier !== 'agency') {
+                                                alert("🔒 Viral Hooks Library is available only on the Agency Plan.\n\nRewrite your posts with proven viral hooks to increase engagement.");
+                                                return;
+                                            }
+                                            handleGenerateHooks(false);
+                                        }}
+                                        className="flex items-center gap-2 px-3 py-2 border border-pink-500/30 bg-pink-900/20 text-pink-400 rounded-lg text-xs font-bold transition hover:bg-pink-900/40 hover:border-pink-500 hover:scale-[1.02] shadow-sm shadow-pink-900/20"
+                                        title="Generate Viral Hooks"
+                                    >
+                                        <Anchor size={14} />
+                                        Hooks
+                                        {userProfile?.subscriptionTier !== 'agency' && <Lock size={10} className="text-yellow-500 ml-1" />}
+                                    </button>
                                 </div>
 
                                 {/* Right: Adapt & Schedule */}
@@ -586,14 +641,7 @@ export function PostCard({
                                     {/* Schedule */}
                                     <div className="h-4 w-px bg-gray-800 mx-1"></div>
 
-                                    <button
-                                        onClick={() => setIsDatePickerOpen(true)}
-                                        className="p-2 text-gray-400 hover:text-blue-400 transition hover:bg-blue-900/10 rounded-lg flex items-center gap-2"
-                                        title="Schedule Post"
-                                    >
-                                        <Calendar size={16} />
-                                        {post.scheduledDate && <span className="text-[10px] hidden md:inline">{new Date(post.scheduledDate).toLocaleDateString()}</span>}
-                                    </button>
+                                    {/* Schedule Removed */}
 
                                     <button
                                         onClick={() => setIsEditing(true)}
@@ -611,15 +659,110 @@ export function PostCard({
                 </div>
             </div>
             {/* DATE PICKER MODAL */}
-            <DatePickerModal
-                isOpen={isDatePickerOpen}
-                onClose={() => setIsDatePickerOpen(false)}
-                onSelect={(date) => {
-                    if (onSchedule) onSchedule(post.id, date);
-                }}
-                initialDate={post.scheduledDate ? new Date(post.scheduledDate) : new Date()}
-                title="Schedule this Post"
-            />
+            {/* DATE PICKER REMOVED */}
+            {/* HOOK SELECTION MODAL */}
+            {showHooksModal && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-in fade-in">
+                    <div className="bg-[#161b22] border border-gray-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+                        <div className="flex justify-between items-center p-4 border-b border-gray-800">
+                            <div className="flex gap-4">
+                                <button
+                                    onClick={() => setActiveHookTab('viral')}
+                                    className={`text-sm font-bold transition flex items-center gap-2 ${activeHookTab === 'viral' ? 'text-pink-500' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    <Sparkles size={16} /> Viral Templates
+                                </button>
+                                <button
+                                    onClick={() => setActiveHookTab('custom')}
+                                    className={`text-sm font-bold transition flex items-center gap-2 ${activeHookTab === 'custom' ? 'text-blue-500' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    <Anchor size={16} /> My Custom Hooks
+                                </button>
+                            </div>
+                            <button onClick={() => setShowHooksModal(false)} className="text-gray-400 hover:text-white"><Trash2 size={16} /></button>
+                        </div>
+
+                        <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                            {/* VIRAL TEMPLATES TAB */}
+                            {activeHookTab === 'viral' && generatedHooks.map((h, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => applyHook(h.text)}
+                                    className="w-full text-left p-3 rounded-xl border border-gray-700 bg-[#0f1115] hover:border-pink-500 hover:bg-pink-900/10 transition group"
+                                >
+                                    <div className="flex justify-between mb-1">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{h.label}</span>
+                                        <span className="text-[10px] text-pink-500 group-hover:block hidden font-bold">Apply Hook &rarr;</span>
+                                    </div>
+                                    <p className="text-sm text-gray-200 font-medium leading-relaxed">{h.text}</p>
+                                </button>
+                            ))}
+
+                            {/* CUSTOM HOOKS TAB */}
+                            {activeHookTab === 'custom' && (
+                                myCustomHooks.length > 0 ? (
+                                    myCustomHooks.map((hook, i) => (
+                                        <button
+                                            key={`custom-${i}`}
+                                            onClick={() => applyHook(hook)}
+                                            className="w-full text-left p-3 rounded-xl border border-gray-700 bg-[#0f1115] hover:border-blue-500 hover:bg-blue-900/10 transition group"
+                                        >
+                                            <div className="flex justify-between mb-1">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">My Saved Hook</span>
+                                                <span className="text-[10px] text-blue-500 group-hover:block hidden font-bold">Apply Hook &rarr;</span>
+                                            </div>
+                                            <p className="text-sm text-gray-200 font-medium leading-relaxed">{hook}</p>
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <p className="text-gray-500 text-sm italic">No custom hooks found.</p>
+                                        <p className="text-xs text-gray-600 mt-1">Go to Brand Profile to generate or add them.</p>
+                                    </div>
+                                )
+                            )}
+                        </div>
+
+                        {/* CUSTOM HOOK INPUT */}
+                        <div className="p-3 bg-[#0f1115] border-t border-gray-700">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase mb-2 block">Or tell AI what you want:</label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={customHookPrompt}
+                                    onChange={(e) => setCustomHookPrompt(e.target.value)}
+                                    placeholder="e.g. Make it shorter, funnier, use a metaphor..."
+                                    className="flex-1 bg-[#161b22] border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:border-pink-500 outline-none placeholder-gray-600"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerateHooks(true)}
+                                />
+                                <button
+                                    onClick={() => handleGenerateHooks(true)}
+                                    disabled={!customHookPrompt.trim() || hookLoadingState !== 'idle'}
+                                    className="bg-pink-600 hover:bg-pink-500 text-white px-3 py-2 rounded-lg text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Sparkles size={14} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="p-3 bg-[#0f1115] border-t border-gray-700 text-center">
+                            <span className="text-[10px] text-gray-500">Clicking an option will replace the first line of your post.</span>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Loading Indicator for Hooks */}
+            {hookLoadingState !== 'idle' && (
+                <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40 rounded-2xl backdrop-blur-md animate-in fade-in">
+                    <div className="bg-[#161b22] px-6 py-4 rounded-xl border border-pink-500/30 flex items-center gap-3 shadow-xl">
+                        <div className="w-5 h-5 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-sm font-bold text-pink-400">
+                            {hookLoadingState === 'generating' ? "Analyzing Stop Rate & Creating Hooks..." : "Rewriting Post with New Hook..."}
+                        </span>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

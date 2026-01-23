@@ -31,14 +31,6 @@ export function VisualHowItWorks() {
         },
         {
             number: 4,
-            title: "Image Generation",
-            description: "Create stunning, AI-generated visuals for your posts. Use the Campaign Mode or standalone generator to captivate your audience.",
-            image: "/how-it-works/step4-image-gen.png",
-            icon: <ImageIcon className="text-cyan-400" size={28} />,
-            color: "cyan"
-        },
-        {
-            number: 5,
             title: "Save to Vault",
             description: "Store your masterpieces in the Content Vault. Generate variations and use the Follow-Up feature to continue the conversation.",
             image: "/how-it-works/step5-vault.png",

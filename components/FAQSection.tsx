@@ -9,59 +9,29 @@ interface FAQItem {
 
 const FAQ_DATA: FAQItem[] = [
     {
-        question: "What makes Vocal Spark different from ChatGPT?",
-        answer: "ChatGPT gives you generic content that sounds robotic. Vocal Spark uses Voice DNA technology to clone YOUR specific writing style, tone, and brand identity. Every post is injected with your brand profile, ensuring consistency across all content. Plus, we have Remix Mode, Campaign Planning, and Visual-Text Sync - features ChatGPT doesn't offer.",
+        question: "Does this sound better than ChatGPT?",
+        answer: "Yes. ChatGPT sounds generic because it doesn't know you. Vocal Spark analyzes your previous work to clone your exact tone, humor, and sentence structure/Voice DNA™.",
         category: "Product"
     },
     {
-        question: "How does the credit system work?",
-        answer: "Credits are consumed based on AI complexity. Text generation costs 1-10 credits depending on length and real-time data usage. Standard images (Flux) cost 2 credits, while Premium DALL-E 3 images cost 20 credits. Your plan renews monthly with a fresh credit allocation. Unused credits don't roll over.",
-        category: "Pricing"
-    },
-    {
-        question: "Can I cancel my subscription anytime?",
-        answer: "Absolutely! There are no contracts or commitments. Cancel anytime from your account settings. You'll retain access until the end of your billing period. No refunds for partial months, but you can use all remaining credits.",
-        category: "Pricing"
-    },
-    {
-        question: "What is Voice DNA and how does it work?",
-        answer: "Voice DNA is our proprietary brand cloning technology. You provide sample content (blogs, posts, or influencer URLs), and our AI analyzes tone, vocabulary, humor style, emoji usage, and writing patterns. This creates a DNA profile that's injected into every generation, ensuring your content never sounds generic.",
+        question: "Do I need to write anything?",
+        answer: "No. You can just talk. Our audio-to-post engine turns your rants, voice notes, or random thoughts into structured social media posts automatically.",
         category: "Features"
     },
     {
-        question: "Do I need technical skills to use Vocal Spark?",
-        answer: "Not at all! Vocal Spark is designed for creators, not developers. Just type your idea, select your brand voice, and click generate. The AI handles everything. No coding, no complex setup.",
+        question: "How fast can I generate content?",
+        answer: "Under 60 seconds. Speak for 1 minute, effectively get 1 week of content for X, LinkedIn, and Instagram.",
+        category: "Performance"
+    },
+    {
+        question: "Will this really sound like me?",
+        answer: "Yes. Our Voice DNA engine is designed specifically to capture nuances, slang, and your unique rhythm. It gets smarter the more you use it. You can also edit the DNA manually.",
         category: "Product"
     },
     {
-        question: "Is my data secure? Do you train AI on my content?",
-        answer: "Your data is 100% secure with Firebase/Google Cloud infrastructure. We NEVER train AI models on your private content or brand profiles. Your Voice DNA and vault content are encrypted and private. We're GDPR-compliant and take privacy seriously.",
-        category: "Security"
-    },
-    {
-        question: "What happens after my 5-day Pro trial ends?",
-        answer: "After 5 days, you'll need to choose a paid plan to continue. If you don't upgrade, you won't lose your saved posts in the Vault, but you won't be able to generate new content. Your brand profiles are preserved.",
-        category: "Pricing"
-    },
-    {
-        question: "Can I use Vocal Spark for client work?",
-        answer: "Yes! The Agency plan is built for this. You get unlimited brand voices, 7,000 credits/month, and commercial usage rights. Perfect for agencies, freelancers, and consultants managing multiple client brands.",
+        question: "Which platforms are supported?",
+        answer: "We optimize content for LinkedIn, X (Twitter), Instagram, Facebook, and TikTok scripts. One idea is automatically reformatted for all of them.",
         category: "Features"
-    },
-    {
-        question: "What's the difference between Standard and Premium images?",
-        answer: "Standard images use Flux AI (2 credits) - fast, good quality, perfect for volume. Premium uses DALL-E 3 (20 credits) - photorealistic, high-detail, best for flagship campaigns. Pro+ users can toggle between both.",
-        category: "Features"
-    },
-    {
-        question: "How does Remix Mode work?",
-        answer: "Paste one piece of content (blog post, article, video script), select output formats (LinkedIn, Twitter Thread, Instagram Carousel, etc.), and AI repurposes it into multiple platform-specific variations in seconds. It's like having 5 copywriters working simultaneously.",
-        category: "Features"
-    },
-    {
-        question: "Does Vocal Spark automatically post to my social media?",
-        answer: "No. Vocal Spark is a creation and planning workspace, not an auto-poster. We help you build high-quality content, organize it in a strategic calendar, and notify you when it's time to post manually. This ensures you maintain full control and avoid 'bot-like' behavior that platforms often penalize.",
-        category: "Product"
     }
 ];
 

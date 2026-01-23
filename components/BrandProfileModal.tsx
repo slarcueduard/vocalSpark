@@ -3,10 +3,10 @@ import {
     X, Sparkles, Link as LinkIcon, Globe,
     Upload, Hash, Palette, Check, RefreshCw,
     User, UserCheck, Copy, Ban, MessageSquare, Plus, Trash2,
-    Lock
+    Lock, Target
 } from 'lucide-react';
 import { BrandProfile } from '../types';
-import { analyzeBrandVoice } from '../services/geminiService';
+import { analyzeBrandVoice, generateNicheHooks } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 import { VoiceRadarChart } from './VoiceRadarChart';
 
@@ -16,7 +16,7 @@ interface BrandProfileModalProps {
     onClose: () => void;
 }
 
-type Tab = 'core' | 'visuals' | 'rules';
+type Tab = 'core' | 'strategy' | 'visuals' | 'rules' | 'hooks';
 type AnalysisMode = 'personal' | 'influencer';
 
 export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProfileModalProps) {
@@ -47,6 +47,11 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [bannedWords, setBannedWords] = useState('delve, landscape, testament, unlock, tapestry');
     const [ctaStyle, setCtaStyle] = useState('Ask a question to provoke comments');
 
+    // Founder Mode - Strategy Fields
+    const [enemy, setEnemy] = useState('');
+    const [offer, setOffer] = useState('');
+    const [archetype, setArchetype] = useState<'Rebel' | 'Consultant' | 'Expert' | 'Builder'>('Expert');
+
     // Proficiency
     // 'basic' | 'intermediate' | 'advanced' | 'native'
     const [englishProficiency, setEnglishProficiency] = useState<'basic' | 'intermediate' | 'advanced' | 'native'>('native');
@@ -58,6 +63,11 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     const [postLength, setPostLength] = useState<'short' | 'medium' | 'long'>('medium');
     const [detailLevel, setDetailLevel] = useState<'minimal' | 'balanced' | 'deep'>('balanced');
     const [innovationFactor, setInnovationFactor] = useState<'safe' | 'balanced' | 'unique'>('balanced');
+
+    // Custom Hooks Tab
+    const [savedHooks, setSavedHooks] = useState<string[]>([]);
+    const [nicheHooks, setNicheHooks] = useState<string[]>([]); // New state: Auto-Generated
+    const [isGeneratingHooks, setIsGeneratingHooks] = useState(false);
 
     // Populare Data
     useEffect(() => {
@@ -107,7 +117,18 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             setPostLength(currentProfile.postLength || 'medium');
             setDetailLevel(currentProfile.detailLevel || 'balanced');
             setInnovationFactor(currentProfile.innovationFactor || 'balanced');
+            setInnovationFactor(currentProfile.innovationFactor || 'balanced');
             setEnglishProficiency(currentProfile.englishProficiency || 'native');
+
+            // Load Hooks (Defensive Filtering: ensure only strings are loaded)
+            const validCustomHooks = (currentProfile.customHooks || []).filter(h => typeof h === 'string');
+            setSavedHooks(validCustomHooks);
+            setNicheHooks(currentProfile.nicheHooks || []);
+
+            // Founder Mode Load
+            setEnemy(currentProfile.enemy || '');
+            setOffer(currentProfile.offer || '');
+            setArchetype(currentProfile.archetype || 'Expert');
         }
     }, [currentProfile, activeProfileIndex]); // Added activeProfileIndex dependency to ensure refresh
 
@@ -117,6 +138,9 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         setUrlInput('');
         setTextInput('');
         setActiveTab('core');
+        setEnemy('');
+        setOffer('');
+        setArchetype('Expert');
     }, [activeProfileIndex]);
 
     // Removed lock logic - sliders always editable
@@ -245,7 +269,24 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                 if (!hashtags) {
                     setHashtags(hashtagString);
                 }
+                if (!hashtags) {
+                    setHashtags(hashtagString);
+                }
             }
+
+            // AUTO-GENERATE NICHE HOOKS
+            if (analysis.niche) {
+                console.log("Generating Niche Hooks for:", analysis.niche);
+                try {
+                    const generatedHooks = await generateNicheHooks(analysis.niche, 5, language);
+                    if (generatedHooks && generatedHooks.length > 0) {
+                        setNicheHooks(generatedHooks);
+                    }
+                } catch (hookError) {
+                    console.error("Failed to auto-generate hooks:", hookError);
+                }
+            }
+
 
         } catch (error) {
             console.error("Analysis failed", error);
@@ -253,6 +294,35 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         } finally {
             setIsAnalyzing(false);
         }
+    };
+
+    const handleGenerateNicheHooks = async () => {
+        setIsGeneratingHooks(true);
+        try {
+            // Construct temporary profile object for the AI
+            const tempProfile = {
+                industry,
+                targetAudience,
+                voiceDNA,
+                language,
+                toneScore: sliders.tone
+            };
+
+
+
+            // Fix: Pass industry string, not entire profile object
+            const newHooks = await generateNicheHooks(industry, 5, language);
+            // Add only the text to our list (though service now ensures strings)
+            setSavedHooks(prev => [...prev, ...newHooks]);
+        } catch (error) {
+            console.error("Failed to generate niche hooks", error);
+        } finally {
+            setIsGeneratingHooks(false);
+        }
+    };
+
+    const handleDeleteHook = (index: number) => {
+        setSavedHooks(prev => prev.filter((_, i) => i !== index));
     };
 
 
@@ -337,7 +407,16 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             postLength,
             detailLevel,
             innovationFactor,
-            englishProficiency
+            englishProficiency,
+
+            // Hooks
+            customHooks: savedHooks,
+            nicheHooks: nicheHooks,
+
+            // Founder Mode
+            enemy,
+            offer,
+            archetype
         };
 
         try {
@@ -454,7 +533,19 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                     {/* Tabs */}
                     <div className="flex border-b border-gray-800 bg-[#0f1115]">
                         <TabButton label="Voice DNA" isActive={activeTab === 'core'} onClick={() => setActiveTab('core')} />
-                        <TabButton label="Visuals" isActive={activeTab === 'visuals'} onClick={() => setActiveTab('visuals')} />
+                        <TabButton label="Strategy (Founder)" isActive={activeTab === 'strategy'} onClick={() => setActiveTab('strategy')} />
+                        <TabButton
+                            label="Custom Hooks"
+                            isActive={activeTab === 'hooks'}
+                            onClick={() => {
+                                if (userProfile?.subscriptionTier !== 'agency') {
+                                    alert("🔒 Viral Hooks are available only on the Agency Plan.\n\nSave your winning hooks and auto-generate new ones based on your niche.");
+                                    return;
+                                }
+                                setActiveTab('hooks');
+                            }}
+                            isLocked={userProfile?.subscriptionTier !== 'agency'}
+                        />
                         <TabButton label="Rules" isActive={activeTab === 'rules'} onClick={() => setActiveTab('rules')} />
                     </div>
 
@@ -642,21 +733,68 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                             </div>
                         )}
 
-                        {/* TAB: VISUALS */}
-                        {activeTab === 'visuals' && (
+
+
+
+                        {/* TAB: STRATEGY (Founder Mode) */}
+                        {activeTab === 'strategy' && (
                             <div className="space-y-6 animate-in fade-in">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Logo (Watermark)</label>
-                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/png, image/jpeg, image/jpg" />
-                                    <div className="flex items-center gap-4">
-                                        <div onClick={triggerFileInput} className="w-24 h-24 bg-[#1c1c2e] border-2 border-dashed border-gray-700 rounded-xl flex flex-col items-center justify-center text-gray-500 hover:border-blue-500 hover:text-blue-500 transition cursor-pointer group overflow-hidden relative">
-                                            {logoPreview ? <img src={logoPreview} alt="Logo Preview" className="w-full h-full object-contain p-2" /> : <><Upload size={24} className="mb-2" /><span className="text-[10px]">Upload PNG</span></>}
+                                <div className="bg-blue-900/10 border border-blue-900/30 p-5 rounded-2xl">
+                                    <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                                        <Target size={18} className="text-blue-400" />
+                                        Brand Strategy
+                                    </h3>
+                                    <p className="text-sm text-gray-400 mb-6">Define who you are, who you fight, and what you sell. This powers Founder Mode.</p>
+
+                                    <div className="space-y-6">
+                                        {/* 1. ARCHETYPE */}
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-3">Brand Archetype</label>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                {[
+                                                    { id: 'Rebel', icon: '⚡', desc: 'Contrarian, Bold' },
+                                                    { id: 'Consultant', icon: '🤝', desc: 'Helpful, Strategic' },
+                                                    { id: 'Expert', icon: '🧠', desc: 'Deep, Authoritative' },
+                                                    { id: 'Builder', icon: '🛠️', desc: 'Transparent, Raw' }
+                                                ].map((type) => (
+                                                    <button
+                                                        key={type.id}
+                                                        onClick={() => setArchetype(type.id as any)}
+                                                        className={`p-3 rounded-xl border text-left transition-all ${archetype === type.id
+                                                            ? 'bg-blue-600 border-blue-500 text-white shadow-lg ring-1 ring-blue-400'
+                                                            : 'bg-[#1c1c2e] border-gray-700 text-gray-400 hover:bg-[#252538]'
+                                                            }`}
+                                                    >
+                                                        <div className="text-xl mb-1">{type.icon}</div>
+                                                        <div className="font-bold text-sm">{type.id}</div>
+                                                        <div className="text-[10px] opacity-70">{type.desc}</div>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="flex-1">
-                                            <h4 className="text-sm font-bold text-white">Upload Brand Logo</h4>
-                                            <p className="text-xs text-gray-500 mt-1">Your logo will be added as a watermark when generating images.</p>
-                                            <p className="text-[10px] text-blue-400 mt-2">✓ Applied to all generated images (can be toggled off)</p>
-                                            <button onClick={triggerFileInput} className="mt-3 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs text-white rounded border border-gray-600 transition">Choose File</button>
+
+                                        {/* 2. THE ENEMY */}
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">The Enemy</label>
+                                            <p className="text-[10px] text-gray-500 mb-2">What status quo, problem, or misconception are you fighting against?</p>
+                                            <textarea
+                                                value={enemy}
+                                                onChange={(e) => setEnemy(e.target.value)}
+                                                placeholder="e.g. 'Complicated enterprise software', 'Gurus selling get-rich-quick schemes', 'Manual data entry'"
+                                                className="w-full bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition resize-none h-24"
+                                            />
+                                        </div>
+
+                                        {/* 3. THE OFFER */}
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">The Offer</label>
+                                            <p className="text-[10px] text-gray-500 mb-2">What is your core value proposition? (Keep it simple)</p>
+                                            <textarea
+                                                value={offer}
+                                                onChange={(e) => setOffer(e.target.value)}
+                                                placeholder="e.g. 'One-click AI social media scheduling for busy founders'"
+                                                className="w-full bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-blue-500 transition resize-none h-24"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -713,6 +851,135 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                 </div>
                             </div>
                         )}
+
+                        {/* --- TAB: CUSTOM HOOKS & CTA --- */}
+                        {activeTab === 'hooks' && (
+                            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+                                {/* SECTION 1: AUTO-GENERATED NICHE HOOKS */}
+                                <div className="bg-[#161b22] border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-600"></div>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                <Sparkles size={18} className="text-purple-500" />
+                                                Auto-Generated Hooks
+                                            </h3>
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                Based on your Voice DNA analysis for niche: <span className="text-purple-400">{industry || 'General'}</span>
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={async () => {
+                                                if (!industry) return;
+                                                setIsGeneratingHooks(true);
+                                                try {
+                                                    const hooks = await generateNicheHooks(industry, 5, language);
+                                                    setNicheHooks(hooks);
+                                                } catch (e) { console.error(e); }
+                                                setIsGeneratingHooks(false);
+                                            }}
+                                            disabled={isGeneratingHooks || !industry}
+                                            className="text-xs text-gray-500 hover:text-white flex items-center gap-1 transition"
+                                        >
+                                            <RefreshCw size={12} className={isGeneratingHooks ? "animate-spin" : ""} /> Regenerate
+                                        </button>
+                                    </div>
+
+                                    {nicheHooks.length === 0 ? (
+                                        <div className="p-4 bg-gray-900/50 rounded-lg text-center text-gray-500 text-xs italic">
+                                            Run "Analyze & Save DNA" to generate these automatically.
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {nicheHooks.map((hook, idx) => (
+                                                <div key={idx} className="flex items-start gap-3 p-3 bg-[#0d1117] border border-gray-800 rounded-xl hover:border-purple-500/30 transition group">
+                                                    <div className="bg-purple-500/10 p-2 rounded-lg text-purple-400 font-bold text-xs mt-0.5">#{idx + 1}</div>
+                                                    <p className="flex-1 text-sm text-gray-300 font-medium italic">"{hook}"</p>
+                                                    <button onClick={() => {
+                                                        // Copy to custom hooks
+                                                        if (!savedHooks.includes(hook)) setSavedHooks([...savedHooks, hook]);
+                                                    }} className="p-2 text-gray-600 hover:text-green-400 opacity-0 group-hover:opacity-100 transition" title="Save to My Custom Hooks"><Plus size={14} /></button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* SECTION 2: CUSTOM HOOKS GENERATOR */}
+                                <div className="bg-[#161b22] border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-pink-600"></div>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div>
+                                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                                <Plus size={18} className="text-pink-500" />
+                                                My Custom Hooks
+                                            </h3>
+                                            <p className="text-xs text-gray-400 mt-1">
+                                                Manually generate or add specific hooks for different topics.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={handleGenerateNicheHooks}
+                                            disabled={isGeneratingHooks}
+                                            className="bg-pink-600 hover:bg-pink-500 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition shadow-lg shadow-pink-900/20"
+                                        >
+                                            {isGeneratingHooks ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                            {isGeneratingHooks ? 'Generating...' : 'Generate Custom'}
+                                        </button>
+                                    </div>
+
+                                    {savedHooks.length === 0 ? (
+                                        <div className="text-center py-8 border border-dashed border-gray-800 rounded-xl bg-gray-900/50">
+                                            <p className="text-gray-500 text-sm">No custom hooks saved.</p>
+                                            <p className="text-gray-600 text-xs mt-1">Generate some or add manually (implied).</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {savedHooks.map((hook, idx) => (
+                                                <div key={idx} className="group flex items-start gap-3 p-3 bg-[#0d1117] border border-gray-800 rounded-xl hover:border-pink-500/30 transition">
+                                                    <div className="bg-pink-500/10 p-2 rounded-lg text-pink-500 font-bold text-xs mt-0.5">#{idx + 1}</div>
+                                                    <p className="flex-1 text-sm text-gray-300 leading-relaxed font-medium">{hook}</p>
+                                                    <button
+                                                        onClick={() => handleDeleteHook(idx)}
+                                                        className="p-2 text-gray-600 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                                        title="Delete Hook"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* SECTION 3: CALL TO ACTIONS */}
+                                <div className="bg-[#161b22] border border-gray-800 rounded-2xl p-6 relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-600"></div>
+                                    <div className="mb-4">
+                                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                            <MessageSquare size={18} className="text-blue-500" />
+                                            Call To Actions (CTA)
+                                        </h3>
+                                        <p className="text-xs text-gray-400 mt-1">Set your default closing strategy.</p>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Primary CTA Strategy</label>
+                                            <select value={ctaStyle} onChange={(e) => setCtaStyle(e.target.value)} className="w-full bg-[#0d1117] border border-gray-700 rounded-xl py-3 px-4 text-sm text-white focus:outline-none focus:border-blue-500 hover:border-gray-600 transition">
+                                                <option>Ask a question to provoke comments</option>
+                                                <option>Direct Link in Bio / Comments</option>
+                                                <option>Soft Sell ("DM me for info")</option>
+                                                <option>No CTA (Pure Value)</option>
+                                                <option>Custom (Write your own below)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}
@@ -729,10 +996,20 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
     );
 }
 
-function TabButton({ label, isActive, onClick }: { label: string, isActive: boolean, onClick: () => void }) {
-    return <button onClick={onClick} className={`flex-1 py-4 text-sm font-medium border-b-2 transition duration-200 ${isActive ? 'border-blue-500 text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>{label}</button>
+function TabButton({ label, isActive, onClick, isLocked }: { label: string, isActive: boolean, onClick: () => void, isLocked?: boolean }) {
+    return (
+        <button
+            onClick={onClick}
+            className={`flex-1 py-3 text-xs md:text-sm font-bold border-b-2 transition flex items-center justify-center gap-2 ${isActive
+                ? 'border-blue-500 text-white'
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+                }`}
+        >
+            {label}
+            {isLocked && <Lock size={12} className="text-yellow-500" />}
+        </button>
+    );
 }
-
 
 
 function SliderControl({ label, leftLabel, rightLabel, value, onChange, color = 'blue', disabled = false }: any) {

@@ -5,8 +5,8 @@ You must follow these rules for ALL content generation, regardless of Voice DNA 
 
 ## WRITING STYLE (DO):
 • Use clear, simple language
-• Be spartan and informative
-• Use short, impactful sentences
+• Be direct and informative
+• Use high-impact sentences (vary length based on required depth)
 • Use active voice; avoid passive voice
 • Focus on practical, actionable insights
 • Use bullet point lists in social media posts
@@ -16,7 +16,7 @@ You must follow these rules for ALL content generation, regardless of Voice DNA 
 ## STRICT PROHIBITIONS (NEVER DO):
 • NEVER use em dashes (—) anywhere. Use commas, periods, or other standard punctuation
 • NEVER use constructions like "...not just this, but also this"
-• NEVER use metaphors and clichés
+• NEVER use metaphors and clichés (unless explicitly requested by Voice DNA)
 • NEVER use generalizations
 • NEVER use common setup language: "in conclusion", "in closing", etc.
 • NEVER output warnings or notes
@@ -38,6 +38,6 @@ Before outputting content, verify:
 ✓ No forbidden words
 ✓ No em dashes or semicolons
 ✓ Active voice throughout
-✓ Short, clear sentences
+✓ Clear, readable structure
 ✓ Sounds like a human wrote it, not AI
 `;

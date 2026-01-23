@@ -4,25 +4,20 @@ import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { Post } from '../types';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Lock, Clock, Plus, AlignLeft, Briefcase, Trash, Loader2 } from 'lucide-react';
-import { createManualEvent, deletePostFromHistory } from '../services/postService';
+import { deletePostFromHistory } from '../services/postService';
 
 interface CalendarViewProps {
     onNavigateToVault?: () => void;
-    onNavigateToCreate?: (data: { title: string, description?: string, date: Date, id?: string }) => void;
+    onNavigateToVault?: () => void;
+    // onNavigateToCreate removed
 }
 
-export function CalendarView({ onNavigateToVault, onNavigateToCreate }: CalendarViewProps) {
+export function CalendarView({ onNavigateToVault }: CalendarViewProps) {
     const { user, userProfile } = useAuth();
     const [posts, setPosts] = useState<Post[]>([]);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [viewMode, setViewMode] = useState<'month' | 'week' | 'day' | 'timeline'>('month');
 
-    // Modal Add Event
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [newEventTitle, setNewEventTitle] = useState('');
-    const [newEventDesc, setNewEventDesc] = useState(''); // <--- Description
-    const [newEventDate, setNewEventDate] = useState(new Date().toISOString().slice(0, 16));
-    const [isAddingEvent, setIsAddingEvent] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<Post | null>(null);
 
     const getSafeDate = (val: any) => val?.toDate ? val.toDate() : (val ? new Date(val) : new Date());
@@ -47,21 +42,7 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
         return () => unsubscribe();
     }, [user]);
 
-    const handleAddEvent = async () => {
-        if (!newEventTitle || !newEventDate) return;
-        setIsAddingEvent(true);
-        try {
-            await createManualEvent(user!.uid, newEventTitle, new Date(newEventDate), newEventDesc);
-            setIsAddModalOpen(false);
-            setNewEventTitle('');
-            setNewEventDesc('');
-        } catch (error) {
-            console.error("Failed to add event:", error);
-            alert("Failed to save event. Please try again.");
-        } finally {
-            setIsAddingEvent(false);
-        }
-    };
+
 
     const handlePostClick = (p: any) => {
         if (p.type === 'event') {
@@ -84,7 +65,8 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
     const getPostsForDay = (date: Date) => {
         return posts.filter(p => {
             // Priority: Scheduled Date -> Created Date (if no schedule)
-            const d = p.scheduledDate || p.createdAt;
+            // Priority: Created Date -> Scheduled Date (Legacy pullback)
+            const d = p.createdAt || p.scheduledDate;
             if (!d) return false;
 
             const targetDate = d.toDate ? d.toDate() : new Date(d);
@@ -205,7 +187,7 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-white">Timeline View</h3>
-                            <p className="text-sm text-gray-400">All upcoming scheduled content ({futurePosts.length})</p>
+                            <p className="text-sm text-gray-400">Content Creation History ({futurePosts.length})</p>
                         </div>
                     </div>
 
@@ -368,47 +350,12 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
                             setCurrentDate(d);
                         }} className="p-1 hover:bg-gray-700 rounded text-white"><ChevronRight size={18} /></button>
                     </div>
-                    <button onClick={() => {
-                        setNewEventDate(new Date().toISOString().slice(0, 16));
-                        setIsAddModalOpen(true);
-                    }} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg hover:bg-blue-500"><Plus size={16} /> Add Event</button>
                 </div>
             </div>
 
             {renderView()}
 
-            {/* ADD EVENT MODAL */}
-            {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-[#161b22] p-6 rounded-2xl border border-gray-700 w-full max-w-md shadow-2xl">
-                        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><Plus className="text-blue-500" /> Add Manual Event</h3>
-
-                        <div className="space-y-4 mb-6">
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Title</label>
-                                <input type="text" placeholder="e.g. Black Friday Launch" className="w-full bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-white text-sm focus:border-blue-500 outline-none" value={newEventTitle} onChange={e => setNewEventTitle(e.target.value)} />
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Description</label>
-                                <textarea placeholder="Event details..." className="w-full bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-white text-sm focus:border-blue-500 outline-none h-24 resize-none" value={newEventDesc} onChange={e => setNewEventDesc(e.target.value)} />
-                            </div>
-
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Date & Time</label>
-                                <input type="datetime-local" className="w-full bg-[#0f1115] border border-gray-700 rounded-xl p-3 text-white text-sm focus:border-blue-500 outline-none" value={newEventDate} onChange={e => setNewEventDate(e.target.value)} />
-                            </div>
-                        </div>
-
-                        <div className="flex gap-3">
-                            <button onClick={() => setIsAddModalOpen(false)} className="flex-1 py-3 text-gray-400 hover:text-white font-bold text-sm">Cancel</button>
-                            <button onClick={handleAddEvent} disabled={isAddingEvent} className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-xl font-bold text-sm shadow-lg flex items-center justify-center gap-2">
-                                {isAddingEvent ? <Loader2 className="animate-spin" size={16} /> : "Save Event"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* ADD EVENT MODAL REMOVED */}
 
             {/* EVENT DETAILS MODAL */}
             {selectedEvent && (
@@ -473,22 +420,7 @@ export function CalendarView({ onNavigateToVault, onNavigateToCreate }: Calendar
                             >
                                 Delete Event
                             </button>
-                            <button
-                                onClick={() => {
-                                    if (onNavigateToCreate) {
-                                        const eventDate = selectedEvent.scheduledDate ? getSafeDate(selectedEvent.scheduledDate) : getSafeDate(selectedEvent.createdAt);
-                                        onNavigateToCreate({
-                                            title: selectedEvent.topic || "Untitled Event",
-                                            description: selectedEvent.content,
-                                            date: eventDate,
-                                            id: selectedEvent.id
-                                        });
-                                    }
-                                }}
-                                className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-sm shadow-lg flex items-center justify-center gap-2"
-                            >
-                                <Plus size={16} /> Create Content
-                            </button>
+                            {/* Create Content Removed */}
                         </div>
                     </div>
                 </div>

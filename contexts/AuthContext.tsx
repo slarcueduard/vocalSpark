@@ -131,7 +131,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
-    try { await signInWithPopup(auth, provider); } catch (error) { console.error("Error signing in", error); }
+    try {
+      await signInWithPopup(auth, provider);
+      // Pixel Tracking Trigger: Change URL hash without refresh
+      window.location.hash = 'dashboard';
+    } catch (error) { console.error("Error signing in", error); }
   };
 
   const logout = async () => {

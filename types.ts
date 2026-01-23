@@ -22,7 +22,7 @@ export type SubscriptionTier = 'trial' | 'pro' | 'agency';
 export type RefinementType = 'makeShorter' | 'makeLonger' | 'professional' | 'casual' | 'addEmojis' | 'addHashtags' | 'askQuestion';
 export type PostObjective = 'engagement' | 'sales' | 'education' | 'viral' | 'traffic';
 export type ViralHook = 'Straight to the Point' | 'Storytime' | 'Controversial' | 'Behind the Scenes' | 'Myth vs Fact' | 'Transformation' | 'Unpopular Opinion' | 'Day in the Life' | 'Hack / Trick';
-export type GenerationType = 'single' | 'campaign' | 'remix';
+export type GenerationType = 'single' | 'campaign' | 'remix' | 'daily_post';
 export interface UserProfile {
   uid: string;
   email: string | null;
@@ -57,6 +57,41 @@ export interface BrandProfile {
   detailLevel?: 'minimal' | 'balanced' | 'deep';
   innovationFactor?: 'safe' | 'balanced' | 'unique';
   englishProficiency?: 'basic' | 'intermediate' | 'advanced' | 'native';
+  customHooks?: string[]; // Manual/Custom generated hooks
+  nicheHooks?: string[]; // Auto-generated hooks based on Voice DNA analysis
+
+  // Founder Mode Fields
+  enemy?: string; // What the brand is fighting against
+  offer?: string; // What is being sold
+  archetype?: 'Rebel' | 'Consultant' | 'Expert' | 'Builder'; // Brand Archetype
+
+  savedTemplates?: { // Saved X-Ray DNA Structures
+    id: string;
+    name: string;
+    structure: string;
+    tone: string;
+    hook: string;
+  }[];
+}
+
+export interface TodayPostSettings {
+  userId: string;
+  brandDnaId: string;
+  status: 'active' | 'paused';
+  startDate: any;
+  lastGeneratedAt: any | null;
+  currentTopicThreadId: string | null;
+}
+
+export interface TopicThread {
+  id: string;
+  userId: string;
+  brandDnaId: string;
+  coreTopic: string;
+  narrativeSummary: string;
+  sequenceCount: number;
+  createdAt: any;
+  updatedAt: any;
 }
 
 export interface Post {
@@ -83,6 +118,13 @@ export interface Post {
     tone_detected: string;
     structure_tag: string;
   };
+
+  // Today's Post Fields
+  threadId?: string;
+  sequenceNumber?: number;
+  userId?: string;
+  authorId?: string;
+  status?: string;
 }
 
 // --- CONFIGURATION & PLANS ---

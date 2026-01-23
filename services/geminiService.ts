@@ -140,40 +140,67 @@ export async function generateSocialMediaPosts(
     topic: string, tone: Tone, postCount: number, language: string, brandVoice: string, brandProfile?: BrandProfile, imageBase64?: string, imageMimeType?: string, objective: PostObjective = 'engagement', useRealTime: boolean = false, isCampaign: boolean = false, isRemix: boolean = false, remixFormats: string[] = [], isFollowUp: boolean = false, parentContent: string = "", isMultiPlatform: boolean = false, targetPlatforms: Platform[] = [], remixTargetTopic: string = "",
     xRayConstraints?: { hook: string, tone: string, structure: string }, // NEW: Explicit constraints
     isReply: boolean = false, replyOptions: { useEmojis: boolean, question: string | boolean, link: string } = { useEmojis: true, question: '', link: '' },
-    useGreenScreen: boolean = false // NEW: TikTok Green Screen Mode
+    useGreenScreen: boolean = false, // NEW: TikTok Green Screen Mode
+    explicitHooks: string[] = [], // NEW: Accepts specific hooks (array)
+    detailLevel: 'min' | 'medium' | 'long' | 'detailed' = 'medium' // NEW: Detail Level Control
 ): Promise<any[]> {
 
     // --- 1. PERSONA & IDENTITY LAYER ---
-    // Instead of just "context", we define the AI's Identity.
     const identityLayer = `
     ROLE: You are an elite Social Media Ghostwriter.
     YOU ARE NOT AN AI. You are a human strategist mimicing a specific persona.
     
-    IDENTITY PROFILE:
+    ### STYLE & VOICE GUIDE (HOW TO WRITE)
     ${brandProfile?.voiceDNA
-            ? `"${brandProfile.voiceDNA}" \n(Adopt this syntax, sentence length, and vocabulary EXACTLY.)`
+            ? `VOICE DNA: "${brandProfile.voiceDNA}" \n(INSTRUCTION: Adopt this syntax, sentence length, and vocabulary style EXACTLY. However, applying this style should NOT change the subject matter.)`
             : `VOICE: ${brandProfile?.voiceDNA || brandVoice || "Authentic, relatable, and high-impact."}`}
     
+    ### CONTEXT (WHO TO WRITE FOR)
     AUDIENCE: ${brandProfile?.targetAudience || "General Audience"}
+    (Adapt the tone to resonate with this audience, but ensure the content strictly follows the USER TOPIC defined below.)
+
+    CRITICAL INSTRUCTION ON NICHE:
+    - If the User's Topic is unrelated to the Brand's Niche (e.g. Brand is "Business" but Topic is "Dogs"), you must WRITE ABOUT THE TOPIC ("Dogs") using the Brand's VOICE (Style).
+    - Do NOT force the Brand's specific industry keywords into unrelated topics.
+    
     LANGUAGE: ${language}
     `;
 
     // --- 1.5 PREFERENCE LAYER (Granular Control) ---
-    // If brandProfile has preferences, we override defaults.
-    const lengthPref = brandProfile?.postLength || 'medium';
-    const detailPref = brandProfile?.detailLevel || 'balanced';
-    const innovPref = brandProfile?.innovationFactor || 'balanced';
+    // Override defaults with UI selection or Profile pref
+    // Override defaults with UI selection or Profile pref
+    // PRIORITY: If a Brand Profile is active (and has a length pref), it overrides the UI 'detailLevel'.
+    // Mapping: 'short' -> 'min', 'medium' -> 'medium', 'long' -> 'long'.
+
+    let effectiveLength = detailLevel || 'medium';
+
+
+    // Check numeric score first (from Slider)
+    if (brandProfile?.lengthScore !== undefined && brandProfile.lengthScore !== null) {
+        const s = brandProfile.lengthScore;
+        if (s <= 33) effectiveLength = 'min';
+        else if (s <= 66) effectiveLength = 'medium';
+        else if (s < 90) effectiveLength = 'long';
+        else effectiveLength = 'detailed'; // Max slider (>90) -> Max Detail
+    }
+    // Fallback to text preference if score missing
+    else if (brandProfile?.postLength) {
+        if (brandProfile.postLength === 'short') effectiveLength = 'min';
+        else effectiveLength = brandProfile.postLength;
+        // Map 'long' text pref to 'long' (not detailed/max) unless we want to change that default too. 
+        // Keeping 'long' -> 'long' is safer for legacy profiles.
+    }
+
+    const lengthPref = effectiveLength;
 
     let lengthInstruction = "";
-    if (lengthPref === 'short') lengthInstruction = "CONSTRAINT: Concise but Specific. Max 350 chars. Prioritize substance over brevity. Name tools/examples.";
-    if (lengthPref === 'medium') lengthInstruction = "CONSTRAINT: Standard length (40-80 words). Balanced flow.";
-    if (lengthPref === 'long') lengthInstruction = "CONSTRAINT: Long-form. Expand on the topic. Use > 150 words. Use spacing.";
+    if (lengthPref === 'min') lengthInstruction = "EXTREME CONSTRAINT: Shortest possible form. Max 280 characters. NO headers, NO bullet points, NO fluff. Just the core message or hook. Focus on impact per word.";
+    if (lengthPref === 'medium') lengthInstruction = "CONSTRAINT: Standard social media post (75-125 words). Use 1-2 emojis. Balanced paragraph structure. Good for quick engagement.";
+    if (lengthPref === 'long') lengthInstruction = "CONSTRAINT: Long-form content (200-400 words). Use clear headers, bullet points, and spacing. Expand on the 'Why' and 'How'.";
+    if (lengthPref === 'detailed') lengthInstruction = "EXTREME DEPTH: Maximize Platform Capability. Use 500-1000 words (or platform limit). PRESERVE EVERY DETAIL from the source content. Do NOT summarize—EXPAND. Include all steps, quotes, and specific data points. Create a comprehensive 'Ultimate Guide'.";
 
-    let detailInstruction = "";
-    if (detailPref === 'minimal') detailInstruction = "STYLE: Minimalist. No fluff. Straight to the point.";
-    if (detailPref === 'balanced') detailInstruction = "STYLE: Balanced context.";
-    if (detailPref === 'deep') detailInstruction = "STYLE: Deep Dive. Provide examples, 'why', and nuance. Educational.";
-
+    // Keep Innovation/Risk pref from profile as it's not in UI yet
+    const innovPref = brandProfile?.innovationFactor || 'balanced';
     let innovInstruction = "";
     if (innovPref === 'safe') innovInstruction = "RISK: Low. Professional, corporate, safe.";
     if (innovPref === 'balanced') innovInstruction = "RISK: Medium. Engaging.";
@@ -187,12 +214,25 @@ export async function generateSocialMediaPosts(
     if (proficiency === 'advanced') proficiencyInstruction = "LANGUAGE COMPLEXITY: ADVANCED. Rich vocabulary (C1). Varied sentence structure. Professional fluency.";
     if (proficiency === 'native') proficiencyInstruction = "LANGUAGE COMPLEXITY: NATIVE. Use idiomatic expressions, cultural nuances, sophisticated phrasing (C2). Fully natural flow.";
 
+    // Hooks Layer
+    let hooksInstruction = "";
+    if (explicitHooks && explicitHooks.length > 0) {
+        // Use the explicitly passed hooks (either selected or filtered list)
+        const shuffled = [...explicitHooks].sort(() => 0.5 - Math.random());
+        const selectedHooks = shuffled.slice(0, 3).map((h, i) => `${i + 1}. "${h}"`).join('\n');
+        hooksInstruction = `
+        MANDATORY HOOK STRATEGY:
+        You MUST start the generated post(s) using one of the following specific opening lines (or a very close variation):
+        ${selectedHooks}
+        `;
+    }
+
     const preferenceLayer = `
     PREFERENCES:
     - ${lengthInstruction}
-    - ${detailInstruction}
     - ${innovInstruction}
     - ${proficiencyInstruction}
+    ${hooksInstruction}
     `;
 
     // --- 2. OBJECTIVE & STRATEGY LAYER ---
@@ -248,13 +288,17 @@ export async function generateSocialMediaPosts(
             `;
         }
 
+        const isRewriteMode = !remixTargetTopic || remixTargetTopic.trim() === '';
+
         strategyLayer = `
         ### ROLE & OBJECTIVE
-        You are Vocal Spark AI. "Reverse Engineer" the reference content and rewrite the NEW_TOPIC using the SAME formula.
+        ${isRewriteMode
+                ? 'You are an elite Ghostwriter. Your task is to REWRITE and OPTIMIZE the REFERENCE_CONTENT for the target platforms, keeping the exact same meaning but improving the delivery.'
+                : 'You are Vocal Spark AI. "Reverse Engineer" the reference content and rewrite the NEW_TOPIC using the SAME structural formula.'}
 
         ### INPUT DATA
         1. REFERENCE_CONTENT: "${topic}"
-        2. NEW_TOPIC: "${remixTargetTopic}"
+        2. NEW_TOPIC: "${remixTargetTopic || '(NO NEW TOPIC - REWRITE SOURCE CONTENT ONLY)'}"
         3. TARGET_PLATFORMS: ${remixFormats.join(', ')}
         4. LANGUAGE: ${language}
 
@@ -272,9 +316,15 @@ export async function generateSocialMediaPosts(
         ` : ''}
 
         ### PHASE 2: THE REMIX (GENERATION)
-        Generate a NEW POST about the NEW_TOPIC.
-        Constraints:
-        - **Structure Lock:** Mimic paragraph breaks and sentence lengths.
+        ${isRewriteMode
+                ? `ACTION: Rewrite the REFERENCE_CONTENT for each platform.
+           CRITICAL:
+           - **DO NOT CHANGE THE SUBJECT.** The post MUST be about "${topic.substring(0, 50)}...".
+           - **DO NOT HALLUCINATE.** Do not invent a new topic like "Career Advice" unless the source is about that.
+           - **Goal:** Adapt the source text to the format/style constraints.`
+                : `ACTION: Generate a NEW POST about the NEW_TOPIC.
+           Constraints:
+           - **Structure Lock:** Mimic paragraph breaks and sentence lengths of the source.`}
         - **No "AI Slop":** Write naturally.
         `;
     } else if (isFollowUp) {
@@ -813,5 +863,128 @@ export async function findTrendingContent(niche: string): Promise<string> {
     } catch (e) {
         console.error("Smart Source Setup Failed", e);
         throw e;
+    }
+}
+
+// --- 3. VIRAL HOOK GENERATOR ---
+export async function generateViralHooks(
+    content: string,
+    tone: string = "Professional",
+    customPrompt?: string
+): Promise<{ type: string, label: string, text: string }[]> {
+    try {
+        const payload = {
+            prompt: content,
+            brandTone: tone,
+            isHookGen: true,
+            customHookPrompt: customPrompt,
+            language: 'English' // Defaulting to English for hooks unless specified otherwise
+        };
+
+        const data = await safeFetch('/api/generate-text', payload);
+
+        // Parse result
+        let result = data.output;
+        if (typeof result === 'string') {
+            try {
+                result = JSON.parse(result);
+            } catch (e) {
+                console.error("Failed to parse hook JSON", e);
+            }
+        }
+
+        // Backend returns { hooks: [...] } or just the array depending on how cleanOutput worked
+        // The API returns { output: JSON_STRING }, and inside that is likely { hooks: [] } due to system prompt structure
+
+        if (result.hooks && Array.isArray(result.hooks)) {
+            return result.hooks;
+        } else if (Array.isArray(result)) {
+            return result;
+        }
+
+        // Fallback if structure is weird
+        return [];
+
+    } catch (error) {
+        console.error("Hook Generation Error:", error);
+        throw error;
+    }
+}
+
+export async function rewritePostWithHook(
+    originalContent: string,
+    hookText: string,
+    tone: string = "Professional"
+): Promise<string> {
+    try {
+        const payload = {
+            prompt: originalContent,
+            hookText: hookText,
+            brandTone: tone,
+            isHookRewrite: true,
+            language: 'English'
+        };
+
+        const data = await safeFetch('/api/generate-text', payload);
+
+        let result = data.output;
+        if (typeof result === 'string') {
+            try {
+                // Attempt parse if it looks like JSON
+                if (result.trim().startsWith('{')) {
+                    const parsed = JSON.parse(result);
+                    if (parsed.content) return parsed.content;
+                    if (parsed.posts && parsed.posts[0]) return parsed.posts[0].content;
+                }
+            } catch (e) {
+                // If parse fails, assume string is content but check for artifacts
+            }
+        }
+
+        // Cleanup if raw string
+        return result.replace(/^"|"$/g, '').replace(/\\n/g, '\n');
+
+    } catch (error) {
+        console.error("Hook Rewrite Error:", error);
+        throw error;
+    }
+}
+
+export async function generateNicheHooks(
+    niche: string,
+    count: number = 5,
+    language: string = "English"
+): Promise<string[]> {
+    try {
+        const payload = {
+            niche: niche,
+            count: count,
+            language: language,
+            isNicheHooks: true // Flag for backend
+        };
+
+        const data = await safeFetch('/api/generate-text', payload);
+
+        // Parse result
+        let result = data.output;
+        if (typeof result === 'string') {
+            try {
+                result = JSON.parse(result);
+            } catch (e) {
+                console.error("Failed to parse hook JSON", e);
+            }
+        }
+
+        if (result.hooks && Array.isArray(result.hooks)) {
+            return result.hooks.map((h: any) => typeof h === 'string' ? h : h.text || JSON.stringify(h));
+        } else if (Array.isArray(result)) {
+            return result.map((h: any) => typeof h === 'string' ? h : h.text || JSON.stringify(h));
+        }
+
+        return [];
+
+    } catch (error) {
+        console.error("Hook Generation Error:", error);
+        throw error;
     }
 }
