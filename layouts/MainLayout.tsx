@@ -9,7 +9,8 @@ import {
   Briefcase,
   Building2,
   Archive,
-  Calendar as CalendarIcon
+  Calendar as CalendarIcon,
+  Lock
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
@@ -86,7 +87,21 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
           <div onClick={() => handleNavClick('create')}><NavItem icon={<LayoutDashboard size={20} />} label="Creator Studio" active={currentView === 'create'} /></div>
           <div onClick={() => handleNavClick('history')}><NavItem icon={<Archive size={20} />} label="Content Vault" active={currentView === 'history'} /></div>
 
-          <div onClick={() => handleNavClick('calendar')}><NavItem icon={<CalendarIcon size={20} />} label="Calendar" active={currentView === 'calendar'} /></div>
+          <div onClick={() => {
+            if (userProfile?.subscriptionTier === 'pro') {
+              alert("🔒 Content Calendar is available on the Agency Plan (or Free Trial). Upgrade to unlock planning features.");
+              return;
+            }
+            handleNavClick('calendar');
+          }}>
+            <NavItem
+              icon={userProfile?.subscriptionTier === 'pro' ? <Lock size={20} className="text-gray-600" /> : <CalendarIcon size={20} />}
+              label="Calendar"
+              active={currentView === 'calendar'}
+              isLocked={userProfile?.subscriptionTier === 'pro'}
+            />
+          </div>
+
           <div onClick={() => handleNavClick('daily')}><NavItem icon={<Zap size={20} />} label="Today's Post" active={currentView === 'daily'} /></div>
           <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">Strategy</div>
           <div onClick={() => { onOpenBrandProfile(); setIsSidebarOpen(false); }} className="cursor-pointer">
@@ -166,10 +181,11 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
   );
 }
 
-function NavItem({ icon, label, active }: { icon: any, label: string, active?: boolean }) {
+function NavItem({ icon, label, active, isLocked }: { icon: any, label: string, active?: boolean, isLocked?: boolean }) {
   return (
-    <div className={`flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 ${active ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white'}`}>
+    <div className={`flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer transition-all duration-200 ${active ? 'bg-blue-600 text-white shadow-md shadow-blue-900/20' : 'text-gray-400 hover:bg-[#1c1c2e] hover:text-white'} ${isLocked ? 'opacity-60 grayscale' : ''}`}>
       <div className="flex items-center gap-3">{icon}<span className="font-medium text-sm">{label}</span></div>
+      {isLocked && <Lock size={12} className="text-gray-500" />}
     </div>
   );
 }

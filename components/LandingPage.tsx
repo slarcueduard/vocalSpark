@@ -5,13 +5,12 @@ import {
     Layers, Lock, Wand2, UserCheck,
     Search, Smartphone, ChevronDown, ChevronUp,
     Calendar, LayoutTemplate, MessageSquarePlus, Share2,
-    Play, X, ArrowRight, Mic
+    Play, X, ArrowRight, Mic, Clock, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CountdownTimer } from './CountdownTimer';
 import { FAQSection } from './FAQSection';
 import { InteractiveVoiceDNADemo } from './InteractiveVoiceDNADemo';
-import { SocialIconsCompact } from './SocialSupportButtons';
 import { DocumentationView } from './DocumentationView';
 import { VisualHowItWorks } from './VisualHowItWorks';
 
@@ -55,58 +54,6 @@ interface LandingPageProps {
 export function LandingPage({ onLogin }: LandingPageProps) {
     const [showDocs, setShowDocs] = useState(false);
 
-    // Simple query param parsing
-    const getSource = () => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search);
-            return params.get('source') || 'default';
-        }
-        return 'default';
-    };
-
-    const source = getSource();
-    const isTikTok = source === 'tiktok';
-    const isEmail = source === 'email';
-
-    // DYNAMIC CONTENT CONFIGURATION
-    const CONTENT = {
-        default: {
-            theme: 'blue',
-            badge: "The AI that knows your voice",
-            badgeIcon: <Sparkles size={12} />,
-            heroTitle: <>Speak once. <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Post everywhere.</span></>,
-            heroSub: "Without rewriting, prompting, or editing.",
-            heroDesc: <>Turn a 60-second voice note into high-engagement posts for every platform — <strong className="text-white">in your own voice.</strong></>,
-            ctaText: "Start 5-Day Free Trial",
-            showWallOfLove: false,
-            showDemoAtTop: true
-        },
-        tiktok: {
-            theme: 'red',
-            badge: "Viral Post Generator",
-            badgeIcon: <Zap size={12} className="fill-current" />,
-            heroTitle: <>Speak once. <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-500">Post everywhere.</span></>,
-            heroSub: "Without rewriting, prompting, or editing.",
-            heroDesc: <>Turn a 60-second voice note or idea into ready-to-post content for TikTok, Instagram, X, and LinkedIn — <strong className="text-white">in your own voice.</strong></>,
-            ctaText: "Start 5-Day Free Trial",
-            showWallOfLove: true,
-            showDemoAtTop: true
-        },
-        email: {
-            theme: 'orange', // Professional/Productivity feel
-            badge: "Productivity Engine for Founders",
-            badgeIcon: <Play size={12} className="fill-current" />,
-            heroTitle: <>Turn 1 minute of talking <br className="md:hidden" /><span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">into 1 week of posts.</span></>,
-            heroSub: "Stop staring at a blank page. Automate your personal brand.",
-            heroDesc: <>The average founder spends 6 hours/week writing content. <strong className="text-white">Vocal Spark does it in 15 minutes.</strong></>,
-            ctaText: "See The Efficiency Demo",
-            showWallOfLove: false, // Cold leads rely more on the "Comparison" table below
-            showDemoAtTop: true // "Proof of Competence"
-        }
-    };
-
-    const currentContent = CONTENT[isTikTok ? 'tiktok' : (isEmail ? 'email' : 'default')];
-
     if (showDocs) {
         return (
             <div className="min-h-screen bg-[#0f1115] p-8">
@@ -119,57 +66,42 @@ export function LandingPage({ onLogin }: LandingPageProps) {
         <div className="w-full min-h-screen bg-[#0f1115] text-white font-sans selection:bg-blue-500/30">
             <Navbar onLogin={onLogin} setShowDocs={setShowDocs} />
 
-            {/* 1. HERO SECTION (DYNAMIC) */}
-            <HeroSection onLogin={onLogin} content={currentContent} theme={currentContent.theme} />
+            {/* 1. HERO SECTION: Instant Clarity */}
+            <HeroSection onLogin={onLogin} />
 
-            {/* DEMO MOVED UP (TikTok & Email) */}
-            {currentContent.showDemoAtTop && (
-                <div className="border-b border-gray-800">
-                    <InteractiveVoiceDNADemo />
-                </div>
-            )}
+            {/* DEMO: Show, Don't Explain */}
+            <div className="border-b border-gray-800 bg-[#0f1115]">
+                <InteractiveVoiceDNADemo />
+            </div>
 
-            {/* 2. AHA MOMENT (HOW IT WORKS) */}
-            <section className="py-20 bg-[#0f1115]">
+            {/* 2. PROBLEM AGITATION: Emotional Hook */}
+            <ProblemAgitationSection />
+
+            {/* 3. SOLUTION: Brand Voice Workspace */}
+            <SolutionSection onLogin={onLogin} />
+
+            {/* 4. CORE FEATURES: Benefit-First */}
+            <FeaturesSection />
+
+            {/* 5. HOW IT WORKS: Reduce Perceived Effort */}
+            <section className="py-24 bg-[#0a0c10] border-y border-gray-800">
                 <div className="max-w-7xl mx-auto px-6 mb-12 text-center">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">How It Works</h2>
-                    <p className="text-gray-400">From voice note to viral post in 3 steps.</p>
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Your New 3-Step Workflow</h2>
+                    <p className="text-gray-400">From "blank screen" to "scheduled for the week" in minutes.</p>
                 </div>
                 <VisualHowItWorks />
             </section>
 
-            {/* WALL OF LOVE (TikTok Only) */}
-            {currentContent.showWallOfLove && <WallOfLoveSection />}
+            {/* 6. SOCIAL PROOF: Trust */}
+            <SocialProofSection />
 
-            {/* 3. AUDIENCE QUALIFICATION */}
-            <AudienceSection />
-
-            {/* 4. VALUE PROP (NOT A CHATBOT) */}
-            <ValuePropSection />
-
-            {/* 5. FEATURE HIGHLIGHTS (WITH VIDEOS) */}
-            <FeaturesSection />
-
-            {/* 6. OBJECTION KILL (VS CHATGPT) */}
-            <ComparisonSection />
-
-            {/* DEMO AT BOTTOM (Default Only) */}
-            {!currentContent.showDemoAtTop && (
-                <div className="border-y border-gray-800">
-                    <InteractiveVoiceDNADemo />
-                </div>
-            )}
-
-            {/* 7. SOCIAL PROOF (Classic Trust) - Show on Default & Email */}
-            {!currentContent.showWallOfLove && <SocialProofSection />}
-
-            {/* 8. PRICING & CTA */}
+            {/* 7. PRICING: Risk Reduction */}
             <PricingSection onLogin={onLogin} />
 
-            {/* 9. FAQ */}
+            {/* 8. FAQ: Objection Handling */}
             <FAQSection />
 
-            {/* 10. EMOTIONAL CLOSE & FOOTER */}
+            {/* 9. FINAL CTA */}
             <Footer onLogin={onLogin} />
         </div>
     );
@@ -200,113 +132,71 @@ function Navbar({ onLogin, setShowDocs }: any) {
     );
 }
 
-function HeroSection({ onLogin, content, theme = 'blue' }: any) {
-    const themeStyles = {
-        blue: {
-            bgGlow: 'bg-blue-600/20',
-            badge: 'bg-blue-900/30 border-blue-500/30 text-blue-300',
-            button: 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/30'
-        },
-        red: {
-            bgGlow: 'bg-red-600/20',
-            badge: 'bg-red-900/30 border-red-500/30 text-red-300',
-            button: 'bg-gradient-to-r from-red-600 to-pink-600 shadow-red-900/30'
-        },
-        orange: {
-            bgGlow: 'bg-orange-600/20',
-            badge: 'bg-orange-900/30 border-orange-500/30 text-orange-300',
-            button: 'bg-gradient-to-r from-orange-600 to-amber-600 shadow-orange-900/30'
-        }
-    };
-
-    const styles = themeStyles[theme as keyof typeof themeStyles] || themeStyles.blue;
-
+function HeroSection({ onLogin }: any) {
     return (
-        <section className="relative pt-32 pb-20 px-4 overflow-hidden min-h-[85vh] flex flex-col justify-center items-center text-center bg-[#0f1115]">
-            {/* Hero Background Visual */}
+        <section className="relative pt-40 pb-20 px-4 overflow-hidden min-h-[90vh] flex flex-col justify-center items-center text-center bg-[#0f1115]">
+            {/* Background Visuals */}
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <img
-                    src="/hero-bg-voice.png"
-                    alt="AI Voice Visualization"
-                    className="w-full h-full object-cover opacity-90"
-                />
-                {/* Visual Protection Layers */}
-                <div className="absolute inset-0 bg-[#0f1115]/80 [mask-image:radial-gradient(circle_at_center,transparent_0%,black_100%)]" />
-                <div className="absolute inset-0 bg-gradient-to-b from-[#0f1115]/20 via-transparent to-[#0f1115]" />
-
-                {/* RESTORED GRID OVERLAY - Subtle Tech Feel */}
-                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.65]" />
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:14px_24px] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.4]" />
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/10 rounded-full blur-[120px] -z-10" />
             </div>
 
-            {/* Theme Tint Glow */}
-            <div className={`absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] rounded-full blur-[120px] -z-10 opacity-50 mix-blend-overlay ${styles.bgGlow}`} />
-
-            {/* CONTENT WRAPPER - Ensures text is above background */}
-            <div className="relative z-10 flex flex-col items-center w-full max-w-5xl mx-auto">
-                <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-wider mb-8 animate-fade-in-up ${styles.badge}`}>
-                    {content.badgeIcon}
-                    <span>{content.badge}</span>
+            <div className="relative z-10 w-full max-w-4xl mx-auto">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-blue-500/20 bg-blue-900/10 text-blue-400 text-xs font-bold uppercase tracking-wider mb-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                    <Sparkles size={12} />
+                    <span>The AI that knows your voice</span>
                 </div>
 
-                <h1 className="text-5xl md:text-7xl font-bold tracking-tight mb-6 leading-[1.1] max-w-5xl mx-auto">
-                    {content.heroTitle}
-                    <br />
-                    <span className="text-xl md:text-3xl text-gray-400 font-medium block mt-4">{content.heroSub}</span>
+                <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-100">
+                    Stop writing posts <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">from scratch.</span>
                 </h1>
 
-                <p className="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-                    {content.heroDesc}
+                <p className="text-xl md:text-2xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-200">
+                    VocalSpark turns one idea or voice note into ready-to-publish social content — <strong className="text-white">written exactly in your own voice.</strong>
                 </p>
 
-                <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+                <div className="flex flex-col items-center gap-4 w-full max-w-sm mx-auto animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
                     <button
                         onClick={onLogin}
-                        className={`w-full py-4 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl hover:scale-[1.02] active:scale-[0.98] ${styles.button}`}
+                        className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-xl shadow-blue-900/20 hover:scale-[1.02]"
                     >
-                        <Zap className="fill-white" size={20} />
-                        <span>{content.ctaText}</span>
+                        <span>Start Free for 5 Days</span>
+                        <ArrowRight size={20} />
                     </button>
-                    <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span className="flex items-center gap-1"><Check size={12} className="text-green-500" /> No credit card required</span>
-                        <span className="flex items-center gap-1"><Check size={12} className="text-green-500" /> Takes under 1 minute to start</span>
-                    </div>
+                    <p className="text-sm text-gray-500 flex items-center gap-2">
+                        <Check size={14} className="text-green-500" /> No credit card required
+                    </p>
                 </div>
-
-                {/* SUPPORTING LINE */}
-                <p className="mt-8 text-sm text-gray-500 font-medium animate-fade-in-up delay-200">
-                    Your content should sound like you — not like AI.
-                </p>
             </div>
         </section>
     );
 }
 
-
-
-function AudienceSection() {
+function ProblemAgitationSection() {
     return (
-        <section className="py-24 bg-[#0a0c10] border-y border-gray-800/50">
-            <div className="max-w-7xl mx-auto px-6">
+        <section className="py-24 bg-[#0a0c10] border-b border-gray-800">
+            <div className="max-w-5xl mx-auto px-6">
                 <div className="text-center mb-16">
-                    <h2 className="text-3xl font-bold text-white mb-4">Built for Founders who <span className="line-through decoration-red-500 text-gray-500">Love</span> Hate Marketing</h2>
-                    <p className="text-gray-400">You don't need to be a "creator". You just need a system.</p>
+                    <h2 className="text-3xl font-bold text-white mb-4">The "Content Hamster Wheel" is broken.</h2>
+                    <p className="text-gray-400 text-lg">You know you need to post, but the process is painful.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <AudienceCard
-                        icon={<Database className="text-blue-400" />}
-                        title="SaaS Founders"
-                        desc="You build perfect products, but struggle to tell the world consistently."
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <ProblemCard
+                        icon={<Clock className="text-red-400" />}
+                        title="The Time Drain"
+                        desc="Staring at a blank screen for 30 minutes just to write one mediocre LinkedIn post."
                     />
-                    <AudienceCard
-                        icon={<Fingerprint className="text-purple-400" />}
-                        title="Solopreneurs"
-                        desc="You know you need a personal brand, but you hate the vanity metrics game."
+                    <ProblemCard
+                        icon={<Fingerprint className="text-orange-400" />}
+                        title="The Generic Trap"
+                        desc="Using ChatGPT results in robotic, soul-less content that your audience ignores."
                     />
-                    <AudienceCard
-                        icon={<Mic className="text-orange-400" />}
-                        title="Reluctant Creators"
-                        desc="You have powerful ideas, but writing them down feels like pulling teeth."
+                    <ProblemCard
+                        icon={<Layers className="text-purple-400" />}
+                        title="The Platform Chaos"
+                        desc="Rewriting the same idea 4 times for X, LinkedIn, Instagram, and your Newsletter."
                     />
                 </div>
             </div>
@@ -314,10 +204,10 @@ function AudienceSection() {
     );
 }
 
-function AudienceCard({ icon, title, desc }: any) {
+function ProblemCard({ icon, title, desc }: any) {
     return (
-        <div className="bg-[#161b22] p-8 rounded-2xl border border-gray-800 hover:border-gray-600 transition">
-            <div className="mb-6 bg-gray-800/50 w-12 h-12 rounded-xl flex items-center justify-center">
+        <div className="bg-[#161b22] p-8 rounded-2xl border border-gray-800 hover:border-red-500/30 transition group">
+            <div className="mb-6 bg-gray-800/50 w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
                 {icon}
             </div>
             <h3 className="text-xl font-bold text-white mb-3">{title}</h3>
@@ -326,37 +216,55 @@ function AudienceCard({ icon, title, desc }: any) {
     )
 }
 
-function ValuePropSection() {
+function SolutionSection({ onLogin }: any) {
     return (
         <section className="py-24 bg-[#0f1115]">
-            <div className="max-w-5xl mx-auto px-6 text-center">
-                <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">Not Another Chatbot.</h2>
-                <p className="text-xl text-gray-400 mb-12 max-w-3xl mx-auto">
-                    ChatGPT gives you homework (prompts). Vocal Spark gives you <span className="text-white font-bold underline decoration-blue-500 underline-offset-4">freedom</span>.
-                </p>
+            <div className="max-w-6xl mx-auto px-6">
+                <div className="flex flex-col md:flex-row items-center gap-16">
+                    <div className="w-full md:w-1/2">
+                        <div className="inline-block text-blue-500 font-bold mb-4 tracking-wider text-sm uppercase">The Solution</div>
+                        <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">Your Personal Brand <br /> Operating System</h2>
+                        <p className="text-lg text-gray-400 mb-8 leading-relaxed">
+                            VocalSpark isn't a chatbot. It's a <strong className="text-white">Brand Voice Workspace</strong>. It acts as your personal ghostwriter that never sleeps, never complains, and knows exactly how you sound.
+                        </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center bg-[#161b22] rounded-3xl p-8 border border-gray-800">
-                    <div className="text-left space-y-6">
-                        <div className="flex items-start gap-4 p-4 rounded-xl bg-red-900/10 border border-red-900/20 opacity-70">
-                            <X className="text-red-500 shrink-0 mt-1" />
-                            <div>
-                                <h4 className="font-bold text-white mb-1">Generic AI</h4>
-                                <p className="text-sm text-gray-400">"Create a viral post about marketing." → *Returns robotic, cringe content you have to edit for 20 minutes.*</p>
-                            </div>
+                        <div className="space-y-6">
+                            <SolutionPoint
+                                title="Learns Your Voice DNA™"
+                                desc="We analyze your past content to clone your tone, humor, and rhythm."
+                            />
+                            <SolutionPoint
+                                title="One Idea → Everywhere"
+                                desc="Drop a voice note. Get a Thread, a LinkedIn post, and an Instagram caption instantly."
+                            />
+                            <SolutionPoint
+                                title="No Prompt Engineering"
+                                desc="Stop fighting with prompts. Just speak or write naturally."
+                            />
                         </div>
-                        <div className="flex items-start gap-4 p-4 rounded-xl bg-green-900/10 border border-green-900/20">
-                            <Check className="text-green-500 shrink-0 mt-1" />
-                            <div>
-                                <h4 className="font-bold text-white mb-1">Vocal Spark</h4>
-                                <p className="text-sm text-gray-400">"Here's my rant." → *Analyzes your Voice DNA. Generates 10 posts that sound exactly like you. 0 edits.*</p>
-                            </div>
+
+                        <div className="mt-8">
+                            <button
+                                onClick={onLogin}
+                                className="px-8 py-4 bg-white text-black hover:bg-gray-200 rounded-xl font-bold text-lg flex items-center gap-2 transition-all shadow-xl hover:scale-[1.02]"
+                            >
+                                <Zap size={20} className="text-yellow-600 fill-yellow-600" />
+                                Generate My First Post Now
+                            </button>
                         </div>
                     </div>
-                    <div className="h-full min-h-[250px] bg-gradient-to-br from-blue-900/20 to-purple-900/20 rounded-2xl flex items-center justify-center border border-white/5">
-                        <div className="text-center">
-                            <Fingerprint size={64} className="mx-auto text-blue-500 mb-4 opacity-80" />
-                            <p className="text-white font-bold">Vocal Spark sits next to you.</p>
-                            <p className="text-sm text-gray-500">It remembers who you are.</p>
+
+                    <div className="w-full md:w-1/2">
+                        <div className="relative rounded-2xl overflow-hidden border border-gray-700 shadow-2xl bg-[#0a0c10] aspect-square flex items-center justify-center">
+                            {/* Visual representation of the 'Operating System' */}
+                            <div className="absolute inset-0 bg-gradient-to-tr from-blue-900/20 to-purple-900/20" />
+                            <div className="relative z-10 text-center space-y-4">
+                                <Fingerprint size={80} className="text-blue-500 mx-auto animate-pulse" />
+                                <div className="text-2xl font-bold text-white">Voice DNA™ Active</div>
+                                <div className="text-sm text-gray-400 bg-gray-900 px-4 py-2 rounded-full border border-gray-700 mx-auto inline-block">
+                                    Analysis Complete • 98% Match
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -365,143 +273,153 @@ function ValuePropSection() {
     );
 }
 
-function FeaturesSection() {
+function SolutionPoint({ title, desc }: any) {
     return (
-        <section className="py-24 bg-[#0f1115] border-t border-gray-800/30">
-            <div className="max-w-7xl mx-auto px-6">
-                <div className="mb-20 text-center">
-                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Your New Workflow</h2>
-                    <p className="text-gray-400">Stop maximizing for "more prompts". Maximize for mental peace.</p>
-                </div>
-
-                <div className="space-y-24">
-                    <FeatureRow
-                        videoSrc="/voice2post.mp4"
-                        title="Voice DNA Technology"
-                        headline="The AI that actually sounds like you."
-                        desc="Vocal Spark learns how you write and speak, so every post sounds natural — not robotic."
-                        badges={["Analyzes your URL", "Learns slang/idioms", "Never sounds robotic"]}
-                    />
-                    <FeatureRow
-                        videoSrc="/voice2post.mp4"
-                        title="Audio-to-Post"
-                        headline="Ramble into your phone. Get viral threads."
-                        desc="Say it once. Vocal Spark turns your voice into structured, high-engagement posts automatically."
-                        badges={["No typing needed", "Works in any language", "1 minute audio = 1 week content"]}
-                        reversed
-                    />
-                    <FeatureRow
-                        videoSrc="/remix.mp4"
-                        title="Multi-Platform Posting"
-                        headline="Never waste a good idea."
-                        desc="One idea becomes platform-optimized posts — without rewriting for each network."
-                        badges={["Video -> Article", "Thread -> Carousel", "Blog -> Newsletter"]}
-                    />
-                    <FeatureRow
-                        videoSrc="/remix.mp4"
-                        title="Content Vault"
-                        headline="Build your asset library."
-                        desc="Save, reuse, and remix your best content instead of starting from scratch every time."
-                        badges={["Organize by Campaign", "Track Performance", "Remix Winners"]}
-                        reversed
-                    />
-
-                    {/* MID-PAGE CTA */}
-                    <div className="py-16 text-center">
-                        <h3 className="text-3xl font-bold text-white mb-6">Ready to stop overthinking social posts?</h3>
-                        <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition shadow-lg mb-3">
-                            Start your free 5-day trial
-                        </button>
-                        <p className="text-sm text-gray-500">No credit card • Cancel anytime</p>
-                    </div>
-                </div>
+        <div className="flex gap-4">
+            <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0 mt-1">
+                <Check size={14} className="text-blue-400" />
             </div>
-        </section>
-    )
-}
-
-function FeatureRow({ videoSrc, title, headline, desc, badges, reversed }: any) {
-    return (
-        <div className={`flex flex-col ${reversed ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-12 md:gap-20`}>
-            <div className="w-full md:w-1/2">
-                <div className="relative rounded-2xl overflow-hidden border border-gray-800 shadow-2xl bg-black aspect-video group">
-                    <video autoPlay loop muted playsInline className="w-full h-full object-cover">
-                        <source src={videoSrc} type="video/mp4" />
-                    </video>
-                </div>
-            </div>
-            <div className="w-full md:w-1/2 space-y-6">
-                <div className="inline-block text-blue-400 text-sm font-bold uppercase tracking-wider mb-2">{title}</div>
-                <h3 className="text-3xl md:text-4xl font-bold text-white leading-tight">{headline}</h3>
-                <p className="text-lg text-gray-400 leading-relaxed">{desc}</p>
-                <div className="flex flex-wrap gap-3 pt-4">
-                    {badges.map((badge: string, idx: number) => (
-                        <span key={idx} className="px-3 py-1.5 bg-gray-800 text-gray-300 rounded-lg text-xs font-medium border border-gray-700">
-                            {badge}
-                        </span>
-                    ))}
-                </div>
+            <div>
+                <h4 className="text-white font-bold">{title}</h4>
+                <p className="text-sm text-gray-400">{desc}</p>
             </div>
         </div>
     )
 }
 
-function ComparisonSection() {
+function FeaturesSection() {
     return (
-        <section className="py-24 bg-[#0a0c10] border-y border-gray-800">
-            <div className="max-w-4xl mx-auto px-6">
-                <h2 className="text-3xl font-bold text-center text-white mb-12">Why not just use ChatGPT?</h2>
+        <section className="py-24 bg-[#0a0c10] border-t border-gray-800">
+            <div className="max-w-7xl mx-auto px-6">
+                <div className="text-center mb-20">
+                    <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">Features Built for ROI</h2>
+                    <p className="text-gray-400">Every feature is designed to save you time or increase engagement.</p>
+                </div>
 
-                <div className="bg-[#161b22] border border-gray-800 rounded-2xl overflow-hidden">
-                    <div className="grid grid-cols-3 bg-gray-800/50 p-4 border-b border-gray-700 text-sm font-bold text-gray-400">
-                        <div>Feature</div>
-                        <div className="text-center">ChatGPT</div>
-                        <div className="text-center text-blue-400">Vocal Spark</div>
-                    </div>
-
-                    <ComparisonRow feature="Brand Voice" bad="Forgot in new chat" good="Remembers forever" />
-                    <ComparisonRow feature="Workflow" bad="Endless prompting" good="1-Click Actions" />
-                    <ComparisonRow feature="Input" bad="Text only (mostly)" good="Voice, Audio, Video, URL" />
-                    <ComparisonRow feature="Output Quality" bad="Generic / Robot" good="Human / Optimized" />
-                    <ComparisonRow feature="Context Limit" bad="Resets often" good="Persistent Knowledge" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <FeatureBlock
+                        icon={<Mic className="text-purple-400" />}
+                        title="Voice-to-Post Engine"
+                        headline="Turn rambles into revenue."
+                        desc="Record a messy voice note while walking. We turn it into clean, structured, high-performing posts."
+                    />
+                    <FeatureBlock
+                        icon={<Repeat className="text-blue-400" />}
+                        title="Content Repurposing"
+                        headline="Never waste a good idea."
+                        desc="Paste a YouTube URL or an article. We extract the key points and remix them into social content."
+                    />
+                    <FeatureBlock
+                        icon={<Fingerprint className="text-pink-400" />}
+                        title="Voice DNA™ Cloning"
+                        headline="Consistency on autopilot."
+                        desc="The AI learns your specific vocabulary, sentence length, and formatting style."
+                    />
+                    <FeatureBlock
+                        icon={<Database className="text-green-400" />}
+                        title="Content Vault"
+                        headline="Your personal asset library."
+                        desc="Save your best ideas. Schedule them for later. Build a searchable database of your brain."
+                    />
                 </div>
             </div>
         </section>
     )
 }
 
-function ComparisonRow({ feature, bad, good }: any) {
+function FeatureBlock({ icon, title, headline, desc }: any) {
     return (
-        <div className="grid grid-cols-3 p-4 border-b border-gray-800 items-center hover:bg-white/5 transition">
-            <div className="font-medium text-white text-sm">{feature}</div>
-            <div className="text-center text-gray-500 text-sm flex justify-center items-center gap-2">
-                {bad}
+        <div className="bg-[#161b22] p-8 rounded-2xl border border-gray-800 hover:border-gray-600 transition">
+            <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gray-800/50 rounded-lg flex items-center justify-center">
+                    {icon}
+                </div>
+                <div className="text-sm font-bold text-gray-500 uppercase tracking-widest">{title}</div>
             </div>
-            <div className="text-center text-white text-sm font-bold flex justify-center items-center gap-2">
-                <Check size={14} className="text-green-500" /> {good}
-            </div>
+            <h3 className="text-2xl font-bold text-white mb-2">{headline}</h3>
+            <p className="text-gray-400 leading-relaxed">{desc}</p>
         </div>
     )
 }
 
 function SocialProofSection() {
+    const stats = [
+        { label: "Posts Generated", value: "10,000+" },
+        { label: "Founders", value: "500+" },
+        { label: "Hours Saved", value: "2,500+" },
+    ];
+
+    const testimonials = [
+        { name: "Sarah J.", handle: "@startupsarah", role: "SaaS Founder", text: "VocalSpark cut my content creation time by 90%. I just speak, and it writes better than I do." },
+        { name: "Mark T.", handle: "@mark_indie", role: "Indie Hacker", text: "Finally an AI that sounds like *me*, not a robot. The Voice DNA is scary good." },
+        { name: "Elena R.", handle: "@elena_growth", role: "Marketing Director", text: "I managed to schedule a month of content for 3 clients in one afternoon. Game changer." },
+    ];
+
     return (
-        <section className="py-20 bg-[#0f1115] text-center">
-            <div className="max-w-3xl mx-auto px-6">
-                <div className="flex justify-center mb-8">
-                    <div className="flex -space-x-4">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="w-12 h-12 rounded-full border-2 border-[#0f1115] bg-gray-700 flex items-center justify-center font-bold text-xs text-white">
-                                {i === 5 ? '300+' : <UserCheck size={16} />}
-                            </div>
-                        ))}
+        <section className="py-24 bg-[#0f1115] border-t border-gray-800">
+            <div className="max-w-7xl mx-auto px-6">
+
+                {/* 1. STATS HEADER */}
+                <div className="flex flex-wrap justify-center gap-12 mb-20 border-b border-gray-800 pb-12">
+                    {stats.map((stat, i) => (
+                        <div key={i} className="text-center">
+                            <div className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.value}</div>
+                            <div className="text-gray-500 uppercase tracking-wider text-sm font-bold">{stat.label}</div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* 2. LOGO STRIP (Placeholders) */}
+                <div className="text-center mb-20">
+                    <p className="text-sm text-gray-500 uppercase tracking-widest mb-8">Trusted by founders building on</p>
+                    <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-50 grayscale">
+                        {/* Simple text placeholders for logos to avoid broken images */}
+                        <span className="text-xl font-bold text-gray-400">STRIPE</span>
+                        <span className="text-xl font-bold text-gray-400">YCOMBINATOR</span>
+                        <span className="text-xl font-bold text-gray-400">INDIEHACKERS</span>
+                        <span className="text-xl font-bold text-gray-400">PRODUCTHUNT</span>
+                        <span className="text-xl font-bold text-gray-400">X</span>
                     </div>
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-4">Built for founders, creators, and marketers who hate writing but need to stay consistent.</h2>
-                <div className="mt-4 text-sm font-bold text-gray-500">300+ Founders Joined</div>
+
+                {/* 3. TESTIMONIALS */}
+                <div className="text-center mb-16">
+                    <h2 className="text-3xl font-bold text-white mb-4">Don't take our word for it.</h2>
+                    <p className="text-gray-400">Join hundreds of founders reclaiming their time.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-20">
+                    {testimonials.map((t, i) => (
+                        <div key={i} className="bg-[#161b22] p-8 rounded-2xl border border-gray-800 relative group hover:border-blue-500/30 transition">
+                            <div className="flex items-center gap-3 mb-6">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center font-bold text-white">
+                                    {t.name[0]}
+                                </div>
+                                <div className="text-left">
+                                    <div className="font-bold text-white leading-none mb-1">{t.name}</div>
+                                    <div className="text-xs text-gray-500">{t.role}</div>
+                                </div>
+                            </div>
+                            <p className="text-gray-300 leading-relaxed">"{t.text}"</p>
+                        </div>
+                    ))}
+                </div>
+
+                {/* 4. TRUST BADGES */}
+                <div className="flex flex-wrap justify-center gap-6">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 rounded-full border border-gray-800 text-gray-400 text-sm">
+                        <Lock size={14} className="text-green-500" /> Secure & Private
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 rounded-full border border-gray-800 text-gray-400 text-sm">
+                        <Database size={14} className="text-blue-500" /> No Data Training
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 rounded-full border border-gray-800 text-gray-400 text-sm">
+                        <UserCheck size={14} className="text-purple-500" /> Verified Results
+                    </div>
+                </div>
             </div>
         </section>
-    )
+    );
 }
 
 function PricingSection({ onLogin }: any) {
@@ -509,17 +427,18 @@ function PricingSection({ onLogin }: any) {
         <section id="pricing" className="py-24 bg-[#0a0c10] border-t border-gray-800">
             <div className="max-w-7xl mx-auto px-6 text-center">
                 <h2 className="text-4xl font-bold text-white mb-6">Invest in your Peace of Mind</h2>
-                <p className="text-gray-400 mb-16">Cheaper than an intern. Faster than an agency. Smarter than a chatbot.</p>
+                <p className="text-gray-400 mb-16 max-w-2xl mx-auto">Try it with your real content first. If it doesn't save you 5 hours this week, cancel instantly.</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                    {/* PRO PLAN - BLUE THEME */}
+                    {/* PRO PLAN */}
                     <div className="bg-[#111318] p-8 rounded-3xl border-2 border-blue-900/30 flex flex-col relative overflow-hidden group hover:border-blue-500 transition duration-300 shadow-2xl">
-                        <div className="absolute top-0 right-0 bg-blue-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg">POPULAR</div>
-                        <h3 className="text-xl font-bold text-white mb-2 text-left flex items-center gap-2">
-                            Pro <span className="text-blue-500 text-xs px-2 py-0.5 rounded-full bg-blue-900/20 border border-blue-500/30">Starter</span>
-                        </h3>
-                        <div className="text-left mb-6">
-                            <span className="text-4xl font-bold text-white">$12.99</span><span className="text-gray-500">/mo</span>
+                        <div className="text-left mb-2">
+                            <h3 className="text-xl font-bold text-white">Pro Starter</h3>
+                            <p className="text-gray-500 text-sm">For solo founders</p>
+                        </div>
+                        <div className="text-left mb-6 flex items-baseline gap-1">
+                            <span className="text-4xl font-bold text-white">$12.99</span>
+                            <span className="text-gray-500">/mo</span>
                         </div>
                         <ul className="space-y-4 mb-8 text-left">
                             {PLANS.pro.features.map((f, i) => (
@@ -528,21 +447,22 @@ function PricingSection({ onLogin }: any) {
                                 </li>
                             ))}
                         </ul>
-                        <button onClick={onLogin} className="mt-auto w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition shadow-lg shadow-blue-900/20 hover:shadow-blue-900/40">
-                            Start Free Trial
+                        <button onClick={onLogin} className="mt-auto w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-500 transition shadow-lg">
+                            Start 5-Day Free Trial
                         </button>
+                        <p className="text-xs text-gray-500 mt-3">No credit card required</p>
                     </div>
 
-                    {/* AGENCY PLAN - PURPLE/PREMIUM THEME */}
-                    <div className="bg-[#15121c] p-8 rounded-3xl border-2 border-purple-900/30 flex flex-col relative overflow-hidden group hover:border-purple-500 transition duration-300 shadow-2xl scale-[1.02]">
-                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-600"></div>
+                    {/* AGENCY PLAN */}
+                    <div className="bg-[#15121c] p-8 rounded-3xl border-2 border-purple-900/30 flex flex-col relative overflow-hidden group hover:border-purple-500 transition duration-300 shadow-2xl">
                         <div className="absolute top-0 right-0 bg-purple-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl shadow-lg">BEST VALUE</div>
-
-                        <h3 className="text-xl font-bold text-white mb-2 text-left flex items-center gap-2">
-                            Agency <span className="text-purple-400 text-xs px-2 py-0.5 rounded-full bg-purple-900/20 border border-purple-500/30">Growth</span>
-                        </h3>
-                        <div className="text-left mb-6">
-                            <span className="text-4xl font-bold text-white">$29.99</span><span className="text-gray-500">/mo</span>
+                        <div className="text-left mb-2">
+                            <h3 className="text-xl font-bold text-white">Agency Growth</h3>
+                            <p className="text-gray-500 text-sm">For power users</p>
+                        </div>
+                        <div className="text-left mb-6 flex items-baseline gap-1">
+                            <span className="text-4xl font-bold text-white">$29.99</span>
+                            <span className="text-gray-500">/mo</span>
                         </div>
                         <ul className="space-y-4 mb-8 text-left">
                             {PLANS.agency.features.map((f, i) => (
@@ -551,89 +471,31 @@ function PricingSection({ onLogin }: any) {
                                 </li>
                             ))}
                         </ul>
-                        <button onClick={onLogin} className="mt-auto w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg shadow-purple-900/40 hover:shadow-purple-900/60 flex items-center justify-center gap-2">
-                            <Sparkles size={16} /> Get Agency Access
+                        <button onClick={onLogin} className="mt-auto w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition shadow-lg">
+                            Get Agency Access
                         </button>
+                        <p className="text-xs text-gray-500 mt-3">Cancel anytime</p>
                     </div>
                 </div>
 
-                {/* 1. LIFETIME DEAL BANNER */}
-                <div className="max-w-4xl mx-auto mt-16 p-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 rounded-2xl shadow-2xl shadow-orange-900/20 transform hover:scale-[1.01] transition cursor-pointer">
-                    <div className="bg-[#161b22] rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-[100px] -z-10" />
-
-                        <div className="text-left flex-1">
-                            <div className="inline-block bg-orange-600 text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-3 animate-pulse">
-                                Founding Member Offer
+                {/* LIFETIME DEAL BANNER */}
+                <div className="max-w-4xl mx-auto mt-16 p-0.5 bg-gradient-to-r from-orange-500 via-red-500 to-purple-600 rounded-2xl shadow-2xl transform hover:scale-[1.01] transition cursor-pointer" onClick={() => {
+                    localStorage.setItem('redirect_to_founder', 'true');
+                    onLogin();
+                }}>
+                    <div className="bg-[#161b22] rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="text-left">
+                            <div className="inline-block bg-orange-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider mb-1">
+                                Limited Time
                             </div>
-                            <h3 className="text-2xl font-bold text-white mb-2">Lifetime Access Deal</h3>
-                            <p className="text-gray-400 text-sm">Pay once. Use forever. Include all future Pro updates.</p>
+                            <h3 className="text-lg font-bold text-white">Lifetime Access Deal</h3>
+                            <p className="text-gray-400 text-sm">Pay once ($97). Use forever.</p>
                         </div>
-
-                        <div className="text-right">
-                            <div className="flex items-center justify-end gap-3 mb-2">
-                                <span className="text-gray-500 line-through text-lg">$297</span>
-                                <span className="text-4xl font-bold text-white">$97</span>
-                            </div>
-                            <button onClick={() => {
-                                localStorage.setItem('redirect_to_founder', 'true');
-                                onLogin();
-                            }} className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition shadow-lg">
-                                Get Lifetime Access
-                            </button>
-                            <div className="mt-4">
-                                <CountdownTimer endDate={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)} compact={true} />
-                            </div>
+                        <div className="flex items-center gap-4">
+                            <CountdownTimer endDate={new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)} compact={true} />
+                            <ArrowRight className="text-white" />
                         </div>
                     </div>
-                </div>
-            </div>
-        </section>
-    )
-}
-
-function WallOfLoveSection() {
-    const tweets = [
-        { name: "Sarah J.", handle: "@startupsarah", text: "I just turned a 2 min rant about hiring into a 15-tweet thread. This feels illegal. 🤯", date: "2h ago" },
-        { name: "David M.", handle: "@david_builds", text: "Stopped my agency subscription. VocalSpark sounds more like me than my copywriter did. #AI", date: "5h ago" },
-        { name: "Alex Hormozi (Parody)", handle: "@hormozifake", text: "If you aren't using this workflow, you are literally losing money. Efficiency is king.", date: "1d ago" },
-        { name: "Design Joy", handle: "@design_io", text: "The UI is clean, but the 'Voice DNA' feature is what sold me. It actually gets my sarcasm.", date: "2d ago" }
-    ];
-
-    return (
-        <section className="py-20 bg-[#0f1115]">
-            <div className="max-w-6xl mx-auto px-6">
-                <div className="text-center mb-12">
-                    <div className="inline-block px-3 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-bold uppercase tracking-wider mb-4 border border-green-500/20">
-                        Viral on Twitter
-                    </div>
-                    <h2 className="text-3xl font-bold text-white">They're growing faster than you.</h2>
-                    <p className="text-gray-400 mt-2">Join the founders who figured out the cheat code.</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {tweets.map((tweet, i) => (
-                        <div key={i} className="bg-[#161b22] p-6 rounded-2xl border border-gray-800 hover:border-gray-600 transition group hover:-translate-y-1">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-gray-600 flex items-center justify-center font-bold text-xs text-white">
-                                        {tweet.name[0]}
-                                    </div>
-                                    <div>
-                                        <div className="text-sm font-bold text-white leading-none">{tweet.name}</div>
-                                        <div className="text-xs text-gray-500">{tweet.handle}</div>
-                                    </div>
-                                </div>
-                                <div className="text-gray-400">
-                                    <MessageSquarePlus size={16} />
-                                </div>
-                            </div>
-                            <p className="text-gray-300 text-sm leading-relaxed mb-4">
-                                {tweet.text}
-                            </p>
-                            <div className="text-xs text-gray-600 font-mono">{tweet.date}</div>
-                        </div>
-                    ))}
                 </div>
             </div>
         </section>
@@ -644,15 +506,18 @@ function Footer({ onLogin }: any) {
     return (
         <footer className="py-16 bg-[#0a0c10] border-t border-gray-800 text-center">
             <div className="max-w-2xl mx-auto px-6 mb-12">
-                <h2 className="text-2xl font-bold text-white mb-4">Create content faster — without sounding like AI.</h2>
-                <button onClick={onLogin} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition shadow-lg">
-                    Start Free Trial
+                <h2 className="text-3xl font-bold text-white mb-6">Create content faster — without sounding like AI.</h2>
+                <button onClick={onLogin} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold transition shadow-lg text-lg">
+                    Start 5-Day Free Trial
                 </button>
-                <p className="text-xs text-gray-600 mt-4">5 days free • No credit card needed</p>
+                <div className="flex justify-center gap-6 mt-6 text-sm text-gray-500">
+                    <span className="flex items-center gap-1"><ShieldCheck size={14} /> Secure Payment</span>
+                    <span className="flex items-center gap-1"><Clock size={14} /> Cancel Anytime</span>
+                </div>
             </div>
 
             <div className="text-gray-600 text-sm">
-                &copy; 2024 Vocal Spark. Built by <a href="#" className="text-blue-500 hover:underline">Velocity Automation AI</a>.
+                &copy; 2024 Vocal Spark. Built for Founders.
             </div>
         </footer>
     )

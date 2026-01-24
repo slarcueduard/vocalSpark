@@ -3,10 +3,10 @@ import {
     X, Sparkles, Link as LinkIcon, Globe,
     Upload, Hash, Palette, Check, RefreshCw,
     User, UserCheck, Copy, Ban, MessageSquare, Plus, Trash2,
-    Lock, Target
+    Lock, Target, Mic, Search
 } from 'lucide-react';
 import { BrandProfile } from '../types';
-import { analyzeBrandVoice, generateNicheHooks } from '../services/geminiService';
+import { analyzeBrandVoice, generateNicheHooks, analyzeAudioVoice } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 import { VoiceRadarChart } from './VoiceRadarChart';
 
@@ -134,6 +134,15 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
 
     // Resetare la schimbare profil
     // Resetare la schimbare profil
+    // Audio Recording
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+    const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+    const [audioUrl, setAudioUrl] = useState<string | null>(null);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Reset state on profile switch
     useEffect(() => {
         setUrlInput('');
         setTextInput('');
@@ -141,7 +150,59 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         setEnemy('');
         setOffer('');
         setArchetype('Expert');
+        setAudioBlob(null);
+        setAudioUrl(null);
     }, [activeProfileIndex]);
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            const chunks: BlobPart[] = [];
+
+            recorder.ondataavailable = (e) => chunks.push(e.data);
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'audio/webm' });
+                setAudioBlob(blob);
+                setAudioUrl(URL.createObjectURL(blob));
+                stream.getTracks().forEach(track => track.stop()); // Stop mic
+            };
+
+            recorder.start();
+            setMediaRecorder(recorder);
+            setIsRecording(true);
+            setRecordingTime(0);
+
+            timerRef.current = setInterval(() => {
+                setRecordingTime(prev => prev + 1);
+            }, 1000);
+
+        } catch (err) {
+            console.error("Mic Error:", err);
+            alert("Could not access microphone.");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorder && isRecording) {
+            mediaRecorder.stop();
+            setIsRecording(false);
+            if (timerRef.current) clearInterval(timerRef.current);
+        }
+    };
+
+    const deleteRecording = () => {
+        setAudioBlob(null);
+        setAudioUrl(null);
+        setRecordingTime(0);
+    };
+
+    // New formatTime helper
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     // Removed lock logic - sliders always editable
 
@@ -183,6 +244,44 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
         }
 
         return preview;
+    };
+
+    const handleAnalyzeAudio = async () => {
+        if (!audioBlob) return;
+
+        setIsAnalyzing(true);
+        try {
+            console.log("🎙️ Sending Audio for Analysis...", audioBlob.size);
+            const result = await analyzeAudioVoice(audioBlob);
+
+            console.log("📊 Audio Analysis Result:", result.analysis);
+            const analysis = result.analysis;
+
+            // Reuse the save logic
+            const safeNumber = (val: any) => Number(val) || 50;
+
+            setSliders({
+                tone: safeNumber(analysis.tone_score),
+                emoji: safeNumber(analysis.emoji_score),
+                length: safeNumber(analysis.length_score)
+            });
+            setIndustry(analysis.niche);
+            setTargetAudience(analysis.audience);
+            setVoiceDNA(`Voice DNA (Audio Extracted): ${analysis.voice_description}\n\nTranscript Sample: "${result.transcript.substring(0, 100)}..."`);
+
+            if (analysis.suggested_hashtags && analysis.suggested_hashtags.length > 0) {
+                setSuggestedHashtags(analysis.suggested_hashtags);
+                if (!hashtags) setHashtags(analysis.suggested_hashtags.join(' '));
+            }
+
+            alert("Voice DNA Extracted Successfully! 🧬");
+
+        } catch (error: any) {
+            console.error("Audio Analysis Failed:", error);
+            alert(`Analysis Failed: ${error.message}`);
+        } finally {
+            setIsAnalyzing(false);
+        }
     };
 
     const handleAnalyze = async () => {
@@ -533,18 +632,29 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                     {/* Tabs */}
                     <div className="flex border-b border-gray-800 bg-[#0f1115]">
                         <TabButton label="Voice DNA" isActive={activeTab === 'core'} onClick={() => setActiveTab('core')} />
-                        <TabButton label="Strategy (Founder)" isActive={activeTab === 'strategy'} onClick={() => setActiveTab('strategy')} />
+                        <TabButton
+                            label="Strategy (Founder)"
+                            isActive={activeTab === 'strategy'}
+                            onClick={() => {
+                                if (userProfile?.subscriptionTier === 'pro') {
+                                    alert("🔒 Founder Strategy is available on the Agency Plan (or Free Trial).");
+                                    return;
+                                }
+                                setActiveTab('strategy');
+                            }}
+                            isLocked={userProfile?.subscriptionTier === 'pro'}
+                        />
                         <TabButton
                             label="Custom Hooks"
                             isActive={activeTab === 'hooks'}
                             onClick={() => {
-                                if (userProfile?.subscriptionTier !== 'agency') {
-                                    alert("🔒 Viral Hooks are available only on the Agency Plan.\n\nSave your winning hooks and auto-generate new ones based on your niche.");
+                                if (userProfile?.subscriptionTier === 'pro') {
+                                    alert("🔒 Viral Hooks are available on the Agency Plan (or Free Trial).\n\nSave your winning hooks and auto-generate new ones based on your niche.");
                                     return;
                                 }
                                 setActiveTab('hooks');
                             }}
-                            isLocked={userProfile?.subscriptionTier !== 'agency'}
+                            isLocked={userProfile?.subscriptionTier === 'pro'}
                         />
                         <TabButton label="Rules" isActive={activeTab === 'rules'} onClick={() => setActiveTab('rules')} />
                     </div>
@@ -565,17 +675,68 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
                                         Clone your own voice or copy an influencer's style
                                     </p>
                                     <div className="space-y-3">
+
+                                        {/* AUDIO RECORDER UI */}
+                                        <div className="bg-[#0f1115] border border-gray-700 rounded-xl p-4 mb-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                                    <Mic size={14} className="text-red-500" /> Record Your Voice
+                                                </h4>
+                                                {isRecording && <span className="text-xs font-mono text-red-500 animate-pulse">● Rec {formatTime(recordingTime)}</span>}
+                                            </div>
+
+                                            {!audioBlob ? (
+                                                <div className="text-center py-6">
+                                                    {/* SCRIPT PROMPT (New Feature) */}
+                                                    {!isRecording && (
+                                                        <div className="mb-6 bg-blue-900/10 border border-blue-500/20 p-3 rounded-lg max-w-sm mx-auto">
+                                                            <p className="text-[10px] text-blue-300 font-bold uppercase mb-1">💡 Script Suggestion</p>
+                                                            <p className="text-xs text-gray-400 italic">"Read one of your recent best-performing posts or a paragraph from your blog naturally."</p>
+                                                        </div>
+                                                    )}
+
+                                                    <button
+                                                        onClick={isRecording ? stopRecording : startRecording}
+                                                        className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 animate-pulse shadow-lg shadow-red-500/30' : 'bg-gray-700 hover:bg-red-600 hover:scale-110'}`}
+                                                    >
+                                                        {isRecording ? <div className="w-6 h-6 bg-white rounded-sm" /> : <Mic size={32} className="text-white" />}
+                                                    </button>
+                                                    <p className="text-xs text-gray-500 mt-4">{isRecording ? "Speak naturally..." : "Tap to Start • 30-60s Recommended"}</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-4">
+                                                    <div className="bg-gray-800/50 p-3 rounded-lg flex items-center justify-between">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                                                                <Check size={16} className="text-blue-400" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-white">Recording Ready</p>
+                                                                <p className="text-xs text-gray-500">{formatTime(recordingTime)} • WebM Audio</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={deleteRecording} className="p-2 text-gray-500 hover:text-red-400 transition"><Trash2 size={16} /></button>
+                                                    </div>
+
+                                                    <button onClick={handleAnalyzeAudio} disabled={isAnalyzing} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-90 text-white font-bold py-3 rounded-lg transition shadow-lg flex items-center justify-center gap-2">
+                                                        {isAnalyzing ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                                                        {isAnalyzing ? 'Extracting Voice DNA...' : 'Analyze Recording'}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider mb-2">OR PASTE TEXT</div>
+
                                         <div className="relative">
                                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"><LinkIcon size={14} /></div>
                                             <input type="text" placeholder="Blog or Article URL (optional)" className="w-full bg-[#0f1115] border border-gray-700 rounded-lg py-2.5 pl-9 pr-4 text-sm text-white focus:outline-none focus:border-blue-500 transition" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} />
                                         </div>
-                                        <p className="text-[10px] text-gray-500 px-1">*Social Media links are blocked. Use Copy-Paste below.</p>
-                                        <div className="text-center text-[10px] text-gray-600 font-bold uppercase tracking-wider">AND / OR</div>
                                         <textarea placeholder="Paste content here (your posts or influencer content)..." className="w-full bg-[#0f1115] border border-gray-700 rounded-lg p-3 text-sm text-white placeholder-gray-500 min-h-[100px] focus:outline-none focus:border-blue-500 transition resize-none font-mono" value={textInput} onChange={(e) => setTextInput(e.target.value)} />
                                     </div>
-                                    <button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-lg transition shadow-lg flex items-center justify-center gap-2">
-                                        {isAnalyzing ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                                        {isAnalyzing ? 'Analyzing...' : 'Analyze & Save DNA'}
+                                    <button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full mt-4 bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold py-2.5 rounded-lg transition border border-gray-700 flex items-center justify-center gap-2">
+                                        {isAnalyzing ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
+                                        Analyze Text
                                     </button>
 
                                     {/* Suggested Hashtags Display */}

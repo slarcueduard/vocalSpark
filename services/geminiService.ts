@@ -681,6 +681,33 @@ export const analyzeBrandVoice = async (content: string, mode: 'personal' | 'ins
     }
 };
 
+// --- 4.5 AUDIO VOICE ANALYSIS ---
+export async function analyzeAudioVoice(audioBlob: Blob): Promise<any> {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+
+    const headers = await getAuthHeader();
+    // Note: Do NOT set Content-Type header manually for FormData, browser does it with boundary
+
+    try {
+        const response = await fetch('/api/analyze-voice-audio', {
+            method: 'POST',
+            // headers: { ...headers }, // If auth needed on backend later
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Audio analysis failed');
+        }
+
+        return await response.json();
+    } catch (e) {
+        console.error("Audio API Error:", e);
+        throw e;
+    }
+}
+
 // --- UTILS ---
 export async function adaptPostForPlatform(originalContent: string, platform: Platform): Promise<string> {
     try {

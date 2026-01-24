@@ -11,7 +11,7 @@ import { db, auth } from './services/firebase';
 
 import { Loader } from './components/Loader';
 import { SparklesIcon, ImageIcon, BriefcaseIcon } from './components/Icons';
-import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target, Youtube, Smile, AlertTriangle, Sparkles, MessageCircle, Mic, Lightbulb, MonitorPlay, AlignLeft, Check } from 'lucide-react';
+import { Lock, X, HelpCircle, Globe, Bell, Repeat, CheckCircle, Fingerprint, Dices, Target, Youtube, Smile, AlertTriangle, Sparkles, MessageCircle, Mic, Lightbulb, MonitorPlay, AlignLeft, Check, Zap } from 'lucide-react';
 import { ImageCreationModal } from './components/ImageCreationModal';
 import { BrandProfileModal } from './components/BrandProfileModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -149,11 +149,11 @@ const SocialSparkApp: React.FC = () => {
         setError(null);
 
         // --- GATING LOGIC ---
-        const userTier = userProfile?.subscriptionTier || 'pro'; // Default to pro if undefined
-        if (userTier !== 'agency') {
+        // Allow Trial and Agency. Block Pro.
+        const userTier = userProfile?.subscriptionTier || 'pro';
+        if (userTier === 'pro') {
             if (mode === 'campaign' || mode === 'reply') {
-                // Show Upgrade Modal or Alert
-                alert("🔒 This feature is available only for Agency Plan users.\n\nUpgrade to unlock Campaign Mode, Smart Reply, and Advanced Analytics.");
+                alert("🔒 This feature is available only for Agency Plan users (or during Free Trial).\n\nUpgrade to unlock Campaign Mode, Smart Reply, and Advanced Analytics.");
                 return;
             }
         }
@@ -291,7 +291,11 @@ const SocialSparkApp: React.FC = () => {
                 const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
 
                 for (const postData of newPostsData) {
-                    await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
+                    const result = await savePostToHistory(user.uid, postData, "I'm Feeling Lucky 🎲", limit);
+                    if (result?.autoDeletedCount) {
+                        setNotification(`⚠️ Vault Full. Auto-archived ${result.autoDeletedCount} old posts.`);
+                        setTimeout(() => setNotification(null), 5000);
+                    }
                 }
             }
         } catch (err: any) { setError(err.message || 'Failed to generate lucky post.'); refundCredits(1); }
@@ -365,7 +369,10 @@ const SocialSparkApp: React.FC = () => {
                 const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
 
                 for (const p of newPostsData) {
-                    await savePostToHistory(user?.uid || 'anon', p, `Remix: ${remixData.url} `, limit);
+                    const result = await savePostToHistory(user?.uid || 'anon', p, `Remix: ${remixData.url} `, limit);
+                    if (result?.autoDeletedCount) {
+                        setNotification(`⚠️ Vault Full. Auto-archived ${result.autoDeletedCount} old posts.`);
+                    }
                 }
 
                 setVibeMessage("Link Remixed Successfully! 🚀");
@@ -515,7 +522,11 @@ const SocialSparkApp: React.FC = () => {
                 const tier = userProfile?.subscriptionTier || 'trial';
                 const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
                 for (const postData of newPostsData) {
-                    await savePostToHistory(user.uid, postData, activeTopic, limit);
+                    const result = await savePostToHistory(user.uid, postData, activeTopic, limit);
+                    if (result?.autoDeletedCount) {
+                        setNotification(`⚠️ Vault Full. Auto-archived ${result.autoDeletedCount} old posts.`);
+                        setTimeout(() => setNotification(null), 5000);
+                    }
                 }
             }
         } catch (err: any) {
@@ -594,7 +605,12 @@ const SocialSparkApp: React.FC = () => {
                 // Save to DB
                 const tier = userProfile?.subscriptionTier || 'trial';
                 const limit = VAULT_LIMITS[tier] || VAULT_LIMITS['trial'];
-                await savePostToHistory(user.uid, postToSave, "Follow-up Post", limit);
+                const result = await savePostToHistory(user.uid, postToSave, "Follow-up Post", limit);
+
+                if (result?.autoDeletedCount) {
+                    setNotification(`⚠️ Vault Full. Auto-archived ${result.autoDeletedCount} old posts.`);
+                    setTimeout(() => setNotification(null), 5000);
+                }
 
                 setVibeMessage("🧵 Follow-up Drafted!");
             }
@@ -681,15 +697,21 @@ const SocialSparkApp: React.FC = () => {
                                         <button onClick={() => handleSwitchMode('remix')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
 
                                         <button onClick={() => handleSwitchMode('campaign')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'creator' && isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
-                                            Campaign {(userProfile?.subscriptionTier !== 'agency') && <Lock size={10} />}
+                                            Campaign {(userProfile?.subscriptionTier === 'pro') && <Lock size={10} />}
                                         </button>
 
                                         <button onClick={() => handleSwitchMode('reply')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'reply' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
-                                            Reply {(userProfile?.subscriptionTier !== 'agency') && <Lock size={10} />}
+                                            Reply {(userProfile?.subscriptionTier === 'pro') && <Lock size={10} />}
                                         </button>
 
-                                        <button onClick={() => setAppMode('founder')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 border border-yellow-500/30 ${appMode === 'founder' ? 'bg-yellow-500 text-black shadow-lg' : 'text-yellow-500 hover:bg-yellow-500/10'}`}>
-                                            Founder Mode 👑
+                                        <button onClick={() => {
+                                            if (userProfile?.subscriptionTier === 'pro') {
+                                                alert("🔒 Founder Mode is available on the Agency Plan (or Free Trial).\n\nUnlock holistic brand strategy & campaign management.");
+                                                return;
+                                            }
+                                            setAppMode('founder');
+                                        }} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 border border-yellow-500/30 ${appMode === 'founder' ? 'bg-yellow-500 text-black shadow-lg' : 'text-yellow-500 hover:bg-yellow-500/10'}`}>
+                                            Founder Mode {(userProfile?.subscriptionTier === 'pro') && <Lock size={10} />} 👑
                                         </button>
                                     </div>
                                 </header>

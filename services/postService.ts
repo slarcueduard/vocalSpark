@@ -14,28 +14,48 @@ import {
 import { db } from './firebase';
 import { Post } from '../types';
 
-// 1. SAVE (With Limit Check - No Auto-Deletion)
+// 1. SAVE (With Auto-Delete Logic)
 export const savePostToHistory = async (
   userId: string,
   post: Post,
   topic: string,
-  limit: number = 25 // Updated default to 25 for Pro
-): Promise<string | null> => {
+  limit: number = 25
+): Promise<{ id: string; autoDeletedCount: number } | null> => {
 
   if (!userId || !post.content) return null;
 
   try {
     const postsRef = collection(db, 'posts');
 
-    // A. CHECK LIMIT BEFORE SAVING (Don't delete, just prevent save)
-    const userPostsQuery = query(postsRef, where('userId', '==', userId));
+    // A. CHECK LIMIT & AUTO-DELETE
+    const userPostsQuery = query(postsRef, where('userId', '==', userId), orderBy('createdAt', 'asc'));
     const snapshot = await getDocs(userPostsQuery);
     const currentCount = snapshot.size;
 
-    // If at or over limit, prevent saving (user must manually delete)
+    let autoDeletedCount = 0;
+
     if (currentCount >= limit) {
-      alert(`Vault limit reached! You have ${currentCount}/${limit} posts. Delete some unlocked posts to save new content.`);
-      return null;
+      // Find eligible posts to delete (Oldest first, NOT locked)
+      // We need to delete enough to make room. usually just 1, but handle edge case.
+      const neededSpace = (currentCount - limit) + 1;
+      let deletedSoFar = 0;
+
+      for (const doc of snapshot.docs) {
+        if (deletedSoFar >= neededSpace) break;
+
+        const data = doc.data();
+        if (!data.isLocked) { // Only delete if NOT locked
+          await deleteDoc(doc.ref);
+          deletedSoFar++;
+          autoDeletedCount++;
+        }
+      }
+
+      // If we couldn't free up enough space (e.g. all are locked)
+      if (deletedSoFar < neededSpace) {
+        alert(`Vault full! You have ${currentCount} posts and they are all LOCKED (pinned). Unpin some to save new ones.`);
+        return null;
+      }
     }
 
     // B. SAVE THE POST
@@ -65,9 +85,9 @@ export const savePostToHistory = async (
       docRef = await addDoc(postsRef, docData);
     }
 
-    console.log("✅ Post saved. ID:", docRef.id);
+    console.log("✅ Post saved. ID:", docRef.id, "Auto-deleted:", autoDeletedCount);
 
-    return docRef.id;
+    return { id: docRef.id, autoDeletedCount };
 
   } catch (e) {
     console.error("❌ Save failed:", e);

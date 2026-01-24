@@ -8,23 +8,23 @@ export function VisualHowItWorks() {
         {
             number: 1,
             title: "Set Your Voice DNA",
-            description: "Upload a sample or choose a persona. AI analyzes your tone, style, and emoji usage to clone your unique brand voice.",
+            description: "Upload a sample or choose a persona. We analyze your tone so every future post sounds exactly like you.",
             image: "/how-it-works/step1-voice-dna.png",
             icon: <Sparkles className="text-purple-400" size={28} />,
             color: "purple"
         },
         {
             number: 2,
-            title: "Create Multiples",
-            description: "Generate perfectly formatted posts for LinkedIn, Twitter, Instagram, and more in a single click using Creator Studio.",
+            title: "Generate Multi-Platform",
+            description: "Speak your idea once. Get perfectly formatted posts for LinkedIn, X, and Instagram instantly.",
             image: "/how-it-works/step2-create-multiples.png",
             icon: <Wand2 className="text-blue-400" size={28} />,
             color: "blue"
         },
         {
             number: 3,
-            title: "Remix Content",
-            description: "Repurpose articles, news, or text into viral social media posts instantly. Transform one idea into widely distributed content.",
+            title: "Remix & Repurpose",
+            description: "Paste a URL or article. We extract the key points and turn them into viral social content.",
             image: "/how-it-works/step3-remix.png",
             icon: <ImageIcon className="text-pink-400" size={28} />,
             color: "pink"
