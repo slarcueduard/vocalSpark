@@ -15,6 +15,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
 import { SidebarSocials } from '../components/SocialSupportButtons';
+import { TrialReminderModal } from '../components/TrialReminderModal';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -54,6 +55,7 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
         isOpen={isPricingOpen}
         onClose={() => setIsPricingOpen(false)}
       />
+      <TrialReminderModal />
 
       {/* Mobile Overlay */}
       {isSidebarOpen && (
