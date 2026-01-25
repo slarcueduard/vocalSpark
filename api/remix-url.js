@@ -57,6 +57,15 @@ export default async function handler(req, res) {
             throw new Error("Failed to scrape content (too short).");
         }
 
+        // === ACTION: SCRAPE ONLY (for Analysis) ===
+        const { action } = req.body;
+        if (action === 'scrape') {
+            return res.status(200).json({
+                url,
+                content: scrapedContent
+            });
+        }
+
         // --- 2. GENERATE POSTS via OPENAI ---
         const openai = new OpenAI({ apiKey: openaiKey });
 

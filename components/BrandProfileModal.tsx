@@ -310,10 +310,10 @@ export function BrandProfileModal({ currentProfile, onSave, onClose }: BrandProf
             if (urlInput && !textInput) {
                 console.log("🔗 Scraping URL:", urlInput);
                 try {
-                    const scrapeResponse = await fetch('/api/scrape-url', {
+                    const scrapeResponse = await fetch('/api/remix-url', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url: urlInput })
+                        body: JSON.stringify({ url: urlInput, action: 'scrape' })
                     });
 
                     console.log("📊 Scrape response status:", scrapeResponse.status);
