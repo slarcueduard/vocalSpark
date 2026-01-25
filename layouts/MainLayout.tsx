@@ -10,7 +10,8 @@ import {
   Building2,
   Archive,
   Calendar as CalendarIcon,
-  Lock
+  Lock,
+  Crown
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PricingModal } from '../components/PricingModal';
@@ -20,13 +21,13 @@ import { TrialReminderModal } from '../components/TrialReminderModal';
 interface MainLayoutProps {
   children: React.ReactNode;
   onOpenBrandProfile: () => void;
-  onOpenBrandProfile: () => void;
+  onFounderModeClick?: () => void;
   currentView: 'create' | 'history' | 'calendar' | 'docs' | 'daily';
   onViewChange: (view: 'create' | 'history' | 'calendar' | 'docs' | 'daily') => void;
   onResetMode?: () => void;
 }
 
-export function MainLayout({ children, onOpenBrandProfile, currentView, onViewChange, onResetMode }: MainLayoutProps) {
+export function MainLayout({ children, onOpenBrandProfile, onFounderModeClick, currentView, onViewChange, onResetMode }: MainLayoutProps) {
   const { userProfile, logout, user, brandProfile } = useAuth();
 
   const credits = userProfile?.credits ?? 0;
@@ -85,7 +86,32 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
         </div>
 
         <nav className="flex-1 px-4 py-2 space-y-2 overflow-y-auto custom-scrollbar">
-          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Workspace</div>
+          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Strategy</div>
+
+          <div onClick={() => {
+            if (onFounderModeClick) {
+              onFounderModeClick();
+              setIsSidebarOpen(false);
+            }
+          }} className="cursor-pointer">
+            <NavItem
+              icon={<Crown size={20} className="text-yellow-500" />}
+              label="Founder Mode"
+              isLocked={userProfile?.subscriptionTier === 'pro'}
+            />
+          </div>
+
+          <div onClick={() => { onOpenBrandProfile(); setIsSidebarOpen(false); }} className="cursor-pointer">
+            <NavItem icon={<Briefcase size={20} />} label="Voice DNA" />
+            {brandProfile && (
+              <div className="ml-4 mt-2 p-3 bg-[#1c1c2e] rounded-xl border border-gray-800/50 text-[10px] text-gray-400 hover:border-gray-600 transition group shadow-inner">
+                <p className="text-white font-bold mb-1 border-b border-gray-700 pb-1 truncate">{brandProfile.name || 'Brand Profile'}</p>
+                <div className="flex justify-between mt-1"><span className="text-gray-500">Niche:</span><span className="text-blue-400 font-medium truncate max-w-[80px]">{brandProfile.industry || '-'}</span></div>
+              </div>
+            )}
+          </div>
+
+          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">Workspace</div>
           <div onClick={() => handleNavClick('create')}><NavItem icon={<LayoutDashboard size={20} />} label="Creator Studio" active={currentView === 'create'} /></div>
           <div onClick={() => handleNavClick('history')}><NavItem icon={<Archive size={20} />} label="Content Vault" active={currentView === 'history'} /></div>
 
@@ -105,16 +131,6 @@ export function MainLayout({ children, onOpenBrandProfile, currentView, onViewCh
           </div>
 
           <div onClick={() => handleNavClick('daily')}><NavItem icon={<Zap size={20} />} label="Today's Post" active={currentView === 'daily'} /></div>
-          <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider mt-6">Strategy</div>
-          <div onClick={() => { onOpenBrandProfile(); setIsSidebarOpen(false); }} className="cursor-pointer">
-            <NavItem icon={<Briefcase size={20} />} label="Voice DNA" />
-            {brandProfile && (
-              <div className="ml-4 mt-2 p-3 bg-[#1c1c2e] rounded-xl border border-gray-800/50 text-[10px] text-gray-400 hover:border-gray-600 transition group shadow-inner">
-                <p className="text-white font-bold mb-1 border-b border-gray-700 pb-1 truncate">{brandProfile.name || 'Brand Profile'}</p>
-                <div className="flex justify-between mt-1"><span className="text-gray-500">Niche:</span><span className="text-blue-400 font-medium truncate max-w-[80px]">{brandProfile.industry || '-'}</span></div>
-              </div>
-            )}
-          </div>
           <SidebarSocials />
 
           <div className="mt-4 pt-4 border-t border-gray-800">

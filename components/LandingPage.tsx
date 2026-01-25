@@ -69,13 +69,13 @@ export function LandingPage({ onLogin }: LandingPageProps) {
             {/* 1. HERO SECTION: Instant Clarity */}
             <HeroSection onLogin={onLogin} />
 
+            {/* 2. PROBLEM AGITATION: Emotional Hook (Moved up) */}
+            <ProblemAgitationSection />
+
             {/* DEMO: Show, Don't Explain */}
             <div className="border-b border-gray-800 bg-[#0f1115]">
                 <InteractiveVoiceDNADemo />
             </div>
-
-            {/* 2. PROBLEM AGITATION: Emotional Hook */}
-            <ProblemAgitationSection />
 
             {/* 3. SOLUTION: Brand Voice Workspace */}
             <SolutionSection onLogin={onLogin} />
@@ -182,21 +182,38 @@ function ProblemAgitationSection() {
                     <p className="text-gray-400 text-lg">You know you need to post, but the process is painful.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <ProblemCard
-                        icon={<Clock className="text-red-400" />}
-                        title="The Time Drain"
-                        desc="Staring at a blank screen for 30 minutes just to write one mediocre LinkedIn post."
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <ProblemSolutionCard
+                        problemIcon={<Clock className="text-red-400" />}
+                        problemTitle="The Time Drain"
+                        problemDesc="Staring at a blank screen for 30 mins to write one post."
+                        solutionIcon={<Mic className="text-green-400" />}
+                        solutionTitle="Voice-to-Post"
+                        solutionDesc="Speak for 2 mins. Get a formatted post instantly."
                     />
-                    <ProblemCard
-                        icon={<Fingerprint className="text-orange-400" />}
-                        title="The Generic Trap"
-                        desc="Using ChatGPT results in robotic, soul-less content that your audience ignores."
+                    <ProblemSolutionCard
+                        problemIcon={<UserCheck className="text-red-400" />}
+                        problemTitle="Rewriting AI"
+                        problemDesc="Fixing ChatGPT's robotic tone takes longer than writing."
+                        solutionIcon={<Fingerprint className="text-green-400" />}
+                        solutionTitle="Voice DNA™"
+                        solutionDesc="AI that learns your style and gets it right the first time."
                     />
-                    <ProblemCard
-                        icon={<Layers className="text-purple-400" />}
-                        title="The Platform Chaos"
-                        desc="Rewriting the same idea 4 times for X, LinkedIn, Instagram, and your Newsletter."
+                    <ProblemSolutionCard
+                        problemIcon={<Layers className="text-red-400" />}
+                        problemTitle="Platform Chaos"
+                        problemDesc="Managing voice across LinkedIn, X, and IG is a nightmare."
+                        solutionIcon={<Repeat className="text-green-400" />}
+                        solutionTitle="One-Click Remix"
+                        solutionDesc="Turn one idea into native content for every platform."
+                    />
+                    <ProblemSolutionCard
+                        problemIcon={<Fingerprint className="text-red-400" />}
+                        problemTitle="Generic Content"
+                        problemDesc="Your insights get lost in soul-less, generic copy."
+                        solutionIcon={<Sparkles className="text-green-400" />}
+                        solutionTitle="Personal Vault"
+                        solutionDesc="Content grounded in YOUR stories and past wins."
                     />
                 </div>
             </div>
@@ -204,14 +221,26 @@ function ProblemAgitationSection() {
     );
 }
 
-function ProblemCard({ icon, title, desc }: any) {
+function ProblemSolutionCard({ problemIcon, problemTitle, problemDesc, solutionIcon, solutionTitle, solutionDesc }: any) {
     return (
-        <div className="bg-[#161b22] p-8 rounded-2xl border border-gray-800 hover:border-red-500/30 transition group">
-            <div className="mb-6 bg-gray-800/50 w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition">
-                {icon}
+        <div className="bg-[#161b22] rounded-2xl border border-gray-800 overflow-hidden group hover:border-gray-600 transition flex flex-col">
+            {/* PROBLEM SIDE */}
+            <div className="p-8 border-b border-gray-800 bg-red-500/5">
+                <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-red-500/10 rounded-lg shrink-0">{problemIcon}</div>
+                    <h3 className="text-lg font-bold text-gray-200">{problemTitle}</h3>
+                </div>
+                <p className="text-gray-400 text-sm leading-relaxed">{problemDesc}</p>
             </div>
-            <h3 className="text-xl font-bold text-white mb-3">{title}</h3>
-            <p className="text-gray-400 leading-relaxed text-sm">{desc}</p>
+
+            {/* SOLUTION SIDE */}
+            <div className="p-8 bg-green-500/5 flex-1">
+                <div className="flex items-center gap-3 mb-3">
+                    <div className="p-2 bg-green-500/10 rounded-lg shrink-0">{solutionIcon}</div>
+                    <h3 className="text-lg font-bold text-white">{solutionTitle}</h3>
+                </div>
+                <p className="text-gray-300 text-sm leading-relaxed">{solutionDesc}</p>
+            </div>
         </div>
     )
 }
@@ -225,21 +254,21 @@ function SolutionSection({ onLogin }: any) {
                         <div className="inline-block text-blue-500 font-bold mb-4 tracking-wider text-sm uppercase">The Solution</div>
                         <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">Your Personal Brand <br /> Operating System</h2>
                         <p className="text-lg text-gray-400 mb-8 leading-relaxed">
-                            VocalSpark isn't a chatbot. It's a <strong className="text-white">Brand Voice Workspace</strong>. It acts as your personal ghostwriter that never sleeps, never complains, and knows exactly how you sound.
+                            VocalSpark isn't a chatbot or a prompt playground. It's a <strong className="text-white">Brand Voice Workspace</strong>. It acts as your personal ghostwriter that never sleeps and knows exactly how you sound.
                         </p>
 
                         <div className="space-y-6">
                             <SolutionPoint
-                                title="Learns Your Voice DNA™"
+                                title="Learns how you write"
                                 desc="We analyze your past content to clone your tone, humor, and rhythm."
                             />
                             <SolutionPoint
-                                title="One Idea → Everywhere"
-                                desc="Drop a voice note. Get a Thread, a LinkedIn post, and an Instagram caption instantly."
+                                title="Filters AI through your style"
+                                desc="Every post is rewritten to match your unique voice signature before you see it."
                             />
                             <SolutionPoint
-                                title="No Prompt Engineering"
-                                desc="Stop fighting with prompts. Just speak or write naturally."
+                                title="Keeps consistency everywhere"
+                                desc="Whether it's a tweet or a newsletter, you sound like YOU across every platform."
                             />
                         </div>
 

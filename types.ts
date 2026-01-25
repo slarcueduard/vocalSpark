@@ -144,14 +144,14 @@ export const PLANS: Record<SubscriptionTier, PlanConfig> = {
     id: 'trial',
     name: 'Pro Trial', // Nume nou
     price: 0,
-    credits: 150, // Updated: More reasonable trial allocation
-    label: '5 Days Full Access',
+    credits: 5000, // Updated: Agency Level for Trial
+    label: '5 Days Agency Access',
     features: [
-      '1,000 Credits (5 Days)',
+      '5,000 Credits (5 Days)',
       'Full GPT-4o Intelligence',
       'Premium DALL-E 3 Images',
       'Remix Mode Unlocked',
-      'Real-Time Data'
+      'Agency Tools (Founder Mode)'
     ],
     detailedFeatures: [
       'No Credit Card Required',

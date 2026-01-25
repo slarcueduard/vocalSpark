@@ -69,8 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const newProfile: UserProfile = {
               uid: currentUser.uid,
               email: currentUser.email || '',
-              credits: 150,
-              subscriptionTier: 'pro', // Updated: Pro is now entry level
+              credits: 5000,
+              subscriptionTier: 'trial',
+              trialStartDate: new Date().toISOString(),
+              trialEndDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
               createdAt: new Date().toISOString()
             };
             setDoc(userRef, newProfile);

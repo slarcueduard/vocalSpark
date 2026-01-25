@@ -125,7 +125,7 @@ export function RemixStudio({
         // Actually, let's keep it simple: Trigger Generate.
         // If the user is on Agency, we can try to do a hidden X-Ray too.
 
-        if (!xRayData && userProfile?.subscriptionTier === 'agency' && topic.length > 50) {
+        if (!xRayData && (userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'trial') && topic.length > 50) {
             // Silent Analysis for "Why this works" reveal
             analyzeViralStructure(topic).then(data => setXRayData(data)).catch(e => console.log("Silent analysis failed", e));
         }

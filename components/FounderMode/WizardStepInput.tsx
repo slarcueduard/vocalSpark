@@ -84,7 +84,7 @@ export const WizardStepInput: React.FC<WizardStepInputProps> = ({ onNext, initia
                 <div className="flex justify-between items-center p-4 border-t border-gray-800 bg-[#0f1115] rounded-b-xl">
                     <button
                         onClick={toggleListening}
-                        className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500/20 text-red-500 animate-pulse' : 'hover:bg-gray-800 text-gray-400'}`}
+                        className={`p-3 rounded-full transition-all ${isListening ? 'bg-red-500/20 text-red-500 animate-pulse' : 'hover:bg-red-500/10 text-gray-400 hover:text-red-500'}`}
                     >
                         <Mic size={24} />
                     </button>

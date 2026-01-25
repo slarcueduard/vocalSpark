@@ -15,7 +15,7 @@ export const HookGenerator: React.FC<HookGeneratorProps> = ({ onClose }) => {
     const [hooks, setHooks] = useState<any[]>([]);
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
-    const isAgency = userProfile?.subscriptionTier === 'agency';
+    const isAgency = userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'trial';
 
     const handleGenerateHooks = async () => {
         if (!topic.trim()) return;
