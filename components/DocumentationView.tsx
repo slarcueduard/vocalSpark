@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Map, ChevronRight, Zap, Fingerprint, Repeat, ImageIcon, Play, Wand2, Link, Layers, Sparkles, Briefcase, Crown, Check } from 'lucide-react';
+import { BookOpen, Map, ChevronRight, Zap, Fingerprint, Repeat, ImageIcon, Play, Wand2, Link, Layers, Sparkles, Briefcase, Crown, Check, Mic } from 'lucide-react';
 
 interface DocumentationViewProps {
     onClose?: () => void;
@@ -53,9 +53,9 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                     <div className="space-y-12 animate-in fade-in slide-in-from-left-4 duration-300">
                         {/* HERO */}
                         <div className="text-center border-b border-gray-800 pb-10">
-                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-indigo-400 mb-6 drop-shadow-sm">Vocal Spark AI</h1>
+                            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-purple-400 to-indigo-400 mb-6 drop-shadow-sm">Vocal Spark AI v1.9</h1>
                             <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                                The first AI workspace that truly understands <span className="text-white font-bold">Concept</span>, <span className="text-white font-bold">Context</span>, and <span className="text-white font-bold">Brand Voice</span>.
+                                The first AI workspace that combines <span className="text-white font-bold">Founder Strategy</span>, <span className="text-white font-bold">Voice Cloning</span>, and <span className="text-white font-bold">Viral Execution</span>.
                             </p>
                         </div>
 
@@ -67,13 +67,7 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                                     <Sparkles className="text-blue-500" size={20} /> What is Vocal Spark AI?
                                 </h3>
                                 <p className="mb-4">
-                                    Vocal Spark AI is not just another content generator. It is a specialized <strong>Brand Voice Cloning Workspace</strong> designed for founders, creators, and marketing teams who refuse to publish generic, robotic AI content.
-                                </p>
-                                <p className="mb-4">
-                                    In the current landscape of AI tools, most models (like ChatGPT, Claude, or Gemini) are trained to be "helpful assistants." This means they default to a neutral, overly polite, and often boring tone. While great for customer support, this is terrible for social media, where <strong>personality, opinion, and unique flair</strong> are the only things that stop the scroll.
-                                </p>
-                                <p>
-                                    Vocal Spark solves this by introducing a proprietary layer we call <strong>Voice DNA™</strong>. This technology analyzes your past successful posts, deconstructs your syntax, vocabulary, emoji usage, and sentence rhythm, and creates a custom "filter" that sits on top of advanced LLMs. The result is content that actually sounds like *you* wrote it on your best day.
+                                    Vocal Spark is a comprehensive <strong>Founder Operating System</strong> for content. It doesn't just write posts; it understands your business goals, clones your unique writing style via <strong>Voice DNA™</strong>, and helps you execute a cohesive strategy without hiring an agency.
                                 </p>
                             </section>
 
@@ -81,206 +75,136 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
 
                             <section>
                                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                                    <Zap className="text-yellow-500" size={20} /> Core Features & Capabilities
+                                    <Zap className="text-yellow-500" size={20} /> Core Workflows
                                 </h3>
 
                                 <div className="mb-8 p-4 bg-gray-900/30 rounded-xl border border-gray-800/50">
-                                    <h4 className="font-bold text-blue-400 mb-2 text-lg">1. The Creator Studio</h4>
+                                    <h4 className="font-bold text-yellow-400 mb-2 text-lg flex items-center gap-2"><Crown size={16} /> 1. Founder Mode (Strategy)</h4>
                                     <p className="mb-3">
-                                        This is your command center. Unlike chat interfaces where you stare at a blinking cursor, the Creator Studio offers structured workflows:
+                                        For when you have raw ideas but no structure.
                                     </p>
-                                    <ul className="list-disc pl-5 space-y-2 marker:text-blue-500">
-                                        <li><strong>Single Post Mode:</strong> Focused creation for one high-quality update. You input a topic or rough scribbles, select your Brand Profile, and get a polished post in seconds.</li>
-                                        <li><strong>Campaign Mode:</strong> For strategic planning. Input a goal (e.g., "Launch our new leather boots line") and a duration (e.g., "7 days"). The AI generates a cohesive calendar of posts, mixing educational, promotional, and engagement-focused content.</li>
-                                        <li><strong>Remix Mode (The Content Engine):</strong> Now featuring two powerful tools:
-                                            <ul className="list-circle pl-5 mt-2 space-y-1 text-sm text-gray-400">
-                                                <li><strong>Repurpose Content:</strong> Paste a blog, article, or news link to auto-generate posts for LinkedIn, Twitter, and more. <span className="text-gray-500 italic">(YouTube URL support coming soon)</span></li>
-                                                <li><strong>Analyze Post (DNA):</strong> Paste any successful post to deconstruct its viral structure (Hook, Tone, Format). You can then generate a <em>Similar Variant</em> (same topic) or apply that structure to a <em>New Topic</em>.</li>
+                                    <ul className="list-disc pl-5 space-y-2 marker:text-yellow-500 text-sm">
+                                        <li><strong>Brain Dump Input:</strong> Speak or type your raw thoughts. "I want to talk about how we failed our first launch."</li>
+                                        <li><strong>Strategic Mapping:</strong> The AI identifies the goal (e.g., Vulnerability/Trust) and your Archetype (e.g., The Builder).</li>
+                                        <li><strong>Campaign Generation:</strong> It turns that one thought into a 3-part campaign (Teaser, Deep Dive, Call to Action) automatically scheduled on your calendar.</li>
+                                    </ul>
+                                </div>
+
+                                <div className="mb-8 p-4 bg-gray-900/30 rounded-xl border border-gray-800/50">
+                                    <h4 className="font-bold text-blue-400 mb-2 text-lg flex items-center gap-2"><Wand2 size={16} /> 2. Creator Studio (Execution)</h4>
+                                    <p className="mb-3">
+                                        Your daily creation dashboard for speed and precision.
+                                    </p>
+                                    <ul className="list-disc pl-5 space-y-2 marker:text-blue-500 text-sm">
+                                        <li><strong>Voice DNA Wizard:</strong> New users are guided through a 3-step calibration to clone their voice perfectly (Audio or Text).</li>
+                                        <li><strong>Creator Studio:</strong> Create single posts, "Smart Replies" to comments, or multi-platform blasts.</li>
+                                        <li><strong>Remix Studio 2.0:</strong>
+                                            <ul className="list-circle pl-5 mt-2 space-y-1 text-gray-400">
+                                                <li><strong>X-Ray Analysis:</strong> Paste a viral post to decode *why* it worked (Hook type, structure) and replicate it.</li>
+                                                <li><strong>YouTube Remix:</strong> Paste a video URL to extract clips and tweets instantly.</li>
                                             </ul>
                                         </li>
                                     </ul>
                                 </div>
 
                                 <div className="mb-8 p-4 bg-gray-900/30 rounded-xl border border-gray-800/50">
-                                    <h4 className="font-bold text-purple-400 mb-2 text-lg">2. The Content Vault</h4>
-                                    <p>
-                                        Your external brain. Every post you generate is automatically saved here. It's not just a history log; it's a workspace. You can edit drafts, mark posts as "Scheduled," and search through your entire library of ideas. It allows you to build a repository of evergreen content that you can recycle and refine over months.
-                                    </p>
-                                </div>
-
-                                <div className="mb-8 p-4 bg-gray-900/30 rounded-xl border border-gray-800/50">
-                                    <h4 className="font-bold text-green-400 mb-2 text-lg">3. Visual Intelligence</h4>
-                                    <p>
-                                        A post without an image is invisible. Vocal Spark integrates dual-engine image generation. Use the <strong>Standard Model (Flux)</strong> for fast, stylistic visuals, or switch to the <strong>Premium Model (DALL-E 3)</strong> for photorealistic, high-fidelity images that can even include accurate text rendering. The AI automatically reads your post context to suggest the perfect visual prompt.
-                                    </p>
-                                </div>
-
-                                <div className="mb-8 p-4 bg-gray-900/30 rounded-xl border border-gray-800/50">
-                                    <h4 className="font-bold text-white mb-2 text-lg flex items-center gap-2"><Crown size={18} className="text-yellow-500" /> Workspace Plans</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                                        <div className="bg-[#0f1115] p-3 rounded-lg border border-gray-800">
-                                            <h5 className="font-bold text-purple-400 text-sm mb-2">Pro Plan</h5>
-                                            <ul className="space-y-1 text-xs text-gray-400">
-                                                <li className="flex items-center gap-2"><Check size={12} /> 2,000 Credits / mo</li>
-                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>2 Voice Profiles</strong> (1 General + 1 Custom)</li>
-                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>25 Saved Posts</strong> in Vault</li>
-                                                <li className="flex items-center gap-2"><Check size={12} /> Premium DALL-E 3 Images</li>
-                                            </ul>
-                                        </div>
-                                        <div className="bg-[#0f1115] p-3 rounded-lg border border-gray-800">
-                                            <h5 className="font-bold text-orange-400 text-sm mb-2">Agency Plan</h5>
-                                            <ul className="space-y-1 text-xs text-gray-400">
-                                                <li className="flex items-center gap-2"><Check size={12} /> 5,000 Credits / mo</li>
-                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>6 Voice Profiles</strong> (1 General + 5 Custom)</li>
-                                                <li className="flex items-center gap-2"><Check size={12} /> <strong>100 Saved Posts</strong> in Vault</li>
-                                                <li className="flex items-center gap-2"><Check size={12} /> Bulk Generation</li>
-                                            </ul>
-                                        </div>
-                                    </div>
+                                    <h4 className="font-bold text-green-400 mb-2 text-lg flex items-center gap-2"><Briefcase size={16} /> 3. Daily Consistency</h4>
+                                    <p className="mb-2">Features designed to keep you posting every day.</p>
+                                    <ul className="list-disc pl-5 space-y-2 marker:text-green-500 text-sm">
+                                        <li><strong>Today's Post Widget:</strong> A daily "Assignment" based on trending topics in your niche.</li>
+                                        <li><strong>Streak Tracker:</strong> Visualize your consistency.</li>
+                                        <li><strong>Trial Reminders:</strong> Smart notifications to keep you on track during your evaluation.</li>
+                                    </ul>
                                 </div>
                             </section>
-
-                            <div className="w-full h-px bg-gray-800 my-8"></div>
-
-                            <section>
-                                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                                    <Briefcase className="text-green-500" size={20} /> Who is this for? (Use Cases)
-                                </h3>
-                                <div className="grid grid-cols-1 gap-6">
-                                    <div className="bg-[#0f1115] p-5 rounded-lg border-l-4 border-blue-500">
-                                        <h4 className="font-bold text-white mb-1">For Solo Founders</h4>
-                                        <p className="text-sm">You are building in public but don't have 2 hours a day to write. Use Vocal Spark to take your 10-minute brain dump and turn it into a week's worth of LinkedIn authority posts.</p>
-                                    </div>
-                                    <div className="bg-[#0f1115] p-5 rounded-lg border-l-4 border-purple-500">
-                                        <h4 className="font-bold text-white mb-1">For Content Creators</h4>
-                                        <p className="text-sm">Volume is the game. Use Remix Mode to turn your one YouTube video into 15 tweets, 3 LinkedIn posts, and an Instagram caption. Multiply your output by 10x without working more hours.</p>
-                                    </div>
-                                    <div className="bg-[#0f1115] p-5 rounded-lg border-l-4 border-green-500">
-                                        <h4 className="font-bold text-white mb-1">For Agencies</h4>
-                                        <p className="text-sm">You manage 10 different clients with 10 different voices. The "Brand Profile" switcher allows you to instantly toggle between "Playful DTC Brand" and "Serious B2B SaaS" without ever mixing up the tone. It ensures consistency at scale.</p>
-                                    </div>
-                                </div>
-                            </section>
-
                         </div>
-
                     </div>
                 ) : activeTab === 'guide' ? (
                     <div className="space-y-12">
 
-                        <Section title="Getting Started" icon={<Zap className="text-yellow-400" />}>
-                            <p className="text-gray-400 mb-4">Vocal Spark isn't just a chatbot. It's a cohesive workspace designed to clone your brand voice.</p>
+                        <Section title="Getting Started: Voice DNA" icon={<Fingerprint className="text-blue-400" />}>
+                            <p className="text-gray-400 mb-4">The first step to success is teaching the AI who you are.</p>
 
-                            <img src="/docs/creator-studio.png" alt="Creator Studio Dashboard" className="w-full rounded-xl border border-gray-700/50 shadow-lg mb-6 hover:scale-[1.01] transition duration-500" />
-
-                            <ul className="space-y-4 text-sm text-gray-300">
-                                <li className="flex items-start gap-2">
-                                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 shrink-0"></div>
-                                    <div>
-                                        <strong>Single Post Mode:</strong> Create one perfect post.
-                                    </div>
-                                </li>
-                                <li className="flex flex-col gap-2">
-                                    <div className="flex items-start gap-2">
-                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 shrink-0"></div>
+                            <div className="bg-[#0f1115] p-5 rounded-xl border border-gray-700/50 mb-6">
+                                <h4 className="font-bold text-white mb-2">The Wizard 🧙‍♂️</h4>
+                                <p className="text-sm text-gray-400 mb-4">When you first join, or when you add a new profile, you'll enter the Voice DNA Wizard.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="border border-gray-700 p-3 rounded-lg flex items-center gap-3">
+                                        <div className="p-2 bg-blue-900/20 text-blue-400 rounded-full"><Mic size={16} /></div>
                                         <div>
-                                            <strong>Campaign Mode:</strong> Generate a full content calendar (3-30 posts).
+                                            <div className="text-sm font-bold text-white">Audio Analysis</div>
+                                            <div className="text-xs text-gray-500"> Speak for 60s. We extract tone & cadence.</div>
                                         </div>
                                     </div>
-                                    <img src="/docs/campaign-mode.png" alt="Campaign Mode UI" className="w-3/4 rounded-lg border border-gray-700/50 opacity-80 hover:opacity-100 transition" />
-                                </li>
-                                <li className="flex flex-col gap-2">
-                                    <div className="flex items-start gap-2">
-                                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-1.5 shrink-0"></div>
-                                        <div><strong>Remix Mode (2-in-1):</strong></div>
+                                    <div className="border border-gray-700 p-3 rounded-lg flex items-center gap-3">
+                                        <div className="p-2 bg-purple-900/20 text-purple-400 rounded-full"><Link size={16} /></div>
+                                        <div>
+                                            <div className="text-sm font-bold text-white">Text Analysis</div>
+                                            <div className="text-xs text-gray-500">Paste your best LinkedIn/X posts.</div>
+                                        </div>
                                     </div>
-                                    <div className="pl-4 text-xs text-gray-400 space-y-2">
-                                        <p><strong>Option A: Repurpose Content</strong> - Paste a blog post or news article. The system will slice it into multiple social posts for different platforms (LinkedIn, Twitter, etc.).</p>
-                                        <p><strong>Option B: Analyze Post (DNA)</strong> - Paste a successful post to uncover its structure. You can then:</p>
-                                        <ul className="list-disc pl-4">
-                                            <li>Generate a <strong>Similar Variant</strong> (rewrite the same topic with the same DNA).</li>
-                                            <li>Generate with a <strong>New Topic</strong> (apply the DNA structure to a completely new idea).</li>
-                                        </ul>
-                                    </div>
-                                    <img src="/docs/remix-mode.png" alt="Remix Mode UI" className="w-3/4 rounded-lg border border-gray-700/50 opacity-80 hover:opacity-100 transition" />
-                                </li>
-                            </ul>
+                                </div>
+                            </div>
                         </Section>
 
-                        <Section title="Voice DNA" icon={<Fingerprint className="text-blue-400" />}>
-                            <p className="text-gray-400 mb-4">Stop sounding like generic AI. Calibrate your Voice DNA to teach the AI your specific style.</p>
+                        <Section title="Founder Mode (New)" icon={<Crown className="text-yellow-400" />}>
+                            <p className="text-gray-400 mb-4">Stop acting like a social media manager. Act like a Founder.</p>
+                            <img src="/docs/founder-mode.png" alt="Founder Mode UI" className="w-full rounded-xl border border-gray-700/50 shadow-lg mb-6 hover:scale-[1.01] transition duration-500" />
 
+                            <ol className="space-y-4 text-sm text-gray-300 list-decimal pl-4">
+                                <li>
+                                    <strong>Input Step:</strong> Click the yellow "Founder Mode" tab. Use the <strong className="text-red-400">Red Mic Button</strong> to rant about a problem, a win, or a lesson.
+                                </li>
+                                <li>
+                                    <strong>Strategy Step:</strong> The AI suggests a "Campaign Angle".
+                                    <em className="block mt-1 text-gray-500">Example: If you rant about a bad hire, it might suggest a "Leadership Lessons" campaign.</em>
+                                </li>
+                                <li>
+                                    <strong>Execution Step:</strong> Review the generated plan. It creates 3 posts instantly:
+                                    <ul className="list-disc pl-5 mt-2 space-y-1 text-gray-400">
+                                        <li>Day 1: The Story (Hook)</li>
+                                        <li>Day 2: The Lesson (Value)</li>
+                                        <li>Day 3: The Ask (Sales/Conversion)</li>
+                                    </ul>
+                                </li>
+                            </ol>
+                        </Section>
+
+                        <Section title="Remix Studio & X-Ray" icon={<Repeat className="text-green-400" />}>
+                            <p className="text-gray-400 mb-4">Don't guess what goes viral. Know why.</p>
                             <div className="space-y-4">
                                 <div className="bg-[#0f1115] p-4 rounded-xl border border-gray-700/50">
-                                    <h4 className="font-bold text-white text-sm mb-2">1. How it works</h4>
-                                    <p className="text-xs text-gray-400">
-                                        When you create a Brand Profile, we don't just "save" your text. We use a separate AI agent to <strong>reverse-engineer</strong> your writing style. It measures your sentence length, emoji usage, vocabulary complexity, and "spiciness" level.
-                                    </p>
-                                </div>
-
-                                <div className="bg-[#0f1115] p-4 rounded-xl border border-gray-700/50">
-                                    <h4 className="font-bold text-white text-sm mb-2">2. How to Calibrate (Best Practices)</h4>
-                                    <ol className="list-decimal list-inside space-y-2 text-sm text-gray-400 ml-1">
-                                        <li>Go to <strong>Voice DNA</strong> &rarr; <strong>New Profile</strong>.</li>
-                                        <li><strong>The "Magic" Step:</strong> You will be asked to paste content. <span className="text-yellow-400">This is crucial.</span></li>
-                                        <li>
-                                            <strong>DO NOT PASTE:</strong> Generic company descriptions, mission statements, or boring SEO articles.
-                                        </li>
-                                        <li>
-                                            <strong>DO PASTE:</strong> Your 3-5 best high-performing social media posts. The ones where you showed personality, used slang, or had a strong opinion.
-                                        </li>
-                                    </ol>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="p-3 bg-red-900/10 border border-red-900/30 rounded-lg">
-                                        <span className="text-xs font-bold text-red-500 uppercase">❌ Bad Example</span>
-                                        <p className="text-xs text-gray-500 mt-1 italic">"We are a leading provider of solutions providing excellence to our customers since 2010..."</p>
-                                        <p className="text-[10px] text-red-400 mt-1">(Too corporate. AI will sound robotic.)</p>
-                                    </div>
-                                    <div className="p-3 bg-green-900/10 border border-green-900/30 rounded-lg">
-                                        <span className="text-xs font-bold text-green-500 uppercase">✅ Good Example</span>
-                                        <p className="text-xs text-gray-500 mt-1 italic">"Stop overthinking your content. Just post it. Perfectionism is just procrastination in a fancy suit. 🚀"</p>
-                                        <p className="text-[10px] text-green-400 mt-1">(Strong opinion. Punchy. AI will copy this energy.)</p>
-                                    </div>
-                                </div>
-
-                                <img src="/docs/voice-dna.png" alt="Voice DNA Analysis" className="w-full rounded-xl border border-gray-700/50 shadow-lg mt-4 hover:scale-[1.01] transition duration-500" />
-                            </div>
-                        </Section>
-
-                        <Section title="Visuals & Images" icon={<ImageIcon className="text-pink-400" />}>
-                            <p className="text-gray-400 mb-4">Every post needs a visual. You have two powerful options.</p>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="bg-[#0f1115] p-4 rounded-xl border border-gray-700/50">
-                                    <h4 className="font-bold text-white text-sm mb-2">1. AI Generation</h4>
-                                    <p className="text-xs text-gray-400 mb-2">Click the <ImageIcon size={12} className="inline" /> icon on any generated post.</p>
-                                    <ul className="text-xs text-gray-500 space-y-1">
-                                        <li>• <strong>Standard:</strong> Fast, abstract art (Flux model).</li>
-                                        <li>• <strong>Premium:</strong> Photorealistic, high text accuracy (DALL-E 3).</li>
-                                    </ul>
-                                </div>
-                                <div className="bg-[#0f1115] p-4 rounded-xl border border-gray-700/50">
-                                    <h4 className="font-bold text-white text-sm mb-2">2. Upload Your Own</h4>
-                                    <p className="text-xs text-gray-400 mb-2">Have a product shot? Upload it.</p>
-                                    <ul className="text-xs text-gray-500 space-y-1">
-                                        <li>• Click the Image Icon in the main input bar.</li>
-                                        <li>• The AI will "see" your image and write captions about it.</li>
+                                    <h4 className="font-bold text-white text-sm mb-2 flex items-center gap-2"><Zap size={14} className="text-indigo-400" /> X-Ray Analysis</h4>
+                                    <p className="text-xs text-gray-400 mb-2">Paste a URL or text from a competitor's top post.</p>
+                                    <ul className="text-xs text-gray-500 space-y-1 pl-2 border-l-2 border-indigo-500/30">
+                                        <li>• Detects the <strong>Hook Structure</strong> (e.g., "Contrarian Statement").</li>
+                                        <li>• Identifies the <strong>Emotional Tone</strong>.</li>
+                                        <li>• Lets you <strong>Save the Template</strong> to your Vault for future use.</li>
                                     </ul>
                                 </div>
                             </div>
                         </Section>
 
-                        <Section title="Advanced Tools" icon={<Wand2 className="text-purple-400" />}>
-                            <div className="space-y-6">
-                                <div>
-                                    <h4 className="font-bold text-white flex items-center gap-2 mb-2"><CheckCircle className="w-4 h-4 text-green-500" /> Magic Refinement</h4>
-                                    <p className="text-sm text-gray-400">Don't like a specific sentence? Click the <strong>Magic Wand</strong> icon on any post card. The AI will rewrite just that post to be punchier, shorter, or funnier.</p>
+                        <Section title="Plans & Limits" icon={<Briefcase className="text-white" />}>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                                <div className="bg-[#0f1115] p-4 rounded-lg border border-gray-800 relative overflow-hidden">
+                                    <h5 className="font-bold text-blue-400 text-sm mb-2">Pro Plan ($12.99)</h5>
+                                    <ul className="space-y-2 text-xs text-gray-400">
+                                        <li className="flex items-center gap-2"><Check size={12} /> 2,000 Credits / mo</li>
+                                        <li className="flex items-center gap-2"><Check size={12} /> Creator Studio Access</li>
+                                        <li className="flex items-center gap-2"><Check size={12} /> Premium Images (DALL-E)</li>
+                                    </ul>
                                 </div>
-                                <div>
-                                    <h4 className="font-bold text-white flex items-center gap-2 mb-2"><Link className="w-4 h-4 text-blue-500" /> Follow-up Threads</h4>
-                                    <p className="text-sm text-gray-400 mb-3">Want to write a Twitter thread or LinkedIn carousel text? Use the <strong>"Follow-up"</strong> button on a generated post. It creates a "Part 2" that is contextually linked to the parent post.</p>
-                                    <img src="/docs/content-vault.png" alt="Follow-up Button in Vault" className="w-full md:w-3/4 rounded-lg border border-gray-700/50 shadow-lg" />
+                                <div className="bg-[#0f1115] p-4 rounded-lg border border-yellow-500/30 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 bg-yellow-500 text-black text-[9px] font-bold px-2 py-0.5">BEST VALUE</div>
+                                    <h5 className="font-bold text-yellow-500 text-sm mb-2">Agency / Founder ($29.99)</h5>
+                                    <ul className="space-y-2 text-xs text-gray-400">
+                                        <li className="flex items-center gap-2"><Check size={12} /> <strong>5,000 Credits / mo</strong></li>
+                                        <li className="flex items-center gap-2"><Check size={12} /> <strong>Founder Mode</strong> (Strategy)</li>
+                                        <li className="flex items-center gap-2"><Check size={12} /> <strong>X-Ray Analysis</strong></li>
+                                        <li className="flex items-center gap-2"><Check size={12} /> <strong>Video/YouTube Remix</strong></li>
+                                        <li className="flex items-center gap-2"><Check size={12} /> 5+ Brand Profiles</li>
+                                    </ul>
                                 </div>
                             </div>
                         </Section>
@@ -289,42 +213,49 @@ export function DocumentationView({ onClose }: DocumentationViewProps) {
                 ) : (
                     <div className="space-y-8">
                         <div className="text-center mb-10">
-                            <h3 className="text-xl font-bold text-white">The Future of Vocal Spark</h3>
-                            <p className="text-gray-400 text-sm mt-2">We are shipping weekly updates. Here is what we are building.</p>
+                            <h3 className="text-xl font-bold text-white">Product Roadmap</h3>
+                            <p className="text-gray-400 text-sm mt-2">Executed & Planned Features.</p>
                         </div>
 
                         <RoadmapItem
                             status="done"
                             quarter="Q4 2024"
-                            title="Voice DNA & Remix Mode"
-                            desc="The core engine is live. Analyze your brand voice and repurpose content seamlessly."
+                            title="Foundation (v1.0)"
+                            desc="Core AI Engine, Voice DNA Calibration, Basic Post Generation."
+                        />
+
+                        <RoadmapItem
+                            status="done"
+                            quarter="Jan 2025"
+                            title="Founder Mode Release (v1.5)"
+                            desc="Strategic Goal Mapping, Campaign Wizard, Calendar Integration."
+                        />
+
+                        <RoadmapItem
+                            status="done"
+                            quarter="Feb 2025"
+                            title="Growth Suite (v1.9)"
+                            desc="X-Ray Analysis, Voice Wizard Onboarding, Grounded YouTube Remix, Today's Post Widget."
                         />
 
                         <RoadmapItem
                             status="in-progress"
-                            quarter="Q1 2025"
-                            title="Auto-Posting Integration"
-                            desc="Connect LinkedIn & Twitter API directly. Schedule posts and let Vocal Spark publish for you automatically. No more copy-paste."
-                        />
-
-                        <RoadmapItem
-                            status="planned"
                             quarter="Q2 2025"
-                            title="Video Remix v2"
-                            desc="Upload a raw video file. We will extract clips, write captions, and generate a thumbnail automatically."
+                            title="Direct Integrations"
+                            desc="One-click publishing to LinkedIn & Twitter (X). Auto-scheduling API."
                         />
 
                         <RoadmapItem
                             status="planned"
                             quarter="Q3 2025"
-                            title="Mobile App (iOS & Android)"
-                            desc="Create content on the go. Full feature parity with the desktop web app."
+                            title="Collaborative Teams"
+                            desc="Invite team members, approval workflows, and shared brand vaults."
                         />
 
                         <div className="mt-12 p-6 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl border border-blue-500/30 text-center">
                             <h4 className="font-bold text-white mb-2">Have a feature request?</h4>
-                            <p className="text-sm text-gray-400 mb-4">We build for you. Tell us what you need.</p>
-                            <a href="mailto:support@vocalspark.io" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition">Send Request</a>
+                            <p className="text-sm text-gray-400 mb-4">We build fast. Tell us what you need next.</p>
+                            <a href="mailto:founders@vocalspark.io" className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-lg transition">Email Executives</a>
                         </div>
                     </div>
                 )}

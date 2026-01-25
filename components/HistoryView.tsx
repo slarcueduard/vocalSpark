@@ -288,7 +288,7 @@ export function HistoryView() {
                         {/* Vault Counter with Limit */}
                         <div className="flex items-center gap-2 text-[10px] md:text-xs font-bold text-gray-400 bg-black/30 px-3 py-1.5 rounded-lg border border-gray-700 whitespace-nowrap shrink-0">
                             <Database size={12} className="shrink-0" />
-                            {posts.length} / {userProfile?.subscriptionTier === 'agency' ? '100' : '25'}
+                            {posts.length} / {(userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'trial') ? '100' : '25'}
                         </div>
 
                         {/* BUTTON: TOGGLE LOCKED VIEW */}

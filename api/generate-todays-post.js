@@ -138,15 +138,17 @@ export default async function handler(req, res) {
             if (!threadDoc.exists) throw new Error("Thread not found");
             thread = threadDoc.data();
 
-            // Fetch Last 3 Posts
+            // Fetch All Posts for Thread (In-Memory Sort to avoid Index)
             const postsQuery = await db.collection('posts')
-                .where('userId', '==', userId)
                 .where('threadId', '==', thread.id)
-                .orderBy('sequenceNumber', 'desc')
-                .limit(3)
                 .get();
 
-            const lastPosts = postsQuery.docs.map(d => d.data().content).join("\n---\n");
+            const lastPosts = postsQuery.docs
+                .map(d => d.data())
+                .sort((a, b) => b.sequenceNumber - a.sequenceNumber) // Descending
+                .slice(0, 3)
+                .map(p => p.content)
+                .join("\n---\n");
             const nextSeq = thread.sequenceCount + 1;
 
             // Generate Day N
@@ -234,6 +236,6 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error("Today's Post Error:", error);
-        return res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message, stack: error.stack });
     }
 }

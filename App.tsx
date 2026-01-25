@@ -626,7 +626,7 @@ const SocialSparkApp: React.FC = () => {
 
     const activePost = posts[0];
     const previewContent = activePost ? (activePost.adaptedContent[selectedPlatform] || activePost.content) : '';
-    const isPremiumUser = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
+    const isPremiumUser = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'trial';
 
     return (
         <MainLayout
@@ -634,6 +634,11 @@ const SocialSparkApp: React.FC = () => {
             currentView={currentView}
             onViewChange={setCurrentView}
             onResetMode={() => setAppMode('multi')}
+            onFounderModeClick={() => {
+                // Unlock for everyone for now (or restore Pro check later)
+                setCurrentView('create');
+                setAppMode('founder');
+            }}
         >
             {vibeMessage && <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 animate-in fade-in bg-[#161b22] border border-blue-500/30 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3"><span className="text-xl">✨</span><span className="font-bold text-sm">{vibeMessage}</span></div>}
             {notification && <div className="fixed top-20 right-6 z-50 animate-in fade-in bg-blue-600 text-white px-6 py-4 rounded-xl shadow-2xl flex gap-3 cursor-pointer" onClick={() => setCurrentView('history')}><div><p className="font-bold text-sm">Reminder</p><p className="text-xs opacity-90">{notification}</p></div></div>}
@@ -690,28 +695,18 @@ const SocialSparkApp: React.FC = () => {
                                         <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">{appMode === 'remix' ? 'Content Remix ♻️' : appMode === 'reply' ? 'Smart Reply 💬' : isCampaignMode ? 'Campaign Mode 🚀' : 'Creator Studio ✨'}</h2>
                                         <p className="text-gray-500 text-sm mt-1">{appMode === 'remix' ? 'Repurpose content instantly.' : appMode === 'reply' ? 'Generate engaging replies in your voice.' : isCampaignMode ? 'Generate a content calendar.' : 'Create content for multiple platforms.'}</p>
                                     </div>
-                                    <div className="flex w-full md:w-auto bg-[#161b22] p-1 rounded-xl border border-gray-700 overflow-x-auto no-scrollbar">
+                                    <div className="flex w-full md:w-auto bg-[#161b22] p-1 rounded-xl border border-gray-700 overflow-hidden">
                                         {/* Removed 'Single' Tab. Renamed 'Multiple' to 'Creator Studio' behavior (which is 'multi' mode) */}
                                         <button onClick={() => handleSwitchMode('multi')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition ${appMode === 'multi' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Creator Studio</button>
 
                                         <button onClick={() => handleSwitchMode('remix')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition ${appMode === 'remix' ? 'bg-green-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>Remix</button>
 
-                                        <button onClick={() => handleSwitchMode('campaign')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'creator' && isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
+                                        <button onClick={() => handleSwitchMode('campaign')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center justify-center gap-1 ${appMode === 'creator' && isCampaignMode ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
                                             Campaign {(userProfile?.subscriptionTier === 'pro') && <Lock size={10} />}
                                         </button>
 
-                                        <button onClick={() => handleSwitchMode('reply')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 ${appMode === 'reply' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
+                                        <button onClick={() => handleSwitchMode('reply')} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center justify-center gap-1 ${appMode === 'reply' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white'}`}>
                                             Reply {(userProfile?.subscriptionTier === 'pro') && <Lock size={10} />}
-                                        </button>
-
-                                        <button onClick={() => {
-                                            if (userProfile?.subscriptionTier === 'pro') {
-                                                alert("🔒 Founder Mode is available on the Agency Plan (or Free Trial).\n\nUnlock holistic brand strategy & campaign management.");
-                                                return;
-                                            }
-                                            setAppMode('founder');
-                                        }} className={`flex-1 px-3 md:px-4 py-2 rounded-lg text-[10px] md:text-xs font-bold whitespace-nowrap transition flex items-center gap-1 border border-yellow-500/30 ${appMode === 'founder' ? 'bg-yellow-500 text-black shadow-lg' : 'text-yellow-500 hover:bg-yellow-500/10'}`}>
-                                            Founder Mode {(userProfile?.subscriptionTier === 'pro') && <Lock size={10} />} 👑
                                         </button>
                                     </div>
                                 </header>
@@ -857,13 +852,12 @@ const SocialSparkApp: React.FC = () => {
                                                 setDetailLevel={setDetailLevel}
                                                 objective={objective}
                                                 setObjective={setObjective}
-                                                isLoading={isLoading} // --- Pass loading state
-                                                savedTemplates={brandProfile?.savedTemplates || []} // --- Pass saved templates
-                                                useBrandVoice={useBrandVoice} // --- Pass locked state
+                                                isLoading={isLoading}
+                                                savedTemplates={brandProfile?.savedTemplates || []}
+                                                useBrandVoice={useBrandVoice}
                                                 onUpdateProfile={async (updated) => {
                                                     if (!brandProfile) return;
                                                     try {
-                                                        // Merge current profile with updates
                                                         const newProfile = { ...brandProfile, ...updated };
                                                         await saveBrandProfile(newProfile);
                                                     } catch (e) {
@@ -931,10 +925,10 @@ const SocialSparkApp: React.FC = () => {
                                                                 };
                                                                 recognition.start();
                                                             }}
-                                                            className={`transition-all p-2 md:p-3 rounded-full shadow-lg flex items-center justify-center ${isListening ? 'bg-red-600 text-white animate-pulse scale-110' : 'bg-gray-800/80 text-gray-400 hover:text-white hover:bg-red-600/20 backdrop-blur-sm border border-transparent hover:border-red-500/30'}`}
+                                                            className={`transition-all p-2 md:p-3 rounded-full shadow-lg flex items-center justify-center ${isListening ? 'bg-red-600 text-white animate-pulse scale-110' : 'bg-[#1c1c2e] text-gray-400 hover:text-white hover:bg-red-900/20 border border-gray-700 hover:border-red-500/50'}`}
                                                             title={isListening ? "Tap to Stop" : "Rant Mode: Tap to Record"}
                                                         >
-                                                            {isListening ? <div className="w-4 h-4 md:w-5 md:h-5 bg-white rounded-sm animate-spin" /> : <Mic className="w-4 h-4 md:w-[22px] md:h-[22px]" />}
+                                                            {isListening ? <div className="w-4 h-4 md:w-5 md:h-5 bg-white rounded-sm animate-spin" /> : <Mic className="w-4 h-4 md:w-[22px] md:h-[22px] text-red-500" />}
                                                         </button>
                                                     </div>
                                                 )}
@@ -994,7 +988,7 @@ const SocialSparkApp: React.FC = () => {
                                     {isCampaignMode && appMode === 'creator' && (
                                         <section className="bg-purple-900/10 border border-purple-500/30 p-4 rounded-xl animate-in fade-in slide-in-from-top-2 mt-4">
                                             <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-purple-300 uppercase flex items-center gap-2"><BriefcaseIcon size={14} /> Campaign Length</label><span className="text-xs font-bold text-white bg-purple-600 px-2 py-1 rounded">{campaignCount} Posts</span></div>
-                                            <input type="range" min="3" max={userProfile?.subscriptionTier === 'agency' ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} value={campaignCount} onChange={(e) => setCampaignCount(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
+                                            <input type="range" min="3" max={(userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'trial') ? 30 : (userProfile?.subscriptionTier === 'pro' ? 7 : 3)} value={campaignCount} onChange={(e) => setCampaignCount(parseInt(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" />
                                         </section>
                                     )}
                                     <div className="flex items-center justify-between mt-2 px-1">

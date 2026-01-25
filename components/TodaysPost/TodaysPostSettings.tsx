@@ -79,11 +79,14 @@ export const TodaysPostWidget: React.FC<TodaysPostSettingsProps> = ({ onRefresh 
                 })
             });
 
-            if (!res.ok) throw new Error("Failed to generate");
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || "Failed to generate");
+            }
             onRefresh();
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert("Failed to generate daily post.");
+            alert(`Failed to generate daily post: ${error.message}`);
         } finally {
             setGenerating(false);
         }

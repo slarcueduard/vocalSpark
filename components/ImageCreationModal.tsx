@@ -48,7 +48,7 @@ export function ImageCreationModal({ onClose, onSelectImage, initialPrompt = '' 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const currentCost = modelType === 'standard' ? 2 : 20;
-    const canUsePremium = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency';
+    const canUsePremium = userProfile?.subscriptionTier === 'pro' || userProfile?.subscriptionTier === 'agency' || userProfile?.subscriptionTier === 'trial';
 
     // Cleanup for uploaded blobs
     useEffect(() => {
